@@ -2,7 +2,8 @@ parsetab.py
 *.exe
 *.build/
 tmp/
-test
+test 
+out
 *.out
 *.o
 test_dir/

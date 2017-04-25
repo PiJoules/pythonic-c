@@ -26,7 +26,7 @@ class SlotDefinedClass:
 
 class Node(SlotDefinedClass):
     def __str__(self):
-        return json.dumps(self, indent=4, cls=NodeEncoder)
+        raise NotImplementedError("__str__ not implemented for class {}".format(type(self)))
 
 
 class NodeEncoder(json.JSONEncoder):
@@ -41,10 +41,14 @@ class NodeEncoder(json.JSONEncoder):
 
 
 # translation-unit:
+# Series of declarations
 
 
 class TranslationUnit(Node):
     __slots__ = ("extern_decls", )
+
+    def __str__(self):
+        return "\n".join(map(str, self.extern_decls))
 
 
 def p_translation_unit_1(t):
@@ -57,7 +61,9 @@ def p_translation_unit_2(t):
     t[1].extern_decls.append(t[2])
     t[0] = t[1]
 
+
 # external-declaration:
+# Either a varuable declaration or definition;
 
 
 def p_external_declaration_1(t):
@@ -69,11 +75,18 @@ def p_external_declaration_2(t):
     'external_declaration : declaration'
     t[0] = t[1]
 
+
 # function-definition:
 
 
 class FuncDef(Node):
     __slots__ = ("decl_specs", "decltor", "decl_list", "cmp_stmt")
+
+    def __str__(self):
+        return "{} {} {} {}".format(self.decl_specs,
+                                    self.decltor,
+                                    self.decl_list,
+                                    self.cmp_stmt)
 
 
 def p_function_definition_1(t):
@@ -102,6 +115,15 @@ def p_function_definition_4(t):
 class Declaration(Node):
     __slots__ = ("decl_specs", "init_decl_lst")
 
+    def __str__(self):
+        if self.init_decl_lst:
+            return "{} {};".format(
+                self.decl_specs,
+                ", ".join(map(str, self.init_decl_lst))
+            )
+        else:
+            return "{};".format(self.decl_specs)
+
 
 def p_declaration_1(t):
     'declaration : declaration_specifiers init_declarator_list SEMI'
@@ -127,35 +149,65 @@ def p_declaration_list_2(t):
 
 # declaration-specifiers
 
+class StorageClassSpec(Node):
+    __slots__ = ("storage_cls_spec", "decl_spec")
+
+    def __str__(self):
+        if self.decl_spec:
+            return "{} {}".format(self.storage_cls_spec, self.decl_spec)
+        else:
+            return str(self.storage_cls_spec)
+
+
+class TypeSpec(Node):
+    __slots__ = ("type_spec", "decl_spec")
+
+    def __str__(self):
+        if self.decl_spec:
+            return "{} {}".format(self.type_spec, self.decl_spec)
+        else:
+            return str(self.type_spec)
+
+
+class TypeQualifier(Node):
+    __slots__ = ("qualifier", "decl_spec")
+
+    def __str__(self):
+        if self.decl_spec:
+            return "{} {}".format(self.qualifier, self.decl_spec)
+        else:
+            return str(self.qualifier)
+
 
 def p_declaration_specifiers_1(t):
     'declaration_specifiers : storage_class_specifier declaration_specifiers'
-    pass
+    t[0] = StorageClassSpec(t[1], t[2])
 
 
 def p_declaration_specifiers_2(t):
     'declaration_specifiers : type_specifier declaration_specifiers'
-    pass
+    t[0] = TypeSpec(t[1], t[2])
 
 
 def p_declaration_specifiers_3(t):
     'declaration_specifiers : type_qualifier declaration_specifiers'
-    pass
+    t[0] = TypeQualifier(t[1], t[2])
 
 
 def p_declaration_specifiers_4(t):
     'declaration_specifiers : storage_class_specifier'
-    pass
+    t[0] = StorageClassSpec(t[1], None)
 
 
 def p_declaration_specifiers_5(t):
     'declaration_specifiers : type_specifier'
-    pass
+    t[0] = TypeSpec(t[1], None)
 
 
 def p_declaration_specifiers_6(t):
     'declaration_specifiers : type_qualifier'
-    pass
+    t[0] = TypeQualifier(t[1], None)
+
 
 # storage-class-specifier
 
@@ -167,7 +219,7 @@ def p_storage_class_specifier(t):
                                | EXTERN
                                | TYPEDEF
                                '''
-    pass
+    t[0] = str(t[1])
 
 # type-specifier:
 
@@ -186,7 +238,7 @@ def p_type_specifier(t):
                       | enum_specifier
                       | TYPEID
                       '''
-    pass
+    t[0] = str(t[1])
 
 # type-qualifier:
 
@@ -194,7 +246,7 @@ def p_type_specifier(t):
 def p_type_qualifier(t):
     '''type_qualifier : CONST
                       | VOLATILE'''
-    pass
+    t[0] = str(t[1])
 
 # struct-or-union-specifier
 
@@ -252,6 +304,12 @@ def p_init_declarator_list_2(t):
 
 class InitDeclarator(Node):
     __slots__ = ("decltor", "initializer")
+
+    def __str__(self):
+        if self.initializer:
+            return "{} = {}".format(self.decltor, self.initializer)
+        else:
+            return str(self.decltor)
 
 
 def p_init_declarator_1(t):
@@ -368,6 +426,12 @@ def p_enumerator_2(t):
 class Declarator(Node):
     __slots__ = ("pntr", "direct_decltor")
 
+    def __str__(self):
+        if self.pntr:
+            return "{} {}".format(self.pntr, self.direct_decltor)
+        else:
+            return str(self.direct_decltor)
+
 
 def p_declarator_1(t):
     'declarator : pointer direct_declarator'
@@ -384,13 +448,22 @@ def p_declarator_2(t):
 class FuncDecltor(Node):
     __slots__ = ("direct_decltor", "param_type_lst")
 
+    def __str__(self):
+        return "{}({})".format(self.direct_decltor, self.param_type_lst)
+
 
 class ArrayDecltor(Node):
     __slots__ = ("direct_decltor", "size")
 
+    def __str__(self):
+        return "{}[{}]".format(self.direct_decltor, self.size)
+
 
 class FuncDecltorTypes(Node):
     __slots__ = ("direct_decltor", "id_lst")
+
+    def __str__(self):
+        return "{}({})".format(self.direct_decltor, self.id_lst)
 
 
 def p_direct_declarator_1(t):
@@ -1110,6 +1183,8 @@ import profile
 parser = yacc.yacc()
 with open("example.c") as f:
     c_ast = parser.parse(f.read())
+print(json.dumps(c_ast, indent=4, cls=NodeEncoder))
+print("-----")
 print(c_ast)
 
 #yacc.yacc(method='LALR',write_tables=False,debug=False)
