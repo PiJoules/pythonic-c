@@ -1,4 +1,5 @@
 parsetab.py 
+*.preprocessed
 *.exe
 *.build/
 tmp/

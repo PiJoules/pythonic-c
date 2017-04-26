@@ -1,4 +1,5 @@
 int var;
+int var2 = 2;
 
 void func();
 
