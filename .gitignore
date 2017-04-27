@@ -1,4 +1,6 @@
 parsetab.py 
+*.cmm.c
+*_pp.c
 *.preprocessed
 *.exe
 *.build/

@@ -1,5 +1,17 @@
 #include <stdio.h>
 
+/*
+Multiline
+Comment
+*/ 
+
+// Single line comment
+
+main(argc, char** argv){
+    printf("Hello World\n");
+    return 0;
+}
+
 main(argc, argv){
     printf("Hello World\n");
     return 0;

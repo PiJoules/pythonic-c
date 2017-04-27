@@ -12,9 +12,9 @@ import json
 # Get the token map
 tokens = clex.tokens
 
-INDENT = " " * 4
-FILENAME = sys.argv[1]
-FAKE_HEADERS = "fake_libc_include"
+INDENT_SIZE = 4
+INDENT = " " * INDENT_SIZE
+FAKE_HEADERS = "fake_headers"
 
 
 class SlotDefinedClass:
@@ -51,27 +51,105 @@ class NodeEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
+def iter_fields(node):
+    for attr in node.__slots__:
+        yield attr, getattr(node, attr)
+
+
+def iter_tracking(iterable):
+    """
+    Yields:
+        Any: The item returned by the iterable
+        bool: If the item is the first item in the iterable
+        bool: If the item is the last item in the iterable
+    """
+    iter_ = iter(iterable)
+    item = next(iter_)  # Raises Stopiteration if empty
+
+    try:
+        next_item = next(iter_)
+    except StopIteration:
+        # Iterable has only 1 item
+        yield item, True, True
+        return
+    else:
+        # Iterable has more than 1 item
+        yield item, True, False
+
+    while True:
+        item = next_item
+        try:
+            next_item = next(iter_)
+        except StopIteration:
+            # Reached end
+            yield item, False, True
+            return
+        else:
+            # Has more
+            yield item, False, False
+
+
+def dump(node, indent_size=4):
+    indent = indent_size * " "
+    def _lines(node, attr=None):
+        if isinstance(node, Node):
+            if attr:
+                yield attr + "=" + node.__class__.__name__ + ":"
+            else:
+                yield node.__class__.__name__ + ":"
+
+            for attr, val in iter_fields(node):
+                for line in _lines(val, attr=attr):
+                    yield indent + line
+        elif isinstance(node, list):
+            if not node:
+                if attr:
+                    yield attr + "=[]"
+                else:
+                    yield "[]"
+            else:
+                if attr:
+                    yield attr + "=["
+                else:
+                    yield "["
+
+                for elem in node:
+                    for line in _lines(elem):
+                        yield indent + line
+
+                yield "]"
+        elif isinstance(node, str):
+            line = "" if not attr else (attr + "=")
+            yield line + '"{}"'.format(node.replace("\"", "\\\""))
+        else:
+            line = "" if not attr else (attr + "=")
+            yield line + str(node)
+
+
+    return "\n".join(_lines(node))
+
+
 # translation-unit:
 # Series of declarations
 
 
-class TranslationUnit(Node):
-    __slots__ = ("extern_decls", )
+class Module(Node):
+    __slots__ = ("body", )
 
     def lines(self):
-        for decl in self.extern_decls:
+        for decl in self.body:
             yield from decl.lines()
             yield ""  # Extra newline
 
 
 def p_translation_unit_1(t):
     'translation_unit : external_declaration'
-    t[0] = TranslationUnit([t[1]])
+    t[0] = Module([t[1]])
 
 
 def p_translation_unit_2(t):
     'translation_unit : translation_unit external_declaration'
-    t[1].extern_decls.append(t[2])
+    t[1].body.append(t[2])
     t[0] = t[1]
 
 
@@ -470,7 +548,7 @@ class Declarator(Node):
 
     def lines(self):
         if self.pntr:
-            yield "{} {}".format(self.pntr, self.direct_decltor)
+            yield "{}{}".format(self.pntr, self.direct_decltor)
         else:
             yield str(self.direct_decltor)
 
@@ -489,12 +567,12 @@ def p_declarator_2(t):
 
 
 class FuncDecltor(Node):
-    __slots__ = ("direct_decltor", "param_type_lst")
+    __slots__ = ("direct_decltor", "args")
 
     def __str__(self):
         return "{}({})".format(
             self.direct_decltor,
-            ", ".join(map(str, self.param_type_lst))
+            ", ".join(map(str, self.args))
         )
 
 
@@ -505,13 +583,6 @@ class ArrayDecltor(Node):
         return "{}[{}]".format(self.direct_decltor, self.size)
 
 
-class FuncDecltorTypes(Node):
-    __slots__ = ("direct_decltor", "id_lst")
-
-    def __str__(self):
-        return "{}({})".format(self.direct_decltor, self.id_lst)
-
-
 def p_direct_declarator_1(t):
     'direct_declarator : ID'
     t[0] = t[1]
@@ -519,22 +590,22 @@ def p_direct_declarator_1(t):
 
 def p_direct_declarator_2(t):
     'direct_declarator : LPAREN declarator RPAREN'
-    t[0] = t[1]
+    t[0] = t[2]
 
 
 def p_direct_declarator_3(t):
     'direct_declarator : direct_declarator LBRACKET constant_expression_opt RBRACKET'
-    t[0] = ArrayDecltor(t[1], t[2])
+    t[0] = ArrayDecltor(t[1], t[3])
 
 
 def p_direct_declarator_4(t):
     'direct_declarator : direct_declarator LPAREN parameter_type_list RPAREN '
-    t[0] = FuncDecltor(t[1], t[2])
+    t[0] = FuncDecltor(t[1], t[3])
 
 
-def p_direct_declarator_5(t):
-    'direct_declarator : direct_declarator LPAREN identifier_list RPAREN '
-    t[0] = FuncDecltorTypes(t[1], t[2])
+#def p_direct_declarator_5(t):
+#    'direct_declarator : direct_declarator LPAREN identifier_list RPAREN '
+#    t[0] = FuncDecltor(t[1], t[3])
 
 
 def p_direct_declarator_6(t):
@@ -544,24 +615,36 @@ def p_direct_declarator_6(t):
 # pointer:
 
 
+class Pointer(Node):
+    __slots__ = ("type_qualifiers", "val")
+
+    def lines(self):
+        line = "*"
+        if self.type_qualifiers:
+            line += " " + " ".join(map(str, self.type_qualifiers)) + " "
+        if self.val:
+            line += str(self.val)
+        yield line
+
+
 def p_pointer_1(t):
     'pointer : TIMES type_qualifier_list'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = Pointer(t[2], None)
 
 
 def p_pointer_2(t):
     'pointer : TIMES'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = Pointer([], None)
 
 
 def p_pointer_3(t):
     'pointer : TIMES type_qualifier_list pointer'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = Pointer(t[2], t[3])
 
 
 def p_pointer_4(t):
     'pointer : TIMES pointer'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = Pointer([], t[2])
 
 # type-qualifier-list:
 
@@ -580,48 +663,61 @@ def p_type_qualifier_list_2(t):
 
 def p_parameter_type_list_1(t):
     'parameter_type_list : parameter_list'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = t[1]
 
 
 def p_parameter_type_list_2(t):
     'parameter_type_list : parameter_list COMMA ELLIPSIS'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = t[1] + ["..."]
 
 # parameter-list:
 
 
 def p_parameter_list_1(t):
     'parameter_list : parameter_declaration'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = [t[1]]
 
 
 def p_parameter_list_2(t):
     'parameter_list : parameter_list COMMA parameter_declaration'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = t[1] + [t[3]]
 
 # parameter-declaration:
 
 
-def p_parameter_declaration_1(t):
-    'parameter_declaration : declaration_specifiers declarator'
-    raise NotImplementedError("handling not implemented for current parser rule")
+class ParamDecl(Node):
+    __slots__ = ("decl_specs", "decltor")
 
+    def lines(self):
+        yield "{} {}".format(self.decl_specs, self.decltor)
+
+
+def p_parameter_declaration_1(t):
+    "parameter_declaration : ID"
+    t[0] = t[1]
 
 def p_parameter_declaration_2(t):
+    'parameter_declaration : declaration_specifiers declarator'
+    t[0] = ParamDecl(t[1], t[2])
+
+
+def p_parameter_declaration_3(t):
     'parameter_declaration : declaration_specifiers abstract_declarator_opt'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = ParamDecl(t[1], t[2])
+
+
 
 # identifier-list:
 
 
-def p_identifier_list_1(t):
-    'identifier_list : ID'
-    raise NotImplementedError("handling not implemented for current parser rule")
-
-
-def p_identifier_list_2(t):
-    'identifier_list : identifier_list COMMA ID'
-    raise NotImplementedError("handling not implemented for current parser rule")
+#def p_identifier_list_1(t):
+#    'identifier_list : ID'
+#    t[0] = [t[1]]
+#
+#
+#def p_identifier_list_2(t):
+#    'identifier_list : identifier_list COMMA ID'
+#    t[0] = t[1] + [t[3]]
 
 # initializer:
 
@@ -751,7 +847,7 @@ def p_statement(t):
               | iteration_statement
               | jump_statement
               '''
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = t[1]
 
 # labeled-statement:
 
@@ -773,9 +869,16 @@ def p_labeled_statement_3(t):
 # expression-statement:
 
 
+class ExprStmt(Node):
+    __slots__ = ("expr", )
+
+    def lines(self):
+        yield "{};".format(self.expr)
+
+
 def p_expression_statement(t):
     'expression_statement : expression_opt SEMI'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = ExprStmt(t[1])
 
 # compound-statement:
 
@@ -791,8 +894,7 @@ class CompoundStmt(Node):
                 yield INDENT + line
 
         for stmt in self.stmt_lst:
-            for line in stmt:
-                yield INDENT + line
+            yield INDENT + str(stmt)
 
         yield "}"
 
@@ -822,12 +924,12 @@ def p_compound_statement_4(t):
 
 def p_statement_list_1(t):
     'statement_list : statement'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = [t[1]]
 
 
 def p_statement_list_2(t):
     'statement_list : statement_list statement'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = t[1] + [t[2]]
 
 # selection-statement
 
@@ -866,6 +968,13 @@ def p_iteration_statement_3(t):
 # jump_statement:
 
 
+class Return(Node):
+    __slots__ = ("expr", )
+
+    def lines(self):
+        yield "return {};".format(self.expr)
+
+
 def p_jump_statement_1(t):
     'jump_statement : GOTO ID SEMI'
     raise NotImplementedError("handling not implemented for current parser rule")
@@ -883,7 +992,7 @@ def p_jump_statement_3(t):
 
 def p_jump_statement_4(t):
     'jump_statement : RETURN expression_opt SEMI'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = Return(t[2])
 
 
 def p_expression_opt_1(t):
@@ -893,14 +1002,14 @@ def p_expression_opt_1(t):
 
 def p_expression_opt_2(t):
     'expression_opt : expression'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = t[1]
 
 # expression:
 
 
 def p_expression_1(t):
     'expression : assignment_expression'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = t[1]
 
 
 def p_expression_2(t):
@@ -1174,6 +1283,13 @@ def p_unary_operator(t):
 # postfix-expression:
 
 
+class FuncCall(Node):
+    __slots__ = ("func", "args")
+
+    def lines(self):
+        yield "{}({})".format(self.func, ", ".join(map(str, self.args)))
+
+
 def p_postfix_expression_1(t):
     'postfix_expression : primary_expression'
     t[0] = t[1]
@@ -1186,7 +1302,7 @@ def p_postfix_expression_2(t):
 
 def p_postfix_expression_3(t):
     'postfix_expression : postfix_expression LPAREN argument_expression_list RPAREN'
-    raise NotImplementedError("handling not implemented for current parser rule")
+    t[0] = FuncCall(t[1], t[3])
 
 
 def p_postfix_expression_4(t):
@@ -1231,10 +1347,15 @@ def p_primary_expression_2(t):
 # argument-expression-list:
 
 
-def p_argument_expression_list(t):
-    '''argument_expression_list :  assignment_expression
-                              |  argument_expression_list COMMA assignment_expression'''
-    raise NotImplementedError("handling not implemented for current parser rule")
+def p_argument_expression_list_1(t):
+    '''argument_expression_list : assignment_expression'''
+    t[0] = [t[1]]
+
+
+def p_argument_expression_list_2(t):
+    '''argument_expression_list : argument_expression_list COMMA assignment_expression'''
+    t[0] = t[1] + [t[2]]
+
 
 # constant:
 
@@ -1265,26 +1386,68 @@ def try_to_compile(filename, compiler="gcc", std="c90"):
     subprocess.run("{} -std={} {}".format(compiler, std, filename).split(), check=True)
 
 
+def change_to_c_file(filename):
+    import shutil
+    if filename.endswith(".c"):
+        return filename
+
+    #newname = ".".join(filename.split(".")[:-1]) + ".c"
+    newname = filename + ".c"
+
+    shutil.copyfile(filename, newname)
+
+    return newname
+
+
 def preprocess_file(filename, compiler="gcc", output=None, extra_flags=""):
-    import subprocess
+    import subprocess, os.path
+
+    filename = change_to_c_file(filename)
 
     if not output:
-        output = filename + ".preprocessed"
+        parts = filename.split(".")
+        output = ".".join(parts[:-1]) + "_pp.c"
+
     subprocess.run(
-        "{compiler} -E {filename} -o {output} -nostdinc {extra_flags} -I {fake_headers}".format(
+        "{compiler} -Werror -E {filename} -o {output} -nostdinc {extra_flags} -I {fake_headers}".format(
             fake_headers=FAKE_HEADERS,
             **locals()
         ).split(),
         check=True
     )
 
+    if not os.path.isfile(output):
+        raise RuntimeError("Could not create {}".format(output))
+
+    return output
+
+
+def get_args():
+    from argparse import ArgumentParser
+
+    parser = ArgumentParser()
+    parser.add_argument("filename")
+    parser.add_argument("-d", "--dump", default=False,
+                        action="store_true")
+    parser.add_argument("-j", "--json", default=False,
+                        action="store_true")
+
+    return parser.parse_args()
+
 
 def main():
-    preprocess_file(FILENAME)
+    args = get_args()
+    out_filename = preprocess_file(args.filename)
 
     parser = yacc.yacc()
-    with open(FILENAME) as f:
+    with open(out_filename) as f:
         c_ast = parser.parse(f.read())
+
+    if args.json:
+        print(json.dumps(c_ast, indent=INDENT_SIZE, cls=NodeEncoder))
+    elif args.dump:
+        print(dump(c_ast))
+    else:
         print(c_ast)
 
 
