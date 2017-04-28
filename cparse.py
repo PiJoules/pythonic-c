@@ -172,62 +172,33 @@ def p_external_declaration_2(t):
 
 class FuncDef(Node):
     """
-The declaration list is the K&R syntax for declaring argument types. This
-is obsolete and should ideally not be used when programming in modern C.
-
-// K&R syntax
-int foo(a, p)
-    int a;
-    char *p;
-{
-    return 0;
-}
-
-
-"int" is the declaration specifier, "foo(a, p)" is the declarator,
-"int a; char* p;" is the declaraation list, and the brackets and its contents
-are the compound statement.
-
-
-// ANSI syntax
 int foo(int a, char *p)
 {
     return 0;
 }
+
+"int" is the declaration specifier, "foo(int a, char*p)" is the declarator,
+and the rest is the compound_statement
     """
-    __slots__ = ("decl_specs", "decltor", "decl_list", "cmp_stmt")
+    __slots__ = ("decl_specs", "declarator", "cmp_stmt")
 
     def lines(self):
-        line1 = str(self.decltor)
+        line1 = str(self.declarator)
         if self.decl_specs:
             line1 = str(self.decl_specs) + " " + line1
         yield line1
-
-        for decl in self.decl_list:
-            for line in decl:
-                yield INDENT + line
 
         yield from self.cmp_stmt.lines()
 
 
 def p_function_definition_1(t):
-    'function_definition : declaration_specifiers declarator declaration_list compound_statement'
-    t[0] = FuncDef(*t[1:])
+    'function_definition : declarator compound_statement'
+    t[0] = FuncDef(None, t[1], t[2])
 
 
 def p_function_definition_2(t):
-    'function_definition : declarator declaration_list compound_statement'
-    t[0] = FuncDef(None, *t[1:])
-
-
-def p_function_definition_3(t):
-    'function_definition : declarator compound_statement'
-    t[0] = FuncDef(None, t[1], [], t[2])
-
-
-def p_function_definition_4(t):
     'function_definition : declaration_specifiers declarator compound_statement'
-    t[0] = FuncDef(t[1], t[2], [], t[3])
+    t[0] = FuncDef(t[1], t[2], t[3])
 
 
 # declaration:
@@ -321,7 +292,7 @@ def p_declaration_specifiers_4(t):
 
 def p_declaration_specifiers_5(t):
     'declaration_specifiers : type_specifier'
-    t[0] = TypeSpec(t[1], None)
+    t[0] = t[1]
 
 
 def p_declaration_specifiers_6(t):
@@ -344,7 +315,7 @@ def p_storage_class_specifier(t):
 # type-specifier:
 
 
-def p_type_specifier(t):
+def p_type_specifier_1(t):
     '''type_specifier : VOID
                       | CHAR
                       | SHORT
@@ -423,13 +394,13 @@ def p_init_declarator_list_2(t):
 
 
 class InitDeclarator(Node):
-    __slots__ = ("decltor", "initializer")
+    __slots__ = ("declarator", "initializer")
 
     def lines(self):
         if self.initializer:
-            yield "{} = {}".format(self.decltor, self.initializer)
+            yield "{} = {}".format(self.declarator, self.initializer)
         else:
-            yield from self.decltor.lines()
+            yield str(self.declarator)
 
 
 def p_init_declarator_1(t):
@@ -544,13 +515,13 @@ def p_enumerator_2(t):
 
 
 class Declarator(Node):
-    __slots__ = ("pntr", "direct_decltor")
+    __slots__ = ("pntr", "direct_declarator")
 
     def lines(self):
         if self.pntr:
-            yield "{}{}".format(self.pntr, self.direct_decltor)
+            yield "{}{}".format(self.pntr, self.direct_declarator)
         else:
-            yield str(self.direct_decltor)
+            yield str(self.direct_declarator)
 
 
 def p_declarator_1(t):
@@ -560,27 +531,71 @@ def p_declarator_1(t):
 
 def p_declarator_2(t):
     'declarator : direct_declarator'
-    t[0] = Declarator(None, t[1])
+    t[0] = t[1]
 
 
 # direct-declarator:
 
 
-class FuncDecltor(Node):
-    __slots__ = ("direct_decltor", "args")
+class FuncDeclarator(Node):
+    __slots__ = ("direct_declarator", "args")
 
-    def __str__(self):
-        return "{}({})".format(
-            self.direct_decltor,
+    def lines(self):
+        yield "{}({})".format(
+            self.direct_declarator,
             ", ".join(map(str, self.args))
         )
 
 
-class ArrayDecltor(Node):
-    __slots__ = ("direct_decltor", "size")
+class MainFuncDeclarator(FuncDeclarator):
+    def __init__(self, decltor, args):
+        if not args:
+            # Empty args
+            pass
+        elif len(args) == 2:
+            # argc, argv
+            argc = self.__check_argc(args[0])
+            argv = self.__check_argv(args[1])
+            args = [argc, argv]
+        else:
+            raise RuntimeError("program entry point expects either 0 or 2 arguments")
+
+        super().__init__(decltor, args)
+
+    def __check_argc(self, node):
+        if isinstance(node, str):
+            return ParamDecl("int", node)
+        elif isinstance(node, ParamDecl):
+            assert node.decl_specs == "int"
+            return node
+        else:
+            raise RuntimeError("Expected ParamDecl for FuncDeclarator arguments. Got {}".format(node))
+
+    def __check_argv(self, node):
+        return node
+
+        if isinstance(node, str):
+            return ParamDecl("int", node)
+        elif isinstance(node, ParamDecl):
+            assert node.decl_specs == "int"
+            return node
+        else:
+            raise RuntimeError("Expected ParamDecl for FuncDeclarator arguments. Got {}".format(node))
+
+
+def create_func_declarator(decltor, args):
+    if decltor == "main":
+        # Program entry point
+        return MainFuncDeclarator(decltor, args)
+
+    return FuncDeclarator(decltor, args)
+
+
+class ArrayDeclarator(Node):
+    __slots__ = ("direct_declarator", "size")
 
     def __str__(self):
-        return "{}[{}]".format(self.direct_decltor, self.size)
+        return "{}[{}]".format(self.direct_declarator, self.size)
 
 
 def p_direct_declarator_1(t):
@@ -595,22 +610,17 @@ def p_direct_declarator_2(t):
 
 def p_direct_declarator_3(t):
     'direct_declarator : direct_declarator LBRACKET constant_expression_opt RBRACKET'
-    t[0] = ArrayDecltor(t[1], t[3])
+    t[0] = ArrayDeclarator(t[1], t[3])
 
 
 def p_direct_declarator_4(t):
     'direct_declarator : direct_declarator LPAREN parameter_type_list RPAREN '
-    t[0] = FuncDecltor(t[1], t[3])
+    t[0] = create_func_declarator(t[1], t[3])
 
 
-#def p_direct_declarator_5(t):
-#    'direct_declarator : direct_declarator LPAREN identifier_list RPAREN '
-#    t[0] = FuncDecltor(t[1], t[3])
-
-
-def p_direct_declarator_6(t):
+def p_direct_declarator_5(t):
     'direct_declarator : direct_declarator LPAREN RPAREN '
-    t[0] = FuncDecltor(t[1], [])
+    t[0] = create_func_declarator(t[1], [])
 
 # pointer:
 
@@ -661,6 +671,11 @@ def p_type_qualifier_list_2(t):
 # parameter-type-list:
 
 
+class Ellipsis(Node):
+    def lines(self):
+        yield "..."
+
+
 def p_parameter_type_list_1(t):
     'parameter_type_list : parameter_list'
     t[0] = t[1]
@@ -668,7 +683,7 @@ def p_parameter_type_list_1(t):
 
 def p_parameter_type_list_2(t):
     'parameter_type_list : parameter_list COMMA ELLIPSIS'
-    t[0] = t[1] + ["..."]
+    t[0] = t[1] + [Ellipsis()]
 
 # parameter-list:
 
@@ -686,10 +701,10 @@ def p_parameter_list_2(t):
 
 
 class ParamDecl(Node):
-    __slots__ = ("decl_specs", "decltor")
+    __slots__ = ("decl_specs", "declarator")
 
     def lines(self):
-        yield "{} {}".format(self.decl_specs, self.decltor)
+        yield "{} {}".format(self.decl_specs, self.declarator)
 
 
 def p_parameter_declaration_1(t):
@@ -1377,13 +1392,7 @@ def p_empty(t):
 
 
 def p_error(t):
-    print("Unable to parse:", t)
-    #try_to_compile(FILENAME)
-
-
-def try_to_compile(filename, compiler="gcc", std="c90"):
-    import subprocess
-    subprocess.run("{} -std={} {}".format(compiler, std, filename).split(), check=True)
+    raise RuntimeError("Unable to parse: {}".format(t))
 
 
 def change_to_c_file(filename):
@@ -1426,10 +1435,12 @@ def get_args():
     from argparse import ArgumentParser
 
     parser = ArgumentParser()
-    parser.add_argument("filename")
+    parser.add_argument("input")
     parser.add_argument("-d", "--dump", default=False,
                         action="store_true")
     parser.add_argument("-j", "--json", default=False,
+                        action="store_true")
+    parser.add_argument("-t", "--text", default=False,
                         action="store_true")
 
     return parser.parse_args()
@@ -1437,11 +1448,15 @@ def get_args():
 
 def main():
     args = get_args()
-    out_filename = preprocess_file(args.filename)
 
     parser = yacc.yacc()
-    with open(out_filename) as f:
-        c_ast = parser.parse(f.read())
+
+    if args.text:
+        c_ast = parser.parse(args.input)
+    else:
+        out_filename = preprocess_file(args.input)
+        with open(out_filename) as f:
+            c_ast = parser.parse(f.read())
 
     if args.json:
         print(json.dumps(c_ast, indent=INDENT_SIZE, cls=NodeEncoder))
