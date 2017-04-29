@@ -5,9 +5,9 @@ _tabversion = '3.10'
 
 _lr_method = 'LALR'
 
-_lr_signature = 'leftEQGTLTleftPLUSMINUSleftMULTDIVDEF IF NAME NUMBER STRING LPAR RPAR COLON EQ ASSIGN LT GT PLUS MINUS MULT DIV RETURN WS NEWLINE COMMA INDENT DEDENTmodule : stmt_liststmt_list : stmt_list NEWLINEstmt_list : stmt_list stmtstmt_list : NEWLINEstmt_list : stmtfuncdef : DEF NAME parameters COLON suiteparameters : LPAR RPARparameters : LPAR varargslist RPARvarargslist : NAMEvarargslist : varargslist COMMA NAMEstmt : simple_stmt\n            | compound_stmtsimple_stmt : small_stmt NEWLINEsmall_stmt : flow_stmt\n                  | expr_stmtexpr_stmt : testlist ASSIGN testlist\n                 | testlist flow_stmt : return_stmtreturn_stmt : RETURN testlistcompound_stmt : if_stmt\n                     | funcdefif_stmt : IF test COLON suitesuite : NEWLINE INDENT stmts DEDENTstmts : stmtstmts : stmts stmtcomparison : comparison PLUS comparison\n                  | comparison MINUS comparison\n                  | comparison MULT comparison\n                  | comparison DIV comparison\n                  | comparison LT comparison\n                  | comparison EQ comparison\n                  | comparison GT comparison\n                  | powercomparison : PLUS comparisoncomparison : MINUS comparisonpower : atompower : atom traileratom : NAMEatom : NUMBERatom : STRINGatom : LPAR testlist RPARtrailer : LPAR arglist RPARtestlist : testlist_multi COMMA\n                | testlist_multi testlist_multi : testlist_multi COMMA test\n                      | testtest : comparisonarglist : arglist COMMA argument\n               | argumentargument : test'
+_lr_signature = 'leftEQGTLTleftPLUSMINUSleftMULTDIVDEF IF NAME NUMBER STRING LPAR RPAR COLON EQ ASSIGN LT GT PLUS MINUS MULT DIV RETURN WS NEWLINE COMMA INDENT DEDENTmodule : stmt_liststmt_list : stmt_list NEWLINEstmt_list : stmt_list stmtstmt_list : NEWLINEstmt_list : stmtfuncdef : DEF NAME parameters COLON suiteparameters : LPAR RPARparameters : LPAR varargslist RPARvarargslist : NAMEvarargslist : varargslist COMMA NAMEstmt : simple_stmt\n            | compound_stmtsimple_stmt : small_stmt NEWLINEsmall_stmt : flow_stmt\n                  | expr_stmt\n                  | funcdeclfuncdecl : DEF NAME parametersexpr_stmt : testlist ASSIGN testlist\n                 | testlist flow_stmt : return_stmtreturn_stmt : RETURN testlistcompound_stmt : if_stmt\n                     | funcdefif_stmt : IF test COLON suitesuite : NEWLINE INDENT stmts DEDENTstmts : stmtstmts : stmts stmtcomparison : comparison PLUS comparison\n                  | comparison MINUS comparison\n                  | comparison MULT comparison\n                  | comparison DIV comparison\n                  | comparison LT comparison\n                  | comparison EQ comparison\n                  | comparison GT comparison\n                  | powercomparison : PLUS comparisoncomparison : MINUS comparisonpower : atompower : atom traileratom : NAMEatom : NUMBERatom : STRINGatom : LPAR testlist RPARtrailer : LPAR arglist RPARtestlist : testlist_multi COMMA\n                | testlist_multi testlist_multi : testlist_multi COMMA test\n                      | testtest : comparisonarglist : arglist COMMA argument\n               | argumentargument : test'
     
-_lr_action_items = {'RETURN':([0,7,10,11,16,20,25,26,40,41,45,64,72,76,77,78,80,81,],[18,-5,18,-4,-20,-11,-21,-12,-3,-2,-13,-22,18,-6,-24,18,-25,-23,]),'STRING':([0,2,5,6,7,8,10,11,16,18,20,25,26,28,30,31,32,33,34,35,36,40,41,42,44,45,64,67,72,76,77,78,80,81,],[14,14,14,14,-5,14,14,-4,-20,14,-11,-21,-12,14,14,14,14,14,14,14,14,-3,-2,14,14,-13,-22,14,14,-6,-24,14,-25,-23,]),'RPAR':([1,3,4,9,12,14,15,23,28,29,37,39,43,48,49,50,51,52,53,54,55,56,59,60,61,62,66,68,70,73,79,],[-44,-33,-47,-39,-38,-40,-36,-46,-43,49,-35,-34,-37,-45,-41,-32,-26,-28,-27,-29,-30,-31,66,-50,-49,69,-42,74,-9,-48,-10,]),'PLUS':([0,2,3,4,5,6,7,8,9,10,11,12,14,15,16,18,20,25,26,28,30,31,32,33,34,35,36,37,39,40,41,42,43,44,45,49,50,51,52,53,54,55,56,64,66,67,72,76,77,78,80,81,],[8,8,-33,31,8,8,-5,8,-39,8,-4,-38,-40,-36,-20,8,-11,-21,-12,8,8,8,8,8,8,8,8,-35,-34,-3,-2,8,-37,8,-13,-41,31,-26,-28,-27,-29,31,31,-22,-42,8,8,-6,-24,8,-25,-23,]),'INDENT':([65,],[72,]),'COMMA':([1,3,4,9,12,14,15,23,37,39,43,48,49,50,51,52,53,54,55,56,59,60,61,66,68,70,73,79,],[28,-33,-47,-39,-38,-40,-36,-46,-35,-34,-37,-45,-41,-32,-26,-28,-27,-29,-30,-31,67,-50,-49,-42,75,-9,-48,-10,]),'LT':([3,4,9,12,14,15,37,39,43,49,50,51,52,53,54,55,56,66,],[-33,35,-39,-38,-40,-36,-35,-34,-37,-41,-32,-26,-28,-27,-29,-30,-31,-42,]),'NEWLINE':([0,1,3,4,7,9,10,11,12,13,14,15,16,17,20,21,22,23,24,25,26,28,37,39,40,41,43,45,46,48,49,50,51,52,53,54,55,56,57,58,64,66,71,76,81,],[11,-44,-33,-47,-5,-39,41,-4,-38,-17,-40,-36,-20,45,-11,-14,-18,-46,-15,-21,-12,-43,-35,-34,-3,-2,-37,-13,-19,-45,-41,-32,-26,-28,-27,-29,-30,-31,65,-16,-22,-42,65,-6,-23,]),'$end':([7,10,11,16,20,25,26,27,40,41,45,64,76,81,],[-5,-1,-4,-20,-11,-21,-12,0,-3,-2,-13,-22,-6,-23,]),'NAME':([0,2,5,6,7,8,10,11,16,18,19,20,25,26,28,30,31,32,33,34,35,36,40,41,42,44,45,62,64,67,72,75,76,77,78,80,81,],[12,12,12,12,-5,12,12,-4,-20,12,47,-11,-21,-12,12,12,12,12,12,12,12,12,-3,-2,12,12,-13,70,-22,12,12,79,-6,-24,12,-25,-23,]),'IF':([0,7,10,11,16,20,25,26,40,41,45,64,72,76,77,78,80,81,],[6,-5,6,-4,-20,-11,-21,-12,-3,-2,-13,-22,6,-6,-24,6,-25,-23,]),'DEDENT':([16,20,25,26,45,64,76,77,78,80,81,],[-20,-11,-21,-12,-13,-22,-6,-24,81,-25,-23,]),'NUMBER':([0,2,5,6,7,8,10,11,16,18,20,25,26,28,30,31,32,33,34,35,36,40,41,42,44,45,64,67,72,76,77,78,80,81,],[9,9,9,9,-5,9,9,-4,-20,9,-11,-21,-12,9,9,9,9,9,9,9,9,-3,-2,9,9,-13,-22,9,9,-6,-24,9,-25,-23,]),'MULT':([3,4,9,12,14,15,37,39,43,49,50,51,52,53,54,55,56,66,],[-33,32,-39,-38,-40,-36,32,32,-37,-41,32,32,-28,32,-29,32,32,-42,]),'DIV':([3,4,9,12,14,15,37,39,43,49,50,51,52,53,54,55,56,66,],[-33,34,-39,-38,-40,-36,34,34,-37,-41,34,34,-28,34,-29,34,34,-42,]),'MINUS':([0,2,3,4,5,6,7,8,9,10,11,12,14,15,16,18,20,25,26,28,30,31,32,33,34,35,36,37,39,40,41,42,43,44,45,49,50,51,52,53,54,55,56,64,66,67,72,76,77,78,80,81,],[5,5,-33,33,5,5,-5,5,-39,5,-4,-38,-40,-36,-20,5,-11,-21,-12,5,5,5,5,5,5,5,5,-35,-34,-3,-2,5,-37,5,-13,-41,33,-26,-28,-27,-29,33,33,-22,-42,5,5,-6,-24,5,-25,-23,]),'GT':([3,4,9,12,14,15,37,39,43,49,50,51,52,53,54,55,56,66,],[-33,30,-39,-38,-40,-36,-35,-34,-37,-41,-32,-26,-28,-27,-29,-30,-31,-42,]),'ASSIGN':([1,3,4,9,12,13,14,15,23,28,37,39,43,48,49,50,51,52,53,54,55,56,66,],[-44,-33,-47,-39,-38,42,-40,-36,-46,-43,-35,-34,-37,-45,-41,-32,-26,-28,-27,-29,-30,-31,-42,]),'DEF':([0,7,10,11,16,20,25,26,40,41,45,64,72,76,77,78,80,81,],[19,-5,19,-4,-20,-11,-21,-12,-3,-2,-13,-22,19,-6,-24,19,-25,-23,]),'COLON':([3,4,9,12,14,15,37,38,39,43,49,50,51,52,53,54,55,56,63,66,69,74,],[-33,-47,-39,-38,-40,-36,-35,57,-34,-37,-41,-32,-26,-28,-27,-29,-30,-31,71,-42,-7,-8,]),'LPAR':([0,2,5,6,7,8,9,10,11,12,14,15,16,18,20,25,26,28,30,31,32,33,34,35,36,40,41,42,44,45,47,49,64,67,72,76,77,78,80,81,],[2,2,2,2,-5,2,-39,2,-4,-38,-40,44,-20,2,-11,-21,-12,2,2,2,2,2,2,2,2,-3,-2,2,2,-13,62,-41,-22,2,2,-6,-24,2,-25,-23,]),'EQ':([3,4,9,12,14,15,37,39,43,49,50,51,52,53,54,55,56,66,],[-33,36,-39,-38,-40,-36,-35,-34,-37,-41,-32,-26,-28,-27,-29,-30,-31,-42,]),}
+_lr_action_items = {'COMMA':([1,2,4,7,15,17,20,27,33,34,35,49,50,51,52,53,56,57,58,59,60,61,62,65,70,71,73,80,],[-48,29,-41,-38,-42,-40,-49,-35,-39,-36,-37,-47,-43,-52,-51,66,-28,-30,-29,-32,-31,-34,-33,-44,-9,76,-50,-10,]),'EQ':([4,7,15,17,20,27,33,34,35,50,56,57,58,59,60,61,62,65,],[-41,-38,-42,-40,47,-35,-39,-36,-37,-43,-28,-30,-29,-32,-31,-34,-33,-44,]),'NUMBER':([0,3,8,9,10,12,13,14,18,21,22,26,28,29,31,32,36,37,40,41,42,43,44,45,46,47,66,67,74,77,78,79,81,82,],[4,4,4,4,4,-5,4,4,-23,-11,-12,-22,-4,4,-13,4,-3,-2,4,4,4,4,4,4,4,4,4,-24,4,-6,-26,4,-25,-27,]),'INDENT':([68,],[74,]),'$end':([10,12,18,21,22,23,26,28,31,36,37,67,77,81,],[-1,-5,-23,-11,-12,0,-22,-4,-13,-3,-2,-24,-6,-25,]),'PLUS':([0,3,4,7,8,9,10,12,13,14,15,17,18,20,21,22,26,27,28,29,31,32,33,34,35,36,37,40,41,42,43,44,45,46,47,50,56,57,58,59,60,61,62,65,66,67,74,77,78,79,81,82,],[8,8,-41,-38,8,8,8,-5,8,8,-42,-40,-23,41,-11,-12,-22,-35,-4,8,-13,8,-39,-36,-37,-3,-2,8,8,8,8,8,8,8,8,-43,-28,-30,-29,41,-31,41,41,-44,8,-24,8,-6,-26,8,-25,-27,]),'MINUS':([0,3,4,7,8,9,10,12,13,14,15,17,18,20,21,22,26,27,28,29,31,32,33,34,35,36,37,40,41,42,43,44,45,46,47,50,56,57,58,59,60,61,62,65,66,67,74,77,78,79,81,82,],[9,9,-41,-38,9,9,9,-5,9,9,-42,-40,-23,43,-11,-12,-22,-35,-4,9,-13,9,-39,-36,-37,-3,-2,9,9,9,9,9,9,9,9,-43,-28,-30,-29,43,-31,43,43,-44,9,-24,9,-6,-26,9,-25,-27,]),'LT':([4,7,15,17,20,27,33,34,35,50,56,57,58,59,60,61,62,65,],[-41,-38,-42,-40,44,-35,-39,-36,-37,-43,-28,-30,-29,-32,-31,-34,-33,-44,]),'IF':([0,10,12,18,21,22,26,28,31,36,37,67,74,77,78,79,81,82,],[13,13,-5,-23,-11,-12,-22,-4,-13,-3,-2,-24,13,-6,-26,13,-25,-27,]),'RETURN':([0,10,12,18,21,22,26,28,31,36,37,67,74,77,78,79,81,82,],[14,14,-5,-23,-11,-12,-22,-4,-13,-3,-2,-24,14,-6,-26,14,-25,-27,]),'STRING':([0,3,8,9,10,12,13,14,18,21,22,26,28,29,31,32,36,37,40,41,42,43,44,45,46,47,66,67,74,77,78,79,81,82,],[15,15,15,15,15,-5,15,15,-23,-11,-12,-22,-4,15,-13,15,-3,-2,15,15,15,15,15,15,15,15,15,-24,15,-6,-26,15,-25,-27,]),'GT':([4,7,15,17,20,27,33,34,35,50,56,57,58,59,60,61,62,65,],[-41,-38,-42,-40,46,-35,-39,-36,-37,-43,-28,-30,-29,-32,-31,-34,-33,-44,]),'NAME':([0,3,8,9,10,12,13,14,18,21,22,25,26,28,29,31,32,36,37,40,41,42,43,44,45,46,47,63,66,67,74,76,77,78,79,81,82,],[17,17,17,17,17,-5,17,17,-23,-11,-12,48,-22,-4,17,-13,17,-3,-2,17,17,17,17,17,17,17,17,70,17,-24,17,80,-6,-26,17,-25,-27,]),'MULT':([4,7,15,17,20,27,33,34,35,50,56,57,58,59,60,61,62,65,],[-41,-38,-42,-40,42,-35,-39,42,42,-43,42,-30,42,42,-31,42,42,-44,]),'ASSIGN':([1,2,4,7,15,16,17,20,27,29,33,34,35,49,50,56,57,58,59,60,61,62,65,],[-48,-46,-41,-38,-42,40,-40,-49,-35,-45,-39,-36,-37,-47,-43,-28,-30,-29,-32,-31,-34,-33,-44,]),'DIV':([4,7,15,17,20,27,33,34,35,50,56,57,58,59,60,61,62,65,],[-41,-38,-42,-40,45,-35,-39,45,45,-43,45,-30,45,45,-31,45,45,-44,]),'DEDENT':([18,21,22,26,31,67,77,78,79,81,82,],[-23,-11,-12,-22,-13,-24,-6,-26,81,-25,-27,]),'RPAR':([1,2,4,7,15,17,20,27,29,30,33,34,35,49,50,51,52,53,56,57,58,59,60,61,62,63,65,70,71,73,80,],[-48,-46,-41,-38,-42,-40,-49,-35,-45,50,-39,-36,-37,-47,-43,-52,-51,65,-28,-30,-29,-32,-31,-34,-33,69,-44,-9,75,-50,-10,]),'DEF':([0,10,12,18,21,22,26,28,31,36,37,67,74,77,78,79,81,82,],[25,25,-5,-23,-11,-12,-22,-4,-13,-3,-2,-24,25,-6,-26,25,-25,-27,]),'COLON':([4,7,15,17,20,27,33,34,35,38,50,56,57,58,59,60,61,62,64,65,69,75,],[-41,-38,-42,-40,-49,-35,-39,-36,-37,54,-43,-28,-30,-29,-32,-31,-34,-33,72,-44,-7,-8,]),'NEWLINE':([0,1,2,4,5,6,7,10,11,12,15,16,17,18,19,20,21,22,24,26,27,28,29,31,33,34,35,36,37,39,49,50,54,55,56,57,58,59,60,61,62,64,65,67,69,72,75,77,81,],[28,-48,-46,-41,31,-20,-38,37,-15,-5,-42,-19,-40,-23,-16,-49,-11,-12,-14,-22,-35,-4,-45,-13,-39,-36,-37,-3,-2,-21,-47,-43,68,-18,-28,-30,-29,-32,-31,-34,-33,-17,-44,-24,-7,68,-8,-6,-25,]),'LPAR':([0,3,4,7,8,9,10,12,13,14,15,17,18,21,22,26,28,29,31,32,36,37,40,41,42,43,44,45,46,47,48,50,66,67,74,77,78,79,81,82,],[3,3,-41,32,3,3,3,-5,3,3,-42,-40,-23,-11,-12,-22,-4,3,-13,3,-3,-2,3,3,3,3,3,3,3,3,63,-43,3,-24,3,-6,-26,3,-25,-27,]),}
 
 _lr_action = {}
 for _k, _v in _lr_action_items.items():
@@ -16,7 +16,7 @@ for _k, _v in _lr_action_items.items():
       _lr_action[_x][_k] = _y
 del _lr_action_items
 
-_lr_goto_items = {'testlist_multi':([0,2,10,18,42,72,78,],[1,1,1,1,1,1,1,]),'power':([0,2,5,6,8,10,18,28,30,31,32,33,34,35,36,42,44,67,72,78,],[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,]),'comparison':([0,2,5,6,8,10,18,28,30,31,32,33,34,35,36,42,44,67,72,78,],[4,4,37,4,39,4,4,4,50,51,52,53,54,55,56,4,4,4,4,4,]),'arglist':([44,],[59,]),'stmt':([0,10,72,78,],[7,40,77,80,]),'stmt_list':([0,],[10,]),'varargslist':([62,],[68,]),'testlist':([0,2,10,18,42,72,78,],[13,29,13,46,58,13,13,]),'atom':([0,2,5,6,8,10,18,28,30,31,32,33,34,35,36,42,44,67,72,78,],[15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,]),'if_stmt':([0,10,72,78,],[16,16,16,16,]),'parameters':([47,],[63,]),'small_stmt':([0,10,72,78,],[17,17,17,17,]),'stmts':([72,],[78,]),'suite':([57,71,],[64,76,]),'trailer':([15,],[43,]),'simple_stmt':([0,10,72,78,],[20,20,20,20,]),'flow_stmt':([0,10,72,78,],[21,21,21,21,]),'return_stmt':([0,10,72,78,],[22,22,22,22,]),'test':([0,2,6,10,18,28,42,44,67,72,78,],[23,23,38,23,23,48,23,60,60,23,23,]),'expr_stmt':([0,10,72,78,],[24,24,24,24,]),'funcdef':([0,10,72,78,],[25,25,25,25,]),'argument':([44,67,],[61,73,]),'compound_stmt':([0,10,72,78,],[26,26,26,26,]),'module':([0,],[27,]),}
+_lr_goto_items = {'test':([0,3,10,13,14,29,32,40,66,74,79,],[1,1,1,38,1,49,51,1,51,1,1,]),'suite':([54,72,],[67,77,]),'trailer':([7,],[33,]),'atom':([0,3,8,9,10,13,14,29,32,40,41,42,43,44,45,46,47,66,74,79,],[7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,]),'stmts':([74,],[79,]),'small_stmt':([0,10,74,79,],[5,5,5,5,]),'return_stmt':([0,10,74,79,],[6,6,6,6,]),'stmt_list':([0,],[10,]),'expr_stmt':([0,10,74,79,],[11,11,11,11,]),'stmt':([0,10,74,79,],[12,36,78,82,]),'arglist':([32,],[53,]),'testlist':([0,3,10,14,40,74,79,],[16,30,16,39,55,16,16,]),'argument':([32,66,],[52,73,]),'funcdef':([0,10,74,79,],[18,18,18,18,]),'parameters':([48,],[64,]),'funcdecl':([0,10,74,79,],[19,19,19,19,]),'comparison':([0,3,8,9,10,13,14,29,32,40,41,42,43,44,45,46,47,66,74,79,],[20,20,34,35,20,20,20,20,20,20,56,57,58,59,60,61,62,20,20,20,]),'simple_stmt':([0,10,74,79,],[21,21,21,21,]),'compound_stmt':([0,10,74,79,],[22,22,22,22,]),'module':([0,],[23,]),'flow_stmt':([0,10,74,79,],[24,24,24,24,]),'varargslist':([63,],[71,]),'if_stmt':([0,10,74,79,],[26,26,26,26,]),'power':([0,3,8,9,10,13,14,29,32,40,41,42,43,44,45,46,47,66,74,79,],[27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,]),'testlist_multi':([0,3,10,14,40,74,79,],[2,2,2,2,2,2,2,]),}
 
 _lr_goto = {}
 for _k, _v in _lr_goto_items.items():
@@ -26,54 +26,56 @@ for _k, _v in _lr_goto_items.items():
 del _lr_goto_items
 _lr_productions = [
   ("S' -> module","S'",1,None,None,None),
-  ('module -> stmt_list','module',1,'p_module','GardenSnake.py',398),
-  ('stmt_list -> stmt_list NEWLINE','stmt_list',2,'p_stmt_list_1','GardenSnake.py',404),
-  ('stmt_list -> stmt_list stmt','stmt_list',2,'p_stmt_list_2','GardenSnake.py',410),
-  ('stmt_list -> NEWLINE','stmt_list',1,'p_stmt_list_3','GardenSnake.py',417),
-  ('stmt_list -> stmt','stmt_list',1,'p_stmt_list_4','GardenSnake.py',422),
-  ('funcdef -> DEF NAME parameters COLON suite','funcdef',5,'p_funcdef','GardenSnake.py',443),
-  ('parameters -> LPAR RPAR','parameters',2,'p_parameters_empty','GardenSnake.py',451),
-  ('parameters -> LPAR varargslist RPAR','parameters',3,'p_parameters_exist','GardenSnake.py',456),
-  ('varargslist -> NAME','varargslist',1,'p_varargslist_one','GardenSnake.py',463),
-  ('varargslist -> varargslist COMMA NAME','varargslist',3,'p_varargslist_many','GardenSnake.py',468),
-  ('stmt -> simple_stmt','stmt',1,'p_stmt','GardenSnake.py',473),
-  ('stmt -> compound_stmt','stmt',1,'p_stmt','GardenSnake.py',474),
-  ('simple_stmt -> small_stmt NEWLINE','simple_stmt',2,'p_simple_stmt','GardenSnake.py',482),
-  ('small_stmt -> flow_stmt','small_stmt',1,'p_small_stmt','GardenSnake.py',492),
-  ('small_stmt -> expr_stmt','small_stmt',1,'p_small_stmt','GardenSnake.py',493),
-  ('expr_stmt -> testlist ASSIGN testlist','expr_stmt',3,'p_expr_stmt','GardenSnake.py',518),
-  ('expr_stmt -> testlist','expr_stmt',1,'p_expr_stmt','GardenSnake.py',519),
-  ('flow_stmt -> return_stmt','flow_stmt',1,'p_flow_stmt','GardenSnake.py',528),
-  ('return_stmt -> RETURN testlist','return_stmt',2,'p_return_stmt','GardenSnake.py',546),
-  ('compound_stmt -> if_stmt','compound_stmt',1,'p_compound_stmt','GardenSnake.py',554),
-  ('compound_stmt -> funcdef','compound_stmt',1,'p_compound_stmt','GardenSnake.py',555),
-  ('if_stmt -> IF test COLON suite','if_stmt',4,'p_if_stmt','GardenSnake.py',571),
-  ('suite -> NEWLINE INDENT stmts DEDENT','suite',4,'p_suite','GardenSnake.py',576),
-  ('stmts -> stmt','stmts',1,'p_stmts_1','GardenSnake.py',581),
-  ('stmts -> stmts stmt','stmts',2,'p_stmts_2','GardenSnake.py',586),
-  ('comparison -> comparison PLUS comparison','comparison',3,'p_comparison','GardenSnake.py',684),
-  ('comparison -> comparison MINUS comparison','comparison',3,'p_comparison','GardenSnake.py',685),
-  ('comparison -> comparison MULT comparison','comparison',3,'p_comparison','GardenSnake.py',686),
-  ('comparison -> comparison DIV comparison','comparison',3,'p_comparison','GardenSnake.py',687),
-  ('comparison -> comparison LT comparison','comparison',3,'p_comparison','GardenSnake.py',688),
-  ('comparison -> comparison EQ comparison','comparison',3,'p_comparison','GardenSnake.py',689),
-  ('comparison -> comparison GT comparison','comparison',3,'p_comparison','GardenSnake.py',690),
-  ('comparison -> power','comparison',1,'p_comparison','GardenSnake.py',691),
-  ('comparison -> PLUS comparison','comparison',2,'p_comparison_uadd','GardenSnake.py',699),
-  ('comparison -> MINUS comparison','comparison',2,'p_comparison_usub','GardenSnake.py',704),
-  ('power -> atom','power',1,'p_power_1','GardenSnake.py',720),
-  ('power -> atom trailer','power',2,'p_power_2','GardenSnake.py',725),
-  ('atom -> NAME','atom',1,'p_atom_name','GardenSnake.py',751),
-  ('atom -> NUMBER','atom',1,'p_atom_number','GardenSnake.py',756),
-  ('atom -> STRING','atom',1,'p_atom_str','GardenSnake.py',761),
-  ('atom -> LPAR testlist RPAR','atom',3,'p_atom_tuple','GardenSnake.py',766),
-  ('trailer -> LPAR arglist RPAR','trailer',3,'p_trailer','GardenSnake.py',773),
-  ('testlist -> testlist_multi COMMA','testlist',2,'p_testlist','GardenSnake.py',788),
-  ('testlist -> testlist_multi','testlist',1,'p_testlist','GardenSnake.py',789),
-  ('testlist_multi -> testlist_multi COMMA test','testlist_multi',3,'p_testlist_multi','GardenSnake.py',804),
-  ('testlist_multi -> test','testlist_multi',1,'p_testlist_multi','GardenSnake.py',805),
-  ('test -> comparison','test',1,'p_test','GardenSnake.py',820),
-  ('arglist -> arglist COMMA argument','arglist',3,'p_arglist','GardenSnake.py',827),
-  ('arglist -> argument','arglist',1,'p_arglist','GardenSnake.py',828),
-  ('argument -> test','argument',1,'p_argument','GardenSnake.py',837),
+  ('module -> stmt_list','module',1,'p_module','cparse.py',9),
+  ('stmt_list -> stmt_list NEWLINE','stmt_list',2,'p_stmt_list_1','cparse.py',14),
+  ('stmt_list -> stmt_list stmt','stmt_list',2,'p_stmt_list_2','cparse.py',20),
+  ('stmt_list -> NEWLINE','stmt_list',1,'p_stmt_list_3','cparse.py',26),
+  ('stmt_list -> stmt','stmt_list',1,'p_stmt_list_4','cparse.py',31),
+  ('funcdef -> DEF NAME parameters COLON suite','funcdef',5,'p_funcdef','cparse.py',39),
+  ('parameters -> LPAR RPAR','parameters',2,'p_parameters_empty','cparse.py',47),
+  ('parameters -> LPAR varargslist RPAR','parameters',3,'p_parameters_exist','cparse.py',52),
+  ('varargslist -> NAME','varargslist',1,'p_varargslist_one','cparse.py',59),
+  ('varargslist -> varargslist COMMA NAME','varargslist',3,'p_varargslist_many','cparse.py',64),
+  ('stmt -> simple_stmt','stmt',1,'p_stmt','cparse.py',69),
+  ('stmt -> compound_stmt','stmt',1,'p_stmt','cparse.py',70),
+  ('simple_stmt -> small_stmt NEWLINE','simple_stmt',2,'p_simple_stmt','cparse.py',77),
+  ('small_stmt -> flow_stmt','small_stmt',1,'p_small_stmt','cparse.py',87),
+  ('small_stmt -> expr_stmt','small_stmt',1,'p_small_stmt','cparse.py',88),
+  ('small_stmt -> funcdecl','small_stmt',1,'p_small_stmt','cparse.py',89),
+  ('funcdecl -> DEF NAME parameters','funcdecl',3,'p_funcdecl','cparse.py',94),
+  ('expr_stmt -> testlist ASSIGN testlist','expr_stmt',3,'p_expr_stmt','cparse.py',107),
+  ('expr_stmt -> testlist','expr_stmt',1,'p_expr_stmt','cparse.py',108),
+  ('flow_stmt -> return_stmt','flow_stmt',1,'p_flow_stmt','cparse.py',117),
+  ('return_stmt -> RETURN testlist','return_stmt',2,'p_return_stmt','cparse.py',124),
+  ('compound_stmt -> if_stmt','compound_stmt',1,'p_compound_stmt','cparse.py',132),
+  ('compound_stmt -> funcdef','compound_stmt',1,'p_compound_stmt','cparse.py',133),
+  ('if_stmt -> IF test COLON suite','if_stmt',4,'p_if_stmt','cparse.py',138),
+  ('suite -> NEWLINE INDENT stmts DEDENT','suite',4,'p_suite','cparse.py',143),
+  ('stmts -> stmt','stmts',1,'p_stmts_1','cparse.py',148),
+  ('stmts -> stmts stmt','stmts',2,'p_stmts_2','cparse.py',153),
+  ('comparison -> comparison PLUS comparison','comparison',3,'p_comparison','cparse.py',183),
+  ('comparison -> comparison MINUS comparison','comparison',3,'p_comparison','cparse.py',184),
+  ('comparison -> comparison MULT comparison','comparison',3,'p_comparison','cparse.py',185),
+  ('comparison -> comparison DIV comparison','comparison',3,'p_comparison','cparse.py',186),
+  ('comparison -> comparison LT comparison','comparison',3,'p_comparison','cparse.py',187),
+  ('comparison -> comparison EQ comparison','comparison',3,'p_comparison','cparse.py',188),
+  ('comparison -> comparison GT comparison','comparison',3,'p_comparison','cparse.py',189),
+  ('comparison -> power','comparison',1,'p_comparison','cparse.py',190),
+  ('comparison -> PLUS comparison','comparison',2,'p_comparison_uadd','cparse.py',198),
+  ('comparison -> MINUS comparison','comparison',2,'p_comparison_usub','cparse.py',203),
+  ('power -> atom','power',1,'p_power_1','cparse.py',213),
+  ('power -> atom trailer','power',2,'p_power_2','cparse.py',218),
+  ('atom -> NAME','atom',1,'p_atom_name','cparse.py',223),
+  ('atom -> NUMBER','atom',1,'p_atom_number','cparse.py',228),
+  ('atom -> STRING','atom',1,'p_atom_str','cparse.py',233),
+  ('atom -> LPAR testlist RPAR','atom',3,'p_atom_tuple','cparse.py',238),
+  ('trailer -> LPAR arglist RPAR','trailer',3,'p_trailer','cparse.py',245),
+  ('testlist -> testlist_multi COMMA','testlist',2,'p_testlist','cparse.py',253),
+  ('testlist -> testlist_multi','testlist',1,'p_testlist','cparse.py',254),
+  ('testlist_multi -> testlist_multi COMMA test','testlist_multi',3,'p_testlist_multi','cparse.py',269),
+  ('testlist_multi -> test','testlist_multi',1,'p_testlist_multi','cparse.py',270),
+  ('test -> comparison','test',1,'p_test','cparse.py',285),
+  ('arglist -> arglist COMMA argument','arglist',3,'p_arglist','cparse.py',292),
+  ('arglist -> argument','arglist',1,'p_arglist','cparse.py',293),
+  ('argument -> test','argument',1,'p_argument','cparse.py',302),
 ]
