@@ -75,7 +75,10 @@ tokens = (
 
 def t_NUMBER(t):
     r"""(\d+(\.\d*)?)|(\.\d+)"""
-    t.value = decimal.Decimal(t.value)
+    if t.value.isdigit():
+        t.value = int(t.value)
+    else:
+        t.value = float(t.value)
     return t
 
 
@@ -343,31 +346,47 @@ class IndentLexer(object):
 
 ##########   Parser (tokens -> AST) ######
 
-# also part of Ply
-#import yacc
 
-# I use the Python AST
-import ast
-
-# Helper function
+INDENTATION = "    "
 
 
-def Assign(left, right):
-    names = []
-    if isinstance(left, ast.Name):
-        # Single assignment on left
-        return ast.Assign([ast.AssName(left.name, 'OP_ASSIGN')], right)
-    elif isinstance(left, ast.Tuple):
-        # List of things - make sure they are Name nodes
-        names = []
-        for child in left.getChildren():
-            if not isinstance(child, ast.Name):
-                raise SyntaxError("that assignment not supported")
-            names.append(child.name)
-        ass_list = [ast.AssName(name, 'OP_ASSIGN') for name in names]
-        return ast.Assign([ast.AssTuple(ass_list)], right)
-    else:
-        raise SyntaxError("Can't do that yet")
+class Node:
+    __slots__ = tuple()
+
+    def __init__(self, *args, **kwargs):
+        for i, val in enumerate(args):
+            setattr(self, self.__slots__[i], val)
+
+        for attr in self.__slots__[len(args):]:
+            setattr(self, attr, kwargs[attr])
+
+    def lines(self):
+        """
+        Yields strings representing each line in the textual representation
+        of this node. The tailing newline is excluded.
+        """
+        raise NotImplementedError("lines() not implemented for node {}".format(type(self)))
+
+    def __str__(self):
+        return "\n".join(self.lines())
+
+
+def assert_node(n):
+    assert isinstance(n, Node), "Expected Node. Got {}".format(n)
+
+
+def assert_contains_nodes(seq):
+    assert isinstance(seq, (list, tuple)), "Expected list or tuple for sequence. Got {}".format(type(seq))
+    for n in seq:
+        assert_node(n)
+
+
+class Module(Node):
+    __slots__ = ("body", )
+
+    def lines(self):
+        for node in self.body:
+            yield from node.lines()
 
 
 # The grammar comments come from Python's Grammar/Grammar file
@@ -376,16 +395,20 @@ def Assign(left, right):
 # file_input: (NEWLINE | stmt)* ENDMARKER
 def p_module(p):
     """module : stmt_list"""
-    p[0] = ast.Module(p[1])
+    assert_contains_nodes(p[1])
+    p[0] = Module(p[1])
 
 
 def p_stmt_list_1(p):
     "stmt_list : stmt_list NEWLINE"
+    assert_contains_nodes(p[1])
     p[0] = p[1]
 
 
 def p_stmt_list_2(p):
     "stmt_list : stmt_list stmt"
+    assert_node(p[2])
+    assert_contains_nodes(p[1])
     p[0] = p[1] + [p[2]]
 
 
@@ -396,61 +419,69 @@ def p_stmt_list_3(p):
 
 def p_stmt_list_4(p):
     "stmt_list : stmt"
+    assert_node(p[1])
     p[0] = [p[1]]
+
+
+class FunctionDef(Node):
+    __slots__ = ("name", "params", "body")
+
+    def lines(self):
+        yield "def {}({}):".format(
+            self.name,
+            ", ".join(map(str, self.params))
+        )
+        for node in self.body:
+            for line in node.lines():
+                yield INDENTATION + line
 
 
 # funcdef: [decorators] 'def' NAME parameters ':' suite
 # ignoring decorators
 def p_funcdef(p):
     "funcdef : DEF NAME parameters COLON suite"
-    p[0] = ast.FunctionDef(p[2], tuple(p[3]), p[5], [], None)
+    assert_contains_nodes(p[5])
+    p[0] = FunctionDef(p[2], tuple(p[3]), p[5])
 
 # parameters: '(' [varargslist] ')'
 
 
-def p_parameters(p):
-    """parameters : LPAR RPAR
-                  | LPAR varargslist RPAR"""
-    if len(p) == 3:
-        p[0] = []
-    else:
-        p[0] = p[2]
+def p_parameters_empty(p):
+    """parameters : LPAR RPAR"""
+    p[0] = []
+
+
+def p_parameters_exist(p):
+    """parameters : LPAR varargslist RPAR"""
+    p[0] = p[2]
 
 
 # varargslist: (fpdef ['=' test] ',')* ('*' NAME [',' '**' NAME] | '**' NAME) |
 # highly simplified
-def p_varargslist(p):
-    """varargslist : varargslist COMMA NAME
-                   | NAME"""
-    if len(p) == 4:
-        p[0] = p[1] + p[3]
-    else:
-        p[0] = [p[1]]
-
-# stmt: simple_stmt | compound_stmt
+def p_varargslist_one(p):
+    """varargslist : NAME"""
+    p[0] = [p[1]]
 
 
-def p_stmt_simple(p):
-    """stmt : simple_stmt"""
-    # simple_stmt is a list
-    p[0] = p[1]
+def p_varargslist_many(p):
+    """varargslist : varargslist COMMA NAME"""
+    p[0] = p[1] + p[3]
 
 
-def p_stmt_compound(p):
-    """stmt : compound_stmt"""
+def p_stmt(p):
+    """stmt : simple_stmt
+            | compound_stmt"""
+    assert_node(p[1])
     p[0] = p[1]
 
 # simple_stmt: small_stmt (';' small_stmt)* [';'] NEWLINE
 
 
 def p_simple_stmt(p):
-    """simple_stmt : small_stmts NEWLINE"""
+    """simple_stmt : small_stmt NEWLINE"""
+    assert_node(p[1])
     p[0] = p[1]
 
-
-def p_small_stmts(p):
-    """small_stmts : small_stmt"""
-    p[0] = p[1]
 
 # small_stmt: expr_stmt | print_stmt  | del_stmt | pass_stmt | flow_stmt |
 #    import_stmt | global_stmt | exec_stmt | assert_stmt
@@ -459,6 +490,7 @@ def p_small_stmts(p):
 def p_small_stmt(p):
     """small_stmt : flow_stmt
                   | expr_stmt"""
+    assert_node(p[1])
     p[0] = p[1]
 
 # expr_stmt: testlist (augassign (yield_expr|testlist) |
@@ -467,14 +499,28 @@ def p_small_stmt(p):
 #             '<<=' | '>>=' | '**=' | '//=')
 
 
+class Expr(Node):
+    __slots__ = ("value", )
+
+    def lines(self):
+        yield from self.value.lines()
+
+
+class Assign(Node):
+    __slots__ = ("left", "right")
+
+    def lines(self):
+        yield "{} = {}".format(self.left, self.right)
+
+
 def p_expr_stmt(p):
     """expr_stmt : testlist ASSIGN testlist
                  | testlist """
     if len(p) == 2:
         # a list of expressions
-        p[0] = ast.Expr(p[1])
+        p[0] = Expr(p[1])
     else:
-        p[0] = (p[1], p[3])
+        p[0] = Assign(p[1], p[3])
 
 
 def p_flow_stmt(p):
@@ -484,9 +530,23 @@ def p_flow_stmt(p):
 # return_stmt: 'return' [testlist]
 
 
+class Return(Node):
+    __slots__ = ("value", )
+
+    def lines(self):
+        line_iter = self.value.lines()
+        line1 = next(line_iter)
+        yield "return {}".format(line1)
+        for line in line_iter:
+            yield INDENTATION + line
+
+
 def p_return_stmt(p):
     "return_stmt : RETURN testlist"
-    p[0] = ast.Return(p[2])
+    p[0] = Return(p[2])
+
+
+# compound_stmt is a multiline statement
 
 
 def p_compound_stmt(p):
@@ -495,18 +555,24 @@ def p_compound_stmt(p):
     p[0] = p[1]
 
 
+class If(Node):
+    __slots__ = ("test", "body")
+
+    def lines(self):
+        yield "if {}:".format(self.test)
+        for node in self.body:
+            for line in node.lines():
+                yield INDENTATION + line
+
+
 def p_if_stmt(p):
     'if_stmt : IF test COLON suite'
-    p[0] = ast.If(p[2], p[4], [])
+    p[0] = If(p[2], p[4])
 
 
 def p_suite(p):
-    """suite : simple_stmt
-             | NEWLINE INDENT stmts DEDENT"""
-    if len(p) == 2:
-        p[0] = ast.Expr(p[1])
-    else:
-        p[0] = ast.Expr(p[3])
+    """suite : NEWLINE INDENT stmts DEDENT"""
+    p[0] = p[3]
 
 
 def p_stmts_1(p):
@@ -527,32 +593,73 @@ def p_stmts_2(p):
 # comp_op: '<'|'>'|'=='|'>='|'<='|'<>'|'!='|'in'|'not' 'in'|'is'|'is' 'not'
 
 
+class BinOp(Node):
+    __slots__ = ("left", "op", "right")
+
+    def lines(self):
+        yield "({} {} {})".format(self.left, self.op, self.right)
+
+
+class Compare(BinOp):
+    pass
+
+
 def make_lt_compare(left, right):
-    return ast.Compare(left, '<', right)
+    return Compare(left, '<', right)
 
 
 def make_gt_compare(left, right):
-    return ast.Compare(left, '>', right)
+    return Compare(left, '>', right)
 
 
 def make_eq_compare(left, right):
-    return ast.Compare(left, '==', right)
+    return Compare(left, '==', right)
 
 
 def make_add(l, r):
-    return ast.BinOp(l, ast.Add, r)
+    return BinOp(l, "+", r)
 
 
 def make_sub(l, r):
-    return ast.BinOp(l, ast.Sub, r)
+    return BinOp(l, "-", r)
 
 
 def make_mult(l, r):
-    return ast.BinOp(l, ast.Mult, r)
+    return BinOp(l, "*", r)
 
 
 def make_div(l, r):
-    return ast.BinOp(l, ast.Div, r)
+    return BinOp(l, "/", r)
+
+
+class UAdd(Node):
+    def lines(self):
+        yield "+"
+
+
+class USub(Node):
+    def lines(self):
+        yield "-"
+
+
+class Not(Node):
+    def lines(self):
+        yield "not"
+
+
+class Invert(Node):
+    def lines(self):
+        yield "~"
+
+
+class UnaryOp(Node):
+    __slots__ = ("op", "value")
+
+    def lines(self):
+        if isinstance(self.op, Not):
+            yield "{} {}".format(self.op, self.value)
+        else:
+            yield "{}{}".format(self.op, self.value)
 
 
 binary_ops = {
@@ -563,10 +670,6 @@ binary_ops = {
     "<": make_lt_compare,
     ">": make_gt_compare,
     "==": make_eq_compare,
-}
-unary_ops = {
-    "+": ast.UAdd,
-    "-": ast.USub,
 }
 precedence = (
     ("left", "EQ", "GT", "LT"),
@@ -583,42 +686,78 @@ def p_comparison(p):
                   | comparison LT comparison
                   | comparison EQ comparison
                   | comparison GT comparison
-                  | PLUS comparison
-                  | MINUS comparison
                   | power"""
     if len(p) == 4:
         p[0] = binary_ops[p[2]](p[1], p[3])
-    elif len(p) == 3:
-        p[0] = unary_ops[p[1]](p[2])
     else:
         p[0] = p[1]
+
+
+def p_comparison_uadd(p):
+    """comparison : PLUS comparison"""
+    p[0] = UnaryOp(UAdd(), p[2])
+
+
+def p_comparison_usub(p):
+    """comparison : MINUS comparison"""
+    p[0] = UnaryOp(USub(), p[2])
 
 # power: atom trailer* ['**' factor]
 # trailers enables function calls.  I only allow one level of calls
 # so this is 'trailer'
 
 
-def p_power(p):
-    """power : atom
-             | atom trailer"""
-    if len(p) == 2:
-        p[0] = p[1]
-    else:
-        if p[2][0] == "CALL":
-            p[0] = ast.Call(p[1], p[2][1], None)
-        else:
-            raise AssertionError("not implemented")
+class Call(Node):
+    __slots__ = ("func", "args")
+
+    def lines(self):
+        yield "{}({})".format(self.func, ", ".join(map(str, self.args)))
+
+
+def p_power_1(p):
+    """power : atom"""
+    p[0] = p[1]
+
+
+def p_power_2(p):
+    """power : atom trailer"""
+    p[0] = Call(p[1], p[2])
+
+
+class Name(Node):
+    __slots__ = ("id", )
+
+    def lines(self):
+        yield str(self.id)
+
+
+class Number(Node):
+    __slots__ = ("n", )
+
+    def lines(self):
+        yield str(self.n )
+
+
+class Str(Node):
+    __slots__ = ("s", )
+
+    def lines(self):
+        yield '"{}"'.format(self.s.replace('"', r'\"'))
 
 
 def p_atom_name(p):
     """atom : NAME"""
-    p[0] = ast.Name(p[1], None)
+    p[0] = Name(p[1])
 
 
 def p_atom_number(p):
-    """atom : NUMBER
-            | STRING"""
-    p[0] = p[1]
+    """atom : NUMBER"""
+    p[0] = Number(p[1])
+
+
+def p_atom_str(p):
+    """atom : STRING"""
+    p[0] = Str(p[1])
 
 
 def p_atom_tuple(p):
@@ -630,10 +769,17 @@ def p_atom_tuple(p):
 
 def p_trailer(p):
     "trailer : LPAR arglist RPAR"
-    p[0] = ("CALL", p[2])
+    p[0] = p[2]
 
 # testlist: test (',' test)* [',']
 # Contains shift/reduce error
+
+
+class Tuple(Node):
+    __slots__ = ("elts", )
+
+    def lines(self):
+        yield "({})".format(", ".join(map(str, self.elts)))
 
 
 def p_testlist(p):
@@ -649,7 +795,7 @@ def p_testlist(p):
             p[0] = [p[1]]
     # Convert into a tuple?
     if isinstance(p[0], list):
-        p[0] = ast.Tuple(p[0], None)
+        p[0] = Tuple(p[0])
 
 
 def p_testlist_multi(p):
@@ -684,7 +830,6 @@ def p_arglist(p):
         p[0] = [p[1]]
 
 # argument: test [gen_for] | test '=' test  # Really [keyword '='] test
-
 
 def p_argument(p):
     "argument : test"
@@ -723,10 +868,11 @@ def x(a):
             return z
         return func2(y)
 
-    print('called with',a)
+    print('called with', a)
     if a == 1:
         return 2
-    if a*2 > 10: return 999 / 4
+    if a*2 > 10:
+        return 999 / 4
         # Another comment here
 
     return func(a+2*3)
@@ -755,4 +901,5 @@ print('BIG DECIMAL', 1.234567891234567)
 
 import astor
 parser = GardenSnakeParser()
-print(astor.dump(parser.parse(code)))
+#print(astor.dump(parser.parse(code)))
+print(parser.parse(code))
