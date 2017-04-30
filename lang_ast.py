@@ -107,7 +107,7 @@ def dump_tree(node, indent_size=4):
 
                 yield "]"
         elif isinstance(node, str):
-            yield start + '"{}"'.format(node.replace('"', r'\"'))
+            yield start + '"{}"'.format(node.replace('"', r'\"').replace("\n", r"\n"))
         else:
             yield start + str(node)
 
@@ -138,7 +138,45 @@ class FunctionDef(Node):
                 yield INDENT + line
 
 
-class Expr(Node):
+class FuncDecl(Node):
+    __slots__ = ("name", "params", "returns")
+
+    def lines(self):
+        if self.returns:
+            yield "def {}({}) -> {}".format(
+                self.name,
+                ", ".join(map(str, self.params)),
+                self.returns
+            )
+        else:
+            yield "def {}({})".format(
+                self.name,
+                ", ".join(map(str, self.params))
+            )
+
+
+class VarDecl(Node):
+    __slots__ = ("name", "type")
+
+    def lines(self):
+        yield "{}: {}".format(self.name, self.type)
+
+
+class Array(Node):
+    __slots__ = ("contents", "size")
+
+    def lines(self):
+        yield "{}[{}]".format(self.contents, self.size)
+
+
+class Pointer(Node):
+    __slots__ = ("contents", )
+
+    def lines(self):
+        yield "{}[]".format(self.contents)
+
+
+class ExprStmt(Node):
     __slots__ = ("value", )
 
     def lines(self):
@@ -267,7 +305,9 @@ class Str(Node):
     __slots__ = ("s", )
 
     def lines(self):
-        yield '"{}"'.format(self.s.replace('"', r'\"'))
+        yield '"{}"'.format(
+            self.s.replace('"', r'\"').replace("\n", "\\n")
+        )
 
 
 class Tuple(Node):
@@ -275,3 +315,29 @@ class Tuple(Node):
 
     def lines(self):
         yield "({})".format(", ".join(map(str, self.elts)))
+
+
+##### Macros ######
+
+class Define(Node):
+    __slots__ = ("name", "value")
+
+    def lines(self):
+        if self.value:
+            yield "define {} {}".format(self.name, self.value)
+        else:
+            yield "define {}".format(self.name)
+
+
+class Include(Node):
+    __slots__ = ("path", )
+
+    def lines(self):
+        yield 'include "{}"'.format(self.path)
+
+
+class IncludeLocal(Node):
+    __slots__ = ("path", )
+
+    def lines(self):
+        yield 'includeloc "{}"'.format(self.path)

@@ -1,33 +1,40 @@
-import ply.lex as lex
-
-from ply import *
+from ply import lex
 
 ##### Lexer ######
 
+RESERVED = {
+    "def": "DEF",
+    "if": "IF",
+    "return": "RETURN",
+    "define": "DEFINE",
+    "include": "INCLUDE",
+    "includeloc": "INCLUDE_LOCAL",
+}
+
 tokens = (
-    'DEF',
-    'IF',
     'NAME',
     'NUMBER',  # Python decimals
-    'STRING',  # single quoted strings only; syntax of raw strings
-    'LPAR',
-    'RPAR',
+    'STRING',
+
+    # ( ) [ ]
+    'LPAR', 'RPAR', "LBRACKET", "RBRACKET",
+
     'COLON',
     'EQ',
     'ASSIGN',
+    "ARROW",
     'LT',
     'GT',
     'PLUS',
     'MINUS',
     'MULT',
     'DIV',
-    'RETURN',
     'WS',
     'NEWLINE',
     'COMMA',
     'INDENT',
     'DEDENT',
-)
+) + tuple(RESERVED.values())
 
 #t_NUMBER = r'\d+'
 # taken from decmial.py but without the leading sign
@@ -42,10 +49,26 @@ def t_NUMBER(t):
     return t
 
 
+single_quote = r"'([^\\']+|\\'|\\\\)*'"
+double_quote = r'"([^\\"]+|\\"|\\\\)*"'
+multiline_single = r"'''([\w\W]*?)'''"
+multiline_double = r'"""([\w\W]*?)"""'
+str_token = (
+    r"(" + multiline_single + r")|" +
+    r"(" + multiline_double + r")|" +
+    r"(" + single_quote + r")|" +
+    r"(" + double_quote + r")"
+)
+
+@lex.TOKEN(str_token)
 def t_STRING(t):
-    r"'([^\\']+|\\'|\\\\)*'"  # I think this is right ...
-    t.value = t.value[1:-1]  # .swapcase() # for fun
+    s = t.value
+    if s.startswith("'''") or s.startswith('"""'):
+        t.value = s[3:-3]
+    else:
+        t.value = s[1:-1]
     return t
+
 
 t_COLON = r':'
 t_EQ = r'=='
@@ -57,14 +80,13 @@ t_MINUS = r'-'
 t_MULT = r'\*'
 t_DIV = r'/'
 t_COMMA = r','
+t_ARROW = r"->"
+
+t_LBRACKET = r"\["
+t_RBRACKET = r"\]"
 
 # Ply nicely documented how to do this.
 
-RESERVED = {
-    "def": "DEF",
-    "if": "IF",
-    "return": "RETURN",
-}
 
 
 def t_NAME(t):
@@ -288,9 +310,8 @@ def filter(lexer):
 
 class IndentLexer(object):
 
-    def __init__(self, debug=0, optimize=0, lextab='lextab', reflags=0):
-        self.lexer = lex.lex(debug=debug, optimize=optimize,
-                             lextab=lextab, reflags=reflags)
+    def __init__(self, **kwargs):
+        self.lexer = lex.lex(**kwargs)
         self.token_stream = None
 
     def input(self, s):
@@ -303,4 +324,3 @@ class IndentLexer(object):
             return next(self.token_stream)
         except StopIteration:
             return None
-

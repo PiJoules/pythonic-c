@@ -2,6 +2,10 @@ from ply import *
 from clex import IndentLexer, tokens
 from lang_ast import *
 
+import logging
+
+LOGGER = logging.getLogger("ply")
+LOGGER.setLevel(logging.ERROR)
 
 ##########   Parser (tokens -> AST) ######
 
@@ -37,7 +41,6 @@ def p_stmt_list_4(p):
 # ignoring decorators
 def p_funcdef(p):
     "funcdef : DEF NAME parameters COLON suite"
-    assert_contains_nodes(p[5])
     p[0] = FunctionDef(p[2], p[3], p[5])
 
 # parameters: '(' [varargslist] ')'
@@ -62,7 +65,7 @@ def p_varargslist_one(p):
 
 def p_varargslist_many(p):
     """varargslist : varargslist COMMA NAME"""
-    p[0] = p[1] + p[3]
+    p[0] = p[1] + [p[3]]
 
 
 def p_stmt(p):
@@ -84,15 +87,73 @@ def p_simple_stmt(p):
 
 
 def p_small_stmt(p):
-    """small_stmt : flow_stmt
+    """small_stmt : return_stmt
+                  | include_stmt
+                  | define_stmt
                   | expr_stmt
-                  | funcdecl"""
+                  | func_decl
+                  | var_decl"""
     p[0] = p[1]
 
 
-def p_funcdecl(p):
-    "funcdecl : DEF NAME parameters"
-    p[0] = FunctionDef(p[2], p[3], [])
+def p_func_decl(p):
+    "func_decl : DEF NAME parameters"
+    p[0] = FuncDecl(p[2], p[3], None)
+
+
+def p_func_declwith_ret(p):
+    "func_decl : DEF NAME parameters ARROW type_declaration"
+    p[0] = FuncDecl(p[2], p[3], p[5])
+
+
+def p_vardecl(p):
+    "var_decl : NAME COLON type_declaration"
+    # TODO: Add other rules for containers
+    p[0] = VarDecl(p[1], p[3])
+
+
+def p_declaration_name(p):
+    "type_declaration : NAME"
+    p[0] = p[1]
+
+
+def p_declaration_array(p):
+    #"type_declaration : type_declaration LBRACKET test RBRACKET"
+    "type_declaration : type_declaration bracket_list"
+    contents = p[1]
+
+    def _distribute(sizes):
+        # Wraps p[1] in either an array or pointer by distributing the bracket
+        # sizes
+        if not sizes:
+            return p[1]
+        size = sizes[0]
+        if size is None:
+            return Pointer(_distribute(sizes[1:]))
+        else:
+            return Array(_distribute(sizes[1:]), size)
+    p[0] = _distribute(p[2])
+
+def p_pointer_or_array(p):
+    """pointer_or_array : pointer
+                        | array"""
+    p[0] = p[1]
+
+def p_bracket_list_one(p):
+    "bracket_list : pointer_or_array"
+    p[0] = [p[1]]
+
+def p_bracket_list_many(p):
+    "bracket_list : bracket_list pointer_or_array"
+    p[0] = p[1] + [p[2]]
+
+def p_pointer(p):
+    "pointer : LBRACKET RBRACKET"
+    p[0] = None  # None to indicate to higher rule this has no size
+
+def p_array(p):
+    "array : LBRACKET test RBRACKET"
+    p[0] = p[2]
 
 
 # expr_stmt: testlist (augassign (yield_expr|testlist) |
@@ -101,6 +162,14 @@ def p_funcdecl(p):
 #             '<<=' | '>>=' | '**=' | '//=')
 
 
+def p_include_standard(p):
+    "include_stmt : INCLUDE STRING"
+    p[0] = Include(p[2])
+
+
+def p_include_local(p):
+    "include_stmt : INCLUDE_LOCAL STRING"
+    p[0] = IncludeLocal(p[2])
 
 
 def p_expr_stmt(p):
@@ -108,14 +177,9 @@ def p_expr_stmt(p):
                  | testlist """
     if len(p) == 2:
         # a list of expressions
-        p[0] = Expr(p[1])
+        p[0] = ExprStmt(p[1])
     else:
         p[0] = Assign(p[1], p[3])
-
-
-def p_flow_stmt(p):
-    "flow_stmt : return_stmt"
-    p[0] = p[1]
 
 # return_stmt: 'return' [testlist]
 
@@ -123,6 +187,16 @@ def p_flow_stmt(p):
 def p_return_stmt(p):
     "return_stmt : RETURN testlist"
     p[0] = Return(p[2])
+
+
+def p_define_stmt(p):
+    "define_stmt : DEFINE NAME testlist"
+    p[0] = Define(p[2], p[3])
+
+
+def p_define_stmt_empty(p):
+    "define_stmt : DEFINE NAME"
+    p[0] = Define(p[2], None)
 
 
 # compound_stmt is a multiline statement
@@ -309,11 +383,11 @@ def p_error(p):
 
 class Parser(object):
 
-    def __init__(self, lexer=None):
+    def __init__(self, lexer=None, **kwargs):
         if lexer is None:
             lexer = IndentLexer()
         self.lexer = lexer
-        self.parser = yacc.yacc()
+        self.parser = yacc.yacc(errorlog=LOGGER)
 
     def parse(self, code):
         self.lexer.input(code)
