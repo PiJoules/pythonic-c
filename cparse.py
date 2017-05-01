@@ -9,14 +9,15 @@ LOGGER.setLevel(logging.ERROR)
 
 ##########   Parser (tokens -> AST) ######
 
+# Module will be a list of statements
 def p_module(p):
     """module : stmt_list"""
     p[0] = Module(p[1])
 
 
+# Statements are separated by newlines
 def p_stmt_list_1(p):
     "stmt_list : stmt_list NEWLINE"
-    # For catching newlines
     p[0] = p[1]
 
 
@@ -37,15 +38,13 @@ def p_stmt_list_4(p):
 
 
 
-# funcdef: [decorators] 'def' NAME parameters ':' suite
-# ignoring decorators
+# FuncDef is the standard way of defining a python function
 def p_funcdef(p):
     "funcdef : DEF NAME parameters COLON suite"
-    p[0] = FunctionDef(p[2], p[3], p[5])
-
-# parameters: '(' [varargslist] ')'
+    p[0] = FuncDef(p[2], p[3], p[5])
 
 
+# Empty parameters
 def p_parameters_empty(p):
     """parameters : LPAR RPAR"""
     p[0] = []
@@ -56,15 +55,19 @@ def p_parameters_exist(p):
     p[0] = p[2]
 
 
-# varargslist: (fpdef ['=' test] ',')* ('*' NAME [',' '**' NAME] | '**' NAME) |
+# varargslist: (fpdef ['=' expr] ',')* ('*' NAME [',' '**' NAME] | '**' NAME) |
 # highly simplified
 def p_varargslist_one(p):
-    """varargslist : NAME"""
+    """varargslist : name_or_var_decl"""
     p[0] = [p[1]]
 
+def p_name_or_var_decl(p):
+    """name_or_var_decl : NAME
+                        | var_decl"""
+    p[0] = p[1]
 
 def p_varargslist_many(p):
-    """varargslist : varargslist COMMA NAME"""
+    """varargslist : varargslist COMMA name_or_var_decl"""
     p[0] = p[1] + [p[3]]
 
 
@@ -91,9 +94,24 @@ def p_small_stmt(p):
                   | include_stmt
                   | define_stmt
                   | expr_stmt
+                  | assign_stmt
                   | func_decl
-                  | var_decl"""
+                  | var_decl
+                  | enum_decl"""
     p[0] = p[1]
+
+
+def p_enum_decl(p):
+    "enum_decl : ENUM NAME LBRACE enum_name_list RBRACE"
+    p[0] = Enum(p[2], p[4])
+
+def p_enum_name_list(p):
+    "enum_name_list : NAME"
+    p[0] = [p[1]]
+
+def p_enum_name_list_many(p):
+    "enum_name_list : enum_name_list COMMA NAME"
+    p[0] = p[1] + [p[3]]
 
 
 def p_func_decl(p):
@@ -108,17 +126,52 @@ def p_func_declwith_ret(p):
 
 def p_vardecl(p):
     "var_decl : NAME COLON type_declaration"
-    # TODO: Add other rules for containers
-    p[0] = VarDecl(p[1], p[3])
+    p[0] = VarDecl(p[1], p[3], None)
+
+def p_vardecl_assign(p):
+    "var_decl : NAME COLON type_declaration ASSIGN expr"
+    p[0] = VarDecl(p[1], p[3], p[5])
 
 
 def p_declaration_name(p):
     "type_declaration : NAME"
     p[0] = p[1]
 
+def p_type_declaration_scoped(p):
+    "type_declaration : LBRACE type_declaration RBRACE"
+    p[0] = p[2]
+
+
+# Function type declarations
+
+def p_function_declaration(p):
+    "type_declaration : inline_func_decl"
+    p[0] = p[1]
+
+def p_inline_func_decl(p):
+    "inline_func_decl : param_type_list ARROW type_declaration"
+    p[0] = FuncType(p[1], p[3])
+
+def p_param_type_list_empty(p):
+    "param_type_list : LPAR RPAR"
+    p[0] = []
+
+def p_param_type_list_something(p):
+    "param_type_list : LPAR param_list_contents RPAR"
+    p[0] = p[2]
+
+def p_param_list_contents(p):
+    "param_list_contents : type_declaration"
+    p[0] = [p[1]]
+
+def p_param_list_contents_many(p):
+    "param_list_contents : param_list_contents COMMA type_declaration"
+    p[0] = p[1] + [p[3]]
+
+# Pointer type declarations
+
 
 def p_declaration_array(p):
-    #"type_declaration : type_declaration LBRACKET test RBRACKET"
     "type_declaration : type_declaration bracket_list"
     contents = p[1]
 
@@ -152,14 +205,8 @@ def p_pointer(p):
     p[0] = None  # None to indicate to higher rule this has no size
 
 def p_array(p):
-    "array : LBRACKET test RBRACKET"
+    "array : LBRACKET expr RBRACKET"
     p[0] = p[2]
-
-
-# expr_stmt: testlist (augassign (yield_expr|testlist) |
-#                      ('=' (yield_expr|testlist))*)
-# augassign: ('+=' | '-=' | '*=' | '/=' | '%=' | '&=' | '|=' | '^=' |
-#             '<<=' | '>>=' | '**=' | '//=')
 
 
 def p_include_standard(p):
@@ -173,24 +220,21 @@ def p_include_local(p):
 
 
 def p_expr_stmt(p):
-    """expr_stmt : testlist ASSIGN testlist
-                 | testlist """
-    if len(p) == 2:
-        # a list of expressions
-        p[0] = ExprStmt(p[1])
-    else:
-        p[0] = Assign(p[1], p[3])
+    """expr_stmt : expr"""
+    p[0] = ExprStmt(p[1])
 
-# return_stmt: 'return' [testlist]
+def p_assign(p):
+    "assign_stmt : expr ASSIGN expr"
+    p[0] = Assign(p[1], p[3])
 
 
 def p_return_stmt(p):
-    "return_stmt : RETURN testlist"
+    "return_stmt : RETURN expr"
     p[0] = Return(p[2])
 
 
 def p_define_stmt(p):
-    "define_stmt : DEFINE NAME testlist"
+    "define_stmt : DEFINE NAME expr"
     p[0] = Define(p[2], p[3])
 
 
@@ -209,7 +253,7 @@ def p_compound_stmt(p):
 
 
 def p_if_stmt(p):
-    'if_stmt : IF test COLON suite'
+    'if_stmt : IF expr COLON suite'
     p[0] = If(p[2], p[4])
 
 
@@ -229,7 +273,7 @@ def p_stmts_2(p):
 
 # No using Python's approach because Ply supports precedence
 
-# comparison: expr (comp_op expr)*
+# expr: expr (comp_op expr)*
 # arith_expr: term (('+'|'-') term)*
 # term: factor (('*'|'/'|'%'|'//') factor)*
 # factor: ('+'|'-'|'~') factor | power
@@ -254,27 +298,35 @@ binary_ops = {
 }
 
 def p_comparison(p):
-    """comparison : comparison PLUS comparison
-                  | comparison MINUS comparison
-                  | comparison MULT comparison
-                  | comparison DIV comparison
-                  | comparison LT comparison
-                  | comparison EQ comparison
-                  | comparison GT comparison
+    """expr : expr PLUS expr
+                  | expr MINUS expr
+                  | expr MULT expr
+                  | expr DIV expr
+                  | expr LT expr
+                  | expr EQ expr
+                  | expr GT expr
                   | power"""
     if len(p) == 4:
         p[0] = binary_ops[p[2]](p[1], p[3])
     else:
         p[0] = p[1]
 
+def p_comparison_scoped(p):
+    "expr : LPAR expr RPAR"
+    p[0] = p[2]
+
+def p_comparison_cast(p):
+    "expr : LPAR type_declaration RPAR expr"
+    p[0] = Cast(p[2], p[4])
+
 
 def p_comparison_uadd(p):
-    """comparison : PLUS comparison"""
+    """expr : PLUS expr"""
     p[0] = UnaryOp(UAdd(), p[2])
 
 
 def p_comparison_usub(p):
-    """comparison : MINUS comparison"""
+    """expr : MINUS expr"""
     p[0] = UnaryOp(USub(), p[2])
 
 # power: atom trailer* ['**' factor]
@@ -307,10 +359,26 @@ def p_atom_str(p):
     """atom : STRING"""
     p[0] = Str(p[1])
 
+def p_atom_array_empty(p):
+    "atom : LBRACKET RBRACKET"
+    p[0] = ArrayLiteral([])
 
-def p_atom_tuple(p):
-    """atom : LPAR testlist RPAR"""
-    p[0] = p[2]
+def p_atom_array(p):
+    "atom : LBRACKET array_contents RBRACKET"
+    p[0] = ArrayLiteral(p[2])
+
+def p_array_litral_contents(p):
+    "array_contents : expr"
+    p[0] = [p[1]]
+
+def p_array_litral_contents_2(p):
+    "array_contents : array_contents COMMA expr"
+    p[0] = p[1] + [p[3]]
+
+
+#def p_atom_tuple(p):
+#    """atom : LPAR testlist RPAR"""
+#    p[0] = p[2]
 
 # trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
 
@@ -319,7 +387,11 @@ def p_trailer(p):
     "trailer : LPAR arglist RPAR"
     p[0] = p[2]
 
-# testlist: test (',' test)* [',']
+def p_trailer_empty(p):
+    "trailer : LPAR RPAR"
+    p[0] = []
+
+# testlist: expr (',' expr)* [',']
 # Contains shift/reduce error
 
 
@@ -340,8 +412,8 @@ def p_testlist(p):
 
 
 def p_testlist_multi(p):
-    """testlist_multi : testlist_multi COMMA test
-                      | test"""
+    """testlist_multi : testlist_multi COMMA expr
+                      | expr"""
     if len(p) == 2:
         # singleton
         p[0] = p[1]
@@ -353,14 +425,7 @@ def p_testlist_multi(p):
             p[0] = [p[1], p[3]]
 
 
-# test: or_test ['if' or_test 'else' test] | lambdef
-#  as I don't support 'and', 'or', and 'not' this works down to 'comparison'
-def p_test(p):
-    "test : comparison"
-    p[0] = p[1]
-
-
-# arglist: (argument ',')* (argument [',']| '*' test [',' '**' test] | '**' test)
+# arglist: (argument ',')* (argument [',']| '*' expr [',' '**' expr] | '**' expr)
 # XXX INCOMPLETE: this doesn't allow the trailing comma
 def p_arglist(p):
     """arglist : arglist COMMA argument
@@ -370,15 +435,23 @@ def p_arglist(p):
     else:
         p[0] = [p[1]]
 
-# argument: test [gen_for] | test '=' test  # Really [keyword '='] test
+# argument: expr [gen_for] | expr '=' expr  # Really [keyword '='] expr
 
 def p_argument(p):
-    "argument : test"
+    "argument : expr"
     p[0] = p[1]
 
 
 def p_error(p):
     raise SyntaxError(p)
+
+
+def find_column(input, token):
+    last_cr = input.rfind('\n',0,token.lexpos)
+    if last_cr < 0:
+        last_cr = 0
+    column = (token.lexpos - last_cr) + 1
+    return column
 
 
 class Parser(object):

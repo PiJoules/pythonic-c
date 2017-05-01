@@ -125,7 +125,7 @@ class Module(Node):
             yield from node.lines()
 
 
-class FunctionDef(Node):
+class FuncDef(Node):
     __slots__ = ("name", "params", "body")
 
     def lines(self):
@@ -155,25 +155,80 @@ class FuncDecl(Node):
             )
 
 
-class VarDecl(Node):
-    __slots__ = ("name", "type")
+class FuncType(Node):
+    __slots__ = ("params", "returns")
 
     def lines(self):
-        yield "{}: {}".format(self.name, self.type)
+        if isinstance(self.returns, FuncType):
+            yield "({}) -> {{{}}}".format(
+                ", ".join(map(str, self.params)),
+                self.returns
+            )
+        else:
+            yield "({}) -> {}".format(
+                ", ".join(map(str, self.params)),
+                self.returns
+            )
+
+
+class VarDecl(Node):
+    __slots__ = ("name", "type", "init")
+
+    def lines(self):
+        if self.init:
+            yield "{}: {} = {}".format(self.name, self.type, self.init)
+        else:
+            yield "{}: {}".format(self.name, self.type)
+
+
+def _format_container(node, sizes=None):
+    """
+    Fromat a heiarchy of arrays or nodes to print the sizes correctly.
+    Works only on single line nodes for now.
+    """
+    sizes = sizes or []
+    if isinstance(node, Array):
+        sizes.append(node.size)
+        return _format_container(node.contents, sizes=sizes)
+    elif isinstance(node, Pointer):
+        sizes.append(None)
+        return _format_container(node.contents, sizes=sizes)
+    else:
+        s = ""
+        for size in sizes:
+            s += "[]" if size is None else "[{}]".format(size)
+        if isinstance(node, FuncType):
+            return "{{{}}}".format(node) + s
+        else:
+            return str(node) + s
 
 
 class Array(Node):
     __slots__ = ("contents", "size")
 
     def lines(self):
-        yield "{}[{}]".format(self.contents, self.size)
+        yield _format_container(self)
 
 
 class Pointer(Node):
     __slots__ = ("contents", )
 
     def lines(self):
-        yield "{}[]".format(self.contents)
+        yield _format_container(self)
+
+
+class ArrayLiteral(Node):
+    __slots__ = ("contents", )
+
+    def lines(self):
+        yield "[{}]".format(", ".join(map(str, self.contents)))
+
+
+class Cast(Node):
+    __slots__ = ("target_type", "expr")
+
+    def lines(self):
+        yield "({}){}".format(self.target_type, self.expr)
 
 
 class ExprStmt(Node):
@@ -317,6 +372,16 @@ class Tuple(Node):
         yield "({})".format(", ".join(map(str, self.elts)))
 
 
+class Enum(Node):
+    __slots__ = ("name", "members", )
+
+    def lines(self):
+        yield "enum {} {{{}}}".format(
+            self.name,
+            ", ".join(map(str, self.members))
+        )
+
+
 ##### Macros ######
 
 class Define(Node):
@@ -340,4 +405,4 @@ class IncludeLocal(Node):
     __slots__ = ("path", )
 
     def lines(self):
-        yield 'includeloc "{}"'.format(self.path)
+        yield 'includel "{}"'.format(self.path)

@@ -8,7 +8,8 @@ RESERVED = {
     "return": "RETURN",
     "define": "DEFINE",
     "include": "INCLUDE",
-    "includeloc": "INCLUDE_LOCAL",
+    "includel": "INCLUDE_LOCAL",
+    "enum": "ENUM",
 }
 
 tokens = (
@@ -16,8 +17,8 @@ tokens = (
     'NUMBER',  # Python decimals
     'STRING',
 
-    # ( ) [ ]
-    'LPAR', 'RPAR', "LBRACKET", "RBRACKET",
+    # ( ) [ ] { }
+    'LPAR', 'RPAR', "LBRACKET", "RBRACKET", "LBRACE", "RBRACE",
 
     'COLON',
     'EQ',
@@ -82,8 +83,8 @@ t_DIV = r'/'
 t_COMMA = r','
 t_ARROW = r"->"
 
-t_LBRACKET = r"\["
-t_RBRACKET = r"\]"
+t_LBRACE = r"\{"
+t_RBRACE = r"\}"
 
 # Ply nicely documented how to do this.
 
@@ -107,7 +108,7 @@ def t_comment(t):
 # Whitespace
 def t_WS(t):
     r'[ ]+'
-    if t.lexer.at_line_start and t.lexer.paren_count == 0:
+    if t.lexer.at_line_start and empty_container(t.lexer):
         return t
 
 # Don't generate newline tokens when inside of parenthesis, eg
@@ -119,9 +120,18 @@ def t_newline(t):
     r'\n+'
     t.lexer.lineno += len(t.value)
     t.type = "NEWLINE"
-    if t.lexer.paren_count == 0:
+    if empty_container(t.lexer):
         return t
 
+def t_LBRACKET(t):
+    r"\["
+    t.lexer.bracket_count += 1
+    return t
+
+def t_RBRACKET(t):
+    r"\]"
+    t.lexer.bracket_count -= 1
+    return t
 
 def t_LPAR(t):
     r'\('
@@ -307,6 +317,12 @@ def filter(lexer):
 
 # Combine Ply and my filters into a new lexer
 
+def empty_container(lexer):
+    return (
+        (not lexer.paren_count) and
+        (not lexer.bracket_count)
+    )
+
 
 class IndentLexer(object):
 
@@ -315,8 +331,9 @@ class IndentLexer(object):
         self.token_stream = None
 
     def input(self, s):
-        self.lexer.paren_count = 0
         self.lexer.input(s)
+        self.lexer.paren_count = 0
+        self.lexer.bracket_count = 0
         self.token_stream = filter(self.lexer)
 
     def token(self):
