@@ -62,7 +62,7 @@ def func() -> None  # Func decl with optional return type
 def func(a, b) -> int
 
 
-enum days {MON, TUE, WED, THU, FRI, SAT}
+enum days {MON, TUE, WED, THU, FRI, SAT, SUN}
 
 
 # Function definition
@@ -94,5 +94,4 @@ x = (2.0)
 x = (int)2.0
 x = (int)(float)(2)
 x = (int)((float)2)
-
 

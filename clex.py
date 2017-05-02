@@ -51,7 +51,7 @@ def t_FLOAT(t):
     return t
 
 
-double_quote = r'"([^\\"]+|\\"|\\\\)*"'
+double_quote = r'"(.*?)(?<!\\)"'
 multiline_double = r'"""([\w\W]*?)"""'
 str_token = (
     r"(" + multiline_double + r")|" +
@@ -143,8 +143,18 @@ def t_RPAR(t):
     return t
 
 
+def find_column(input, token):
+    last_cr = input.rfind('\n',0,token.lexpos)
+    if last_cr < 0:
+        last_cr = 0
+    column = (token.lexpos - last_cr) + 1
+    return column
+
+
 def t_error(t):
-    raise SyntaxError("Unknown symbol '{}' at ({}, {})".format(t.value[0], t.lineno, t.lexpos))
+    raise SyntaxError("Unknown symbol '{}' at ({}, {})".format(
+        t.value[0], t.lineno, find_column(t.value, t)
+    ))
 
 # I implemented INDENT / DEDENT generation as a post-processing filter
 

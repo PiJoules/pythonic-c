@@ -18,6 +18,15 @@ class Node:
         """
         raise NotImplementedError("lines() not implemented for node {}".format(type(self)))
 
+    def c_lines(self):
+        """
+        Same as lines() but each line is the C code equivalent.
+        """
+        raise NotImplementedError("c_lines() not implemented for node {}".format(type(self)))
+
+    def c_code(self):
+        return "\n".join(self.c_lines())
+
     def __str__(self):
         return "\n".join(self.lines())
 
@@ -137,18 +146,52 @@ class Module(Node):
         for node in self.body:
             yield from node.lines()
 
+    def c_lines(self):
+        for node in self.body:
+            yield from node.c_lines()
+
 
 class FuncDef(Node):
-    __slots__ = ("name", "params", "body")
+    __slots__ = ("name", "params", "body", "returns")
 
     def lines(self):
-        yield "def {}({}):".format(
+        line1 = "def {}({})".format(
             self.name,
             ", ".join(map(str, self.params))
         )
+
+        if self.returns:
+            line1 += " -> {}:".format(self.returns)
+        else:
+            line1 += ":"
+
+        yield line1
         for node in self.body:
             for line in node.lines():
                 yield INDENT + line
+
+    def c_lines(self):
+        # Check types
+        assert self.returns is not None
+        assert all(isinstance(p, VarDecl) for p in self.params)
+
+        if isinstance(self.returns, str):
+            return_s = self.returns
+        else:
+            returns_s = self.returns.c_code()
+
+        yield "{} {}({}){{".format(
+            return_s,
+            self.name,
+            ", ".join(p.c_code() for p in self.params)
+        )
+
+        # Body
+        for node in self.body:
+            for line in node.c_lines():
+                yield INDENT + line
+
+        yield "}"
 
 
 class FuncDecl(Node):
@@ -184,6 +227,23 @@ class FuncType(Node):
             )
 
 
+def _format_c_decl(name, t):
+    if isinstance(t, Pointer):
+        return _format_c_decl(
+            "*" + name,
+            t.contents
+        )
+    elif isinstance(t, Array):
+        return _format_c_decl(
+            name + "[{}]".format(t.size),
+            t.contents
+        )
+    elif isinstance(t, str):
+        return "{} {}".format(t, name)
+    else:
+        raise RuntimeError("Unable to handle type {}".format(type(t)))
+
+
 class VarDecl(Node):
     __slots__ = ("name", "type", "init")
 
@@ -192,6 +252,12 @@ class VarDecl(Node):
             yield "{}: {} = {}".format(self.name, self.type, self.init)
         else:
             yield "{}: {}".format(self.name, self.type)
+
+    def c_lines(self):
+        line = _format_c_decl(self.name, self.type)
+        if self.init:
+            line += " = {}".format(self.init)
+        yield line
 
 
 def _format_container(node, sizes=None):
@@ -356,7 +422,7 @@ class Call(Node):
 
 
 class Name(Node):
-    __slots__ = ("id", )
+    __slots__ = ("id", "type")
 
     def lines(self):
         yield str(self.id)
@@ -418,11 +484,17 @@ class Include(Node):
     __slots__ = ("path", )
 
     def lines(self):
-        yield 'include "{}"'.format(self.path)
+        yield 'include {}'.format(self.path)
+
+    def c_lines(self):
+        yield '#include <{}>'.format(self.path.s)
 
 
 class IncludeLocal(Node):
     __slots__ = ("path", )
 
     def lines(self):
-        yield 'includel "{}"'.format(self.path)
+        yield 'includel {}'.format(self.path)
+
+    def c_lines(self):
+        yield '#include {}'.format(self.path)

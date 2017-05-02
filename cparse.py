@@ -7,6 +7,8 @@ import logging
 LOGGER = logging.getLogger("ply")
 LOGGER.setLevel(logging.ERROR)
 
+INFER_TYPES = True
+
 ##########   Parser (tokens -> AST) ######
 
 # Module will be a list of statements
@@ -41,11 +43,61 @@ def p_stmt_list_4(p):
     p[0] = [p[1]]
 
 
+def check_and_create_main(funcdef):
+    name = funcdef.name
+    params = funcdef.params
+
+    if not (len(params) == 0 or len(params) == 2):
+        raise RuntimeError("Expected either no or 2 parameters for main function")
+
+    argc_t = "int"
+    argv_t = Pointer(Pointer("char"))
+
+    if not params:
+        argc = VarDecl("argc", argc_t, None)
+        argv = VarDecl("argv", argv_t, None)
+    else:
+        argc, argv = params
+
+        # Check argc
+        if not isinstance(argc, VarDecl):
+            argc = VarDecl(argc, argc_t, None)
+        else:
+            if argc.type != argc_t:
+                raise RuntimeError("Expected type int for first argumenty of main function")
+            if argc.init is not None:
+                raise RuntimeError("No initial type expected for first argument of main method")
+
+        # Check argv
+        if not isinstance(argv, VarDecl):
+            argv = VarDecl(argv, argv_t, None)
+        else:
+            if argv.type != argv_t:
+                raise RuntimeError("Expected type char** for second argument of main function")
+            if argv.init is not None:
+                raise RuntimeError("No initial type expected for second argument of main method")
+
+    returns = funcdef.returns
+    if returns is None:
+        returns = "int"
+    elif returns != "int":
+        raise RuntimeError("Expected int return type for main function")
+
+    funcdef.params = [argc, argv]
+    funcdef.returns = returns
+    return funcdef
+
 
 # FuncDef is the standard way of defining a python function
 def p_funcdef(p):
     "funcdef : DEF NAME parameters COLON suite"
-    p[0] = FuncDef(p[2], p[3], p[5])
+    funcdef = FuncDef(p[2], p[3], p[5], None)
+
+    if INFER_TYPES:
+        if funcdef.name == "main":
+            funcdef = check_and_create_main(funcdef)
+
+    p[0] = funcdef
 
 
 # Empty parameters
@@ -219,12 +271,12 @@ def p_array(p):
 
 def p_include_standard(p):
     "include_stmt : INCLUDE STRING"
-    p[0] = Include(p[2])
+    p[0] = Include(Str(p[2]))
 
 
 def p_include_local(p):
     "include_stmt : INCLUDE_LOCAL STRING"
-    p[0] = IncludeLocal(p[2])
+    p[0] = IncludeLocal(Str(p[2]))
 
 
 def p_expr_stmt(p):
@@ -355,7 +407,7 @@ def p_power_2(p):
 
 def p_atom_name(p):
     """atom : NAME"""
-    p[0] = Name(p[1])
+    p[0] = Name(p[1], None)
 
 
 def p_atom_int(p):
@@ -491,30 +543,4 @@ class Parser(object):
         return result
 
 
-def get_args():
-    from argparse import ArgumentParser
-    parser = ArgumentParser()
-
-    parser.add_argument("filename")
-    parser.add_argument("-d", "--dump", default=False, action="store_true")
-
-    return parser.parse_args()
-
-
-def main():
-    args = get_args()
-
-    parser = Parser()
-
-    with open(args.filename, "r") as f:
-        ast = parser.parse(f.read())
-
-    if args.dump:
-        print(dump_tree(ast))
-    else:
-        print(ast)
-
-
-if __name__ == "__main__":
-    main()
 
