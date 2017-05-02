@@ -14,8 +14,9 @@ RESERVED = {
 
 tokens = (
     'NAME',
-    'NUMBER',  # Python decimals
-    'STRING',
+
+    # Literals
+    'INT', "FLOAT", 'STRING',
 
     # ( ) [ ] { }
     'LPAR', 'RPAR', "LBRACKET", "RBRACKET", "LBRACE", "RBRACE",
@@ -37,34 +38,30 @@ tokens = (
     'DEDENT',
 ) + tuple(RESERVED.values())
 
-#t_NUMBER = r'\d+'
-# taken from decmial.py but without the leading sign
 
+def t_INT(t):
+    r'\d+(?!\.)'
+    t.value = int(t.value)
+    return t
 
-def t_NUMBER(t):
-    r"""(\d+(\.\d*)?)|(\.\d+)"""
-    if t.value.isdigit():
-        t.value = int(t.value)
-    else:
-        t.value = float(t.value)
+# TODO: Add other floating point representations
+def t_FLOAT(t):
+    r"\d+\.\d+"
+    t.value = float(t.value)
     return t
 
 
-single_quote = r"'([^\\']+|\\'|\\\\)*'"
 double_quote = r'"([^\\"]+|\\"|\\\\)*"'
-multiline_single = r"'''([\w\W]*?)'''"
 multiline_double = r'"""([\w\W]*?)"""'
 str_token = (
-    r"(" + multiline_single + r")|" +
     r"(" + multiline_double + r")|" +
-    r"(" + single_quote + r")|" +
     r"(" + double_quote + r")"
 )
 
 @lex.TOKEN(str_token)
 def t_STRING(t):
     s = t.value
-    if s.startswith("'''") or s.startswith('"""'):
+    if s.startswith('"""'):
         t.value = s[3:-3]
     else:
         t.value = s[1:-1]
@@ -147,9 +144,7 @@ def t_RPAR(t):
 
 
 def t_error(t):
-    raise SyntaxError("Unknown symbol %r" % (t.value[0],))
-    print("Skipping", repr(t.value[0]))
-    t.lexer.skip(1)
+    raise SyntaxError("Unknown symbol '{}' at ({}, {})".format(t.value[0], t.lineno, t.lexpos))
 
 # I implemented INDENT / DEDENT generation as a post-processing filter
 

@@ -1,6 +1,5 @@
 # Comment
 
-'single quote comment'
 "double quote comment"
 
 """
@@ -9,8 +8,6 @@ double
 quotes
 """
 
-'''multiline
-    single quotes'''
 
 define CONSTANT
 define DAYS_IN_A_YEAR 365
@@ -97,3 +94,5 @@ x = (2.0)
 x = (int)2.0
 x = (int)(float)(2)
 x = (int)((float)2)
+
+

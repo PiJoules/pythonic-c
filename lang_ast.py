@@ -21,6 +21,19 @@ class Node:
     def __str__(self):
         return "\n".join(self.lines())
 
+    def __eq__(self, other):
+        if self.__slots__ != other.__slots__:
+            return False
+
+        for attr in self.__slots__:
+            if getattr(self, attr) != getattr(other, attr):
+                return False
+
+        return True
+
+    def __ne__(self, other):
+        return not (self == other)
+
 
 def assert_node(n):
     assert isinstance(n, Node), "Expected Node. Got {}".format(n)
@@ -349,11 +362,18 @@ class Name(Node):
         yield str(self.id)
 
 
-class Number(Node):
+class Int(Node):
     __slots__ = ("n", )
 
     def lines(self):
-        yield str(self.n )
+        yield str(self.n)
+
+
+class Float(Node):
+    __slots__ = ("n", )
+
+    def lines(self):
+        yield str(self.n)
 
 
 class Str(Node):

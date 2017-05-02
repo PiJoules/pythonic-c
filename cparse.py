@@ -14,6 +14,10 @@ def p_module(p):
     """module : stmt_list"""
     p[0] = Module(p[1])
 
+def p_empty_module(p):
+    "module : empty"
+    p[0] = Module([])
+
 
 # Statements are separated by newlines
 def p_stmt_list_1(p):
@@ -114,20 +118,24 @@ def p_enum_name_list_many(p):
     p[0] = p[1] + [p[3]]
 
 
+# def func(a, b:int)
 def p_func_decl(p):
     "func_decl : DEF NAME parameters"
     p[0] = FuncDecl(p[2], p[3], None)
 
 
+# def func(a, b:int) -> ret
 def p_func_declwith_ret(p):
     "func_decl : DEF NAME parameters ARROW type_declaration"
     p[0] = FuncDecl(p[2], p[3], p[5])
 
 
+# x: int
 def p_vardecl(p):
     "var_decl : NAME COLON type_declaration"
     p[0] = VarDecl(p[1], p[3], None)
 
+# x: int = 2
 def p_vardecl_assign(p):
     "var_decl : NAME COLON type_declaration ASSIGN expr"
     p[0] = VarDecl(p[1], p[3], p[5])
@@ -223,6 +231,7 @@ def p_expr_stmt(p):
     """expr_stmt : expr"""
     p[0] = ExprStmt(p[1])
 
+# LHS is expr b/c nearly anything can be assigned to
 def p_assign(p):
     "assign_stmt : expr ASSIGN expr"
     p[0] = Assign(p[1], p[3])
@@ -244,7 +253,6 @@ def p_define_stmt_empty(p):
 
 
 # compound_stmt is a multiline statement
-
 
 def p_compound_stmt(p):
     """compound_stmt : if_stmt
@@ -299,13 +307,13 @@ binary_ops = {
 
 def p_comparison(p):
     """expr : expr PLUS expr
-                  | expr MINUS expr
-                  | expr MULT expr
-                  | expr DIV expr
-                  | expr LT expr
-                  | expr EQ expr
-                  | expr GT expr
-                  | power"""
+            | expr MINUS expr
+            | expr MULT expr
+            | expr DIV expr
+            | expr LT expr
+            | expr EQ expr
+            | expr GT expr
+            | power"""
     if len(p) == 4:
         p[0] = binary_ops[p[2]](p[1], p[3])
     else:
@@ -350,9 +358,13 @@ def p_atom_name(p):
     p[0] = Name(p[1])
 
 
-def p_atom_number(p):
-    """atom : NUMBER"""
-    p[0] = Number(p[1])
+def p_atom_int(p):
+    """atom : INT"""
+    p[0] = Int(p[1])
+
+def p_atom_float(p):
+    """atom : FLOAT"""
+    p[0] = Float(p[1])
 
 
 def p_atom_str(p):
@@ -441,6 +453,10 @@ def p_argument(p):
     "argument : expr"
     p[0] = p[1]
 
+def p_empty(p):
+    "empty : "
+    pass
+
 
 def p_error(p):
     raise SyntaxError(p)
@@ -463,6 +479,13 @@ class Parser(object):
         self.parser = yacc.yacc(errorlog=LOGGER)
 
     def parse(self, code):
+        # The parser will not work for strings for some reason if a newline is
+        # not at the end of the string. This does not affect files though.
+        # For example, passing the string "func()" to this parser without this
+        # line will raise a syntax error although a file just containing
+        # "func()" works fine. Don't know if this has to do with EOF.
+        code += "\n"
+
         self.lexer.input(code)
         result = self.parser.parse(lexer=self.lexer)
         return result
