@@ -3,13 +3,43 @@ INDENT = "    "
 
 class Node:
     __slots__ = tuple()
+    __types__ = {}
+    __defaults__ = {}
 
     def __init__(self, *args, **kwargs):
         for i, val in enumerate(args):
-            setattr(self, self.__slots__[i], val)
+            self.assign_and_check(self.__slots__[i], val)
 
         for attr in self.__slots__[len(args):]:
-            setattr(self, attr, kwargs[attr])
+            if attr not in kwargs:
+                val = self.__defaults__[attr]
+            else:
+                val = kwargs[attr]
+            self.assign_and_check(attr, val)
+
+    def assign_and_check(self, attr, val):
+        def _recusrive_check(val, expected, original):
+            """Recursively check container items."""
+            if isinstance(expected, list):
+                if not isinstance(val, list):
+                    raise TypeError("Expected '{}' of {} to be type {}. Found {}.".format(
+                        attr, type(self), original, val
+                    ))
+
+                for item in val:
+                    _recusrive_check(item, expected[0], original)
+            else:
+                if not isinstance(val, expected):
+                    raise TypeError("Expected '{}' of {} to be type {}. Found {}.".format(
+                        attr, type(self), original, val
+                    ))
+
+
+        if attr in self.__types__:
+            expected = self.__types__[attr]
+            _recusrive_check(val, expected, expected)
+
+        setattr(self, attr, val)
 
     def lines(self):
         """
@@ -341,14 +371,136 @@ class Return(Node):
         yield "return {};".format(self.value)
 
 
+class Pass(Node):
+    def lines(self):
+        yield "pass"
+
+    def c_lines(self):
+        return
+        yield
+
+
+class Break(Node):
+    def lines(self):
+        yield "break"
+
+    def c_lines(self):
+        yield "break;"
+
+
+class While(Node):
+    __slots__ = ("test", "body", "orelse")
+    __types__ = {
+        "test": Node,
+        "body": [Node],
+        "orelse": [Node]
+    }
+    __defaults__ = {"orelse": []}
+
+    def lines(self):
+        yield "while {}:".format(self.test)
+        for node in self.body:
+            for line in node.lines():
+                yield INDENT + line
+
+        orelse = self.orelse
+        if orelse:
+            yield "else:"
+            for node in orelse:
+                for line in node.lines():
+                    yield INDENT + line
+
+    def c_lines(self):
+        orelse = self.orelse
+
+        if orelse:
+            # Execute the else block if the test becomes false
+            # This logic should be equivalent to executing the block if we do
+            # not break out of the body
+            """
+while (1){
+    if (test){
+        // body
+    }
+    else {
+        // orelse
+        break;
+    }
+}
+            """
+            yield "while (1) {"
+
+            if_stmt = If(self.test, self.body, orelse + [Break()])
+            for line in if_stmt.c_lines():
+                yield INDENT + line
+
+            yield "}"
+        else:
+            # Regular while loop
+            yield "while ({}) {{".format(self.test)
+
+            for node in self.body:
+                for line in node.c_lines():
+                    yield INDENT + line
+
+            yield "}"
+
+
 class If(Node):
-    __slots__ = ("test", "body")
+    __slots__ = ("test", "body", "orelse")
+    __types__ = {
+        "body": [Node],
+        "orelse": [Node],
+    }
 
     def lines(self):
         yield "if {}:".format(self.test)
         for node in self.body:
             for line in node.lines():
                 yield INDENT + line
+
+        orelse = self.orelse
+        if orelse:
+            if len(orelse) == 1 and isinstance(orelse[0], If):
+                # elif block
+                for i, line in enumerate(orelse[0].lines()):
+                    if not i:
+                        yield "el" + line  # the elif part
+                    else:
+                        yield line
+            else:
+                # else block
+                yield "else:"
+                for node in orelse:
+                    for line in node.lines():
+                        yield INDENT + line
+
+
+    def c_lines(self):
+        yield "if ({}) {{".format(self.test.c_code())
+
+        for node in self.body:
+            for line in node.c_lines():
+                yield INDENT + line
+
+        yield "}"
+
+        orelse = self.orelse
+        if orelse:
+            if len(orelse) == 1 and isinstance(orelse[0], If):
+                # elif block
+                for i, line in enumerate(orelse[0].c_lines()):
+                    if not i:
+                        yield "else " + line  # the elif part
+                    else:
+                        yield line
+            else:
+                # else block
+                yield "else {"
+                for node in orelse:
+                    for line in node.c_lines():
+                        yield INDENT + line
+                yield "}"
 
 
 class BinOp(Node):
@@ -422,6 +574,7 @@ class UnaryOp(Node):
 
 class Call(Node):
     __slots__ = ("func", "args")
+    __defaults__ = {"args": []}
 
     def lines(self):
         yield "{}({})".format(self.func, ", ".join(map(str, self.args)))
@@ -429,8 +582,12 @@ class Call(Node):
 
 class Name(Node):
     __slots__ = ("id", "type")
+    __defaults__ = {"type": None}
 
     def lines(self):
+        yield str(self.id)
+
+    def c_lines(self):
         yield str(self.id)
 
 

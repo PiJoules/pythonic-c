@@ -153,8 +153,13 @@ def p_small_stmt(p):
                   | assign_stmt
                   | func_decl
                   | var_decl
-                  | enum_decl"""
+                  | enum_decl
+                  | pass"""
     p[0] = p[1]
+
+def p_pass(p):
+    "pass : PASS"
+    p[0] = Pass()
 
 
 def p_enum_decl(p):
@@ -308,13 +313,48 @@ def p_define_stmt_empty(p):
 
 def p_compound_stmt(p):
     """compound_stmt : if_stmt
+                     | while_stmt
                      | funcdef"""
     p[0] = p[1]
 
 
+# While stmt
+
+def p_while_stmt(p):
+    "while_stmt : WHILE expr COLON suite"
+    p[0] = While(p[2], p[4], [])
+
+def p_while_stmt_orelse(p):
+    "while_stmt : WHILE expr COLON suite while_orelse"
+    p[0] = While(p[2], p[4], p[5])
+
+def p_while_orelse(p):
+    "while_orelse : ELSE COLON suite"
+    p[0] = p[3]
+
+
+# If stmt
+
+
 def p_if_stmt(p):
     'if_stmt : IF expr COLON suite'
-    p[0] = If(p[2], p[4])
+    p[0] = If(p[2], p[4], [])
+
+def p_if_else(p):
+    'if_stmt : IF expr COLON suite if_orelse'
+    p[0] = If(p[2], p[4], p[5])
+
+def p_orelse_else(p):
+    "if_orelse : ELSE COLON suite"
+    p[0] = p[3]
+
+def p_orelse_elif_no_orelse(p):
+    "if_orelse : ELIF expr COLON suite"
+    p[0] = [If(p[2], p[4], [])]
+
+def p_orelse_elif_with_orelse(p):
+    "if_orelse : ELIF expr COLON suite if_orelse"
+    p[0] = [If(p[2], p[4], p[5])]
 
 
 def p_suite(p):

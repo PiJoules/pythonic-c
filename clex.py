@@ -5,11 +5,15 @@ from ply import lex
 RESERVED = {
     "def": "DEF",
     "if": "IF",
+    "else": "ELSE",
+    "elif": "ELIF",
+    "while": "WHILE",
     "return": "RETURN",
     "define": "DEFINE",
     "include": "INCLUDE",
     "includel": "INCLUDE_LOCAL",
     "enum": "ENUM",
+    "pass": "PASS",
 }
 
 tokens = (

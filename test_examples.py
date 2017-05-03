@@ -117,6 +117,263 @@ includel "myheader.h"
             ])
         )
 
+    ########### Control flow ######
+
+    def test_if(self):
+        """Test regular if."""
+        code = """
+if x:
+    pass
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                If(
+                    Name("x", None),
+                    [Pass()],
+                    []
+                )
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+if (x) {
+}
+            """.strip()
+        )
+
+    def test_elif(self):
+        """Test single elif."""
+        code = """
+if x:
+    pass
+    pass
+elif y:
+    pass
+    pass
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+if (x) {
+}
+else if (y) {
+}
+            """.strip()
+        )
+
+    def test_elif_multiple(self):
+        """Test multiple elif blocks."""
+        code = """
+if x:
+    pass
+elif y:
+    pass
+elif z:
+    pass
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+if (x) {
+}
+else if (y) {
+}
+else if (z) {
+}
+            """.strip()
+        )
+
+    def test_else_block(self):
+        """Test just an else block."""
+        code = """
+if x:
+    pass
+else:
+    pass
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+if (x) {
+}
+else {
+}
+            """.strip()
+        )
+
+    def test_full_if_ladder(self):
+        """Test an if, elif, and else together"""
+        code = """
+if x:
+    pass
+elif y:
+    pass
+else:
+    pass
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+if (x) {
+}
+else if (y) {
+}
+else {
+}
+            """.strip()
+        )
+
+    def test_nested_if_in_else(self):
+        """
+        Test that a single nested if in an else block gets expanded to an
+        elif block while an else containing other statements stays the same.
+        """
+        code = """
+if x:
+    pass
+else:
+    if y:
+        pass
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            str(ast),
+            """
+if x:
+    pass
+elif y:
+    pass
+            """.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+if (x) {
+}
+else if (y) {
+}
+            """.strip()
+        )
+
+        # Else contains something else
+        code = """
+if x:
+    pass
+else:
+    if y:
+        pass
+    func()
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+if (x) {
+}
+else {
+    if (y) {
+    }
+    func();
+}
+            """.strip()
+        )
+
+    def test_while(self):
+        """Test while loop."""
+        code = """
+while x:
+    func()
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                While(Name("x"), [
+                    ExprStmt(Call(Name("func")))
+                ])
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+while (x) {
+    func();
+}
+            """.strip()
+        )
+
+    def test_while_with_orelse(self):
+        """Test a while loop with an orelse block."""
+        code = """
+while x:
+    func()
+else:
+    func2()
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                While(Name("x"), [
+                    ExprStmt(Call(Name("func")))
+                ], [
+                    ExprStmt(Call(Name("func2")))
+                ])
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+while (1) {
+    if (x) {
+        func();
+    }
+    else {
+        func2();
+        break;
+    }
+}
+            """.strip()
+        )
 
 
 if __name__ == "__main__":
