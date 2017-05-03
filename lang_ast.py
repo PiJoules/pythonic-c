@@ -388,6 +388,33 @@ class Break(Node):
         yield "break;"
 
 
+class DoWhile(Node):
+    __slots__ = ("test", "body")
+    __types__ = {
+        "test": Node,
+        "body": [Node],
+    }
+    __defaults__ = {"orelse": []}
+
+    def lines(self):
+        yield "do:"
+
+        for node in self.body:
+            for line in node.lines():
+                yield INDENT + line
+
+        yield "while {}".format(self.test)
+
+    def c_lines(self):
+        yield "do {"
+
+        for node in self.body:
+            for line in node.c_lines():
+                yield INDENT + line
+
+        yield "}} while ({});".format(self.test.c_code())
+
+
 class While(Node):
     __slots__ = ("test", "body", "orelse")
     __types__ = {
@@ -437,7 +464,7 @@ while (1){
             yield "}"
         else:
             # Regular while loop
-            yield "while ({}) {{".format(self.test)
+            yield "while ({}) {{".format(self.test.c_code())
 
             for node in self.body:
                 for line in node.c_lines():

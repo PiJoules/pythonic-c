@@ -375,6 +375,35 @@ while (1) {
             """.strip()
         )
 
+    def test_do_while(self):
+        """Test a do whike statement."""
+        code = """
+do:
+    func()
+while x
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                DoWhile(Name("x"), [
+                    ExprStmt(Call(Name("func")))
+                ])
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+do {
+    func();
+} while (x);
+            """.strip()
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -314,8 +314,16 @@ def p_define_stmt_empty(p):
 def p_compound_stmt(p):
     """compound_stmt : if_stmt
                      | while_stmt
+                     | dowhile_stmt
                      | funcdef"""
     p[0] = p[1]
+
+
+# Do while stmt
+
+def p_dowhile(p):
+    "dowhile_stmt : DO COLON suite WHILE expr"
+    p[0] = DoWhile(p[5], p[3])
 
 
 # While stmt

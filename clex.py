@@ -8,6 +8,7 @@ RESERVED = {
     "else": "ELSE",
     "elif": "ELIF",
     "while": "WHILE",
+    "do": "DO",
     "return": "RETURN",
     "define": "DEFINE",
     "include": "INCLUDE",
