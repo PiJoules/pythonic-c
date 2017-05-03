@@ -1,4 +1,4 @@
-parsetab.py 
+parsetab.py
 examples/*.c
 *.cmm.c
 *_pp.c
