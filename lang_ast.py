@@ -316,6 +316,9 @@ class ExprStmt(Node):
     def lines(self):
         yield from self.value.lines()
 
+    def c_lines(self):
+        yield "{};".format(self.value)
+
 
 class Assign(Node):
     __slots__ = ("left", "right")
@@ -333,6 +336,9 @@ class Return(Node):
         yield "return {}".format(line1)
         for line in line_iter:
             yield INDENT + line
+
+    def c_lines(self):
+        yield "return {};".format(self.value)
 
 
 class If(Node):

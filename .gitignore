@@ -1,4 +1,5 @@
 parsetab.py 
+examples/*.c
 *.cmm.c
 *_pp.c
 *.preprocessed
@@ -14,9 +15,6 @@ pc-venv/
 
 tests/integration_tests/expected_outputs/*.output
 
-
-sample_python_scripts/*
-!sample_python_scripts/*.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
