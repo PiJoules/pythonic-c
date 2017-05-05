@@ -401,6 +401,221 @@ do {
             """.strip()
         )
 
+    def test_switch_one_case(self):
+        """Test one case switch stmt."""
+        code = """
+switch x:
+    case 1:
+        func()
+        break
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                Switch(Name("x"), [
+                    Case([Int(1)], [
+                        ExprStmt(Call(Name("func"))),
+                        Break()
+                    ])
+                ])
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+switch (x){
+    case 1:
+        func();
+        break;
+}
+            """.strip()
+        )
+
+    def test_switch_one_multiexpr_case(self):
+        """Test one case that matches multiple expressions."""
+        code = """
+switch x:
+    case 1, 2.0, 4:
+        func()
+        break
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                Switch(Name("x"), [
+                    Case([
+                        Int(1),
+                        Float(2.0),
+                        Int(4)
+                    ], [
+                        ExprStmt(Call(Name("func"))),
+                        Break()
+                    ])
+                ])
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+switch (x){
+    case 1:
+    case 2.0:
+    case 4:
+        func();
+        break;
+}
+            """.strip()
+        )
+
+    def test_switch_multiple_cases(self):
+        """Test switch with multiple cases."""
+        code = """
+switch x:
+    case 1:
+        func()
+        break
+    case 2:
+        func2()
+        break
+    case 3:
+        func3()
+        break
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                Switch(Name("x"), [
+                    Case([Int(1),], [
+                        ExprStmt(Call(Name("func"))),
+                        Break()
+                    ]),
+                    Case([Int(2),], [
+                        ExprStmt(Call(Name("func2"))),
+                        Break()
+                    ]),
+                    Case([Int(3),], [
+                        ExprStmt(Call(Name("func3"))),
+                        Break()
+                    ]),
+                ])
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+switch (x){
+    case 1:
+        func();
+        break;
+    case 2:
+        func2();
+        break;
+    case 3:
+        func3();
+        break;
+}
+            """.strip()
+        )
+
+    def test_switch_only_default(self):
+        """Test switch with only default case."""
+        code = """
+switch x:
+    else:
+        func()
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                Switch(Name("x"), [
+                    Default([
+                        ExprStmt(Call(Name("func"))),
+                    ])
+                ])
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+switch (x){
+    default:
+        func();
+}
+            """.strip()
+        )
+
+    def test_switch_mix(self):
+        """Test switch with mix of cases and default."""
+        code = """
+switch x:
+    case 1:
+        func()
+        break
+    case 2:
+        func2()
+        break
+    else:
+        func3()
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                Switch(Name("x"), [
+                    Case([Int(1),], [
+                        ExprStmt(Call(Name("func"))),
+                        Break()
+                    ]),
+                    Case([Int(2),], [
+                        ExprStmt(Call(Name("func2"))),
+                        Break()
+                    ]),
+                    Default([
+                        ExprStmt(Call(Name("func3"))),
+                    ]),
+                ])
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+switch (x){
+    case 1:
+        func();
+        break;
+    case 2:
+        func2();
+        break;
+    default:
+        func3();
+}
+            """.strip()
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

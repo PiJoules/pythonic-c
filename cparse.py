@@ -9,6 +9,8 @@ LOGGER.setLevel(logging.ERROR)
 
 
 class Parser:
+    ########### Parser interface #############
+
     def __init__(self, lexer=Lexer, infer_types=True, **kwargs):
         self.infer_types = infer_types
 
@@ -55,7 +57,6 @@ class Parser:
 
     def p_stmt_list_2(self, p):
         "stmt_list : stmt_list stmt"
-        # Appending statements to statement list
         p[0] = p[1] + [p[2]]
 
 
@@ -69,7 +70,8 @@ class Parser:
         p[0] = [p[1]]
 
 
-    def check_and_create_main(self, funcdef):
+    def _check_and_create_main(self, funcdef):
+        """Check the main method and return it."""
         name = funcdef.name
         params = funcdef.params
 
@@ -121,7 +123,7 @@ class Parser:
 
         if self.infer_types:
             if funcdef.name == "main":
-                funcdef = self.check_and_create_main(funcdef)
+                funcdef = self._check_and_create_main(funcdef)
 
         p[0] = funcdef
 
@@ -173,20 +175,24 @@ class Parser:
 
     def p_small_stmt(self, p):
         """small_stmt : return_stmt
-                    | include_stmt
-                    | define_stmt
-                    | expr_stmt
-                    | assign_stmt
-                    | func_decl
-                    | var_decl
-                    | enum_decl
-                    | pass"""
+                      | include_stmt
+                      | define_stmt
+                      | expr_stmt
+                      | assign_stmt
+                      | func_decl
+                      | var_decl
+                      | enum_decl
+                      | break
+                      | pass"""
         p[0] = p[1]
 
     def p_pass(self, p):
         "pass : PASS"
         p[0] = Pass()
 
+    def p_break(self, p):
+        "break : BREAK"
+        p[0] = Break()
 
     def p_enum_decl(self, p):
         "enum_decl : ENUM NAME LBRACE enum_name_list RBRACE"
@@ -339,21 +345,21 @@ class Parser:
 
     def p_compound_stmt(self, p):
         """compound_stmt : if_stmt
-                        | while_stmt
-                        | dowhile_stmt
-                        | funcdef"""
+                         | while_stmt
+                         | dowhile_stmt
+                         | switch_stmt
+                         | funcdef"""
         p[0] = p[1]
 
 
-    # Do while stmt
+    ###### Control flow ##########
 
+    # Do while stmt
     def p_dowhile(self, p):
         "dowhile_stmt : DO COLON suite WHILE expr"
         p[0] = DoWhile(p[5], p[3])
 
-
     # While stmt
-
     def p_while_stmt(self, p):
         "while_stmt : WHILE expr COLON suite"
         p[0] = While(p[2], p[4], [])
@@ -368,8 +374,6 @@ class Parser:
 
 
     # If stmt
-
-
     def p_if_stmt(self, p):
         'if_stmt : IF expr COLON suite'
         p[0] = If(p[2], p[4], [])
@@ -390,16 +394,59 @@ class Parser:
         "if_orelse : ELIF expr COLON suite if_orelse"
         p[0] = [If(p[2], p[4], p[5])]
 
+    # Switch statement
+    def p_switch(self, p):
+        "switch_stmt : SWITCH expr COLON switch_suite"
+        p[0] = Switch(p[2], p[4])
 
+    def p_switch_suite(self, p):
+        "switch_suite : NEWLINE INDENT switch_stmts DEDENT"
+        p[0] = p[3]
+
+    def p_switch_stmts_case_list(self, p):
+        "switch_stmts : case_list"
+        p[0] = p[1]
+
+    def p_switch_stmts_cases_with_default(self, p):
+        "switch_stmts : case_list default"
+        p[0] = p[1] + [p[2]]
+
+    def p_switch_stmts_default(self, p):
+        "switch_stmts : default"
+        p[0] = [p[1]]
+
+    def p_default(self, p):
+        "default : ELSE COLON suite"
+        p[0] = Default(p[3])
+
+    def p_case_list_one(self, p):
+        "case_list : case"
+        p[0] = [p[1]]
+
+    def p_case_list(self, p):
+        "case_list : case_list case"
+        p[0] = p[1] + [p[2]]
+
+    def p_case(self, p):
+        "case : CASE case_expr_list COLON suite"
+        p[0] = Case(p[2], p[4])
+
+    def p_case_expr_list_one(self, p):
+        "case_expr_list : expr"
+        p[0] = [p[1]]
+
+    def p_case_expr_list(self, p):
+        "case_expr_list : case_expr_list COMMA expr"
+        p[0] = p[1] + [p[3]]
+
+    # Indented suite
     def p_suite(self, p):
         """suite : NEWLINE INDENT stmts DEDENT"""
         p[0] = p[3]
 
-
     def p_stmts_1(self, p):
         """stmts : stmt"""
         p[0] = [p[1]]
-
 
     def p_stmts_2(self, p):
         """stmts : stmts stmt"""

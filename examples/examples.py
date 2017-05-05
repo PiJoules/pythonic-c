@@ -95,3 +95,13 @@ x = (int)2.0
 x = (int)(float)(2)
 x = (int)((float)2)
 
+# Switch
+switch x:
+    case 1:
+        func()
+        break
+    case 2:
+        func2()
+        break
+    else:
+        func3()

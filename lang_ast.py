@@ -7,6 +7,8 @@ class Node:
     __defaults__ = {}
 
     def __init__(self, *args, **kwargs):
+        self._perform_checks()
+
         for i, val in enumerate(args):
             self.assign_and_check(self.__slots__[i], val)
 
@@ -16,6 +18,12 @@ class Node:
             else:
                 val = kwargs[attr]
             self.assign_and_check(attr, val)
+
+    def _perform_checks(self):
+        for attr in self.__types__:
+            assert attr in self.__slots__, "type {} not in __slots__ for {}".format(attr, type(self))
+        for attr in self.__defaults__:
+            assert attr in self.__slots__, "default {} not in __slots__ for {}".format(attr, type(self))
 
     def assign_and_check(self, attr, val):
         def _recusrive_check(val, expected, original):
@@ -394,7 +402,6 @@ class DoWhile(Node):
         "test": Node,
         "body": [Node],
     }
-    __defaults__ = {"orelse": []}
 
     def lines(self):
         yield "do:"
@@ -530,6 +537,72 @@ class If(Node):
                 yield "}"
 
 
+class Switch(Node):
+    __slots__ = ("test", "cases")
+    __types__ = {
+        "cases": [Node],
+    }
+
+    def lines(self):
+        yield "switch {}:".format(self.test)
+
+        for case in self.cases:
+            for line in case.lines():
+                yield INDENT + line
+
+    def c_lines(self):
+        yield "switch ({}){{".format(self.test.c_code())
+
+        for case in self.cases:
+            for line in case.c_lines():
+                yield INDENT + line
+
+        yield "}"
+
+
+class Case(Node):
+    """
+    Cases will match the syntax proposed in this pep:
+    https://www.python.org/dev/peps/pep-3103/#alternative-a
+    """
+    __slots__ = ("tests", "body")
+    __types__ = {
+        "tests": [Node],
+        "body": [Node],
+    }
+
+    def lines(self):
+        yield "case {}:".format(", ".join(map(str, self.tests)))
+
+        for node in self.body:
+            for line in node.lines():
+                yield INDENT + line
+
+    def c_lines(self):
+        for case, i, is_last in ext_enumerate(self.tests):
+            yield "case {}:".format(case.c_code())
+            if is_last:
+                for node in self.body:
+                    for line in node.c_lines():
+                        yield INDENT + line
+
+
+class Default(Node):
+    __slots__ = ("body", )
+
+    def lines(self):
+        yield "else:"
+        for node in self.body:
+            for line in node.lines():
+                yield INDENT + line
+
+    def c_lines(self):
+        yield "default:"
+        for node in self.body:
+            for line in node.c_lines():
+                yield INDENT + line
+
+
 class BinOp(Node):
     __slots__ = ("left", "op", "right")
 
@@ -624,11 +697,17 @@ class Int(Node):
     def lines(self):
         yield str(self.n)
 
+    def c_lines(self):
+        yield str(self.n)
+
 
 class Float(Node):
     __slots__ = ("n", )
 
     def lines(self):
+        yield str(self.n)
+
+    def c_lines(self):
         yield str(self.n)
 
 
