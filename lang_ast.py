@@ -334,6 +334,16 @@ class Pointer(Node):
         yield _format_container(self)
 
 
+class Deref(Node):
+    __slots__ = ("value", )
+
+    def lines(self):
+        yield "*{}".format(self.value)
+
+    def c_lines(self):
+        yield "*{}".format(self.value.c_code())
+
+
 class ArrayLiteral(Node):
     __slots__ = ("contents", )
 

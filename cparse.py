@@ -139,8 +139,6 @@ class Parser:
         p[0] = p[2]
 
 
-    # varargslist: (fpdef ['=' expr] ',')* ('*' NAME [',' '**' NAME] | '**' NAME) |
-    # highly simplified
     def p_varargslist_one(self, p):
         """varargslist : name_or_var_decl"""
         p[0] = [p[1]]
@@ -160,18 +158,9 @@ class Parser:
                 | compound_stmt"""
         p[0] = p[1]
 
-    # simple_stmt: small_stmt (';' small_stmt)* [';'] NEWLINE
-
-
     def p_simple_stmt(self, p):
         """simple_stmt : small_stmt NEWLINE"""
         p[0] = p[1]
-
-
-
-    # small_stmt: expr_stmt | print_stmt  | del_stmt | pass_stmt | flow_stmt |
-    #    import_stmt | global_stmt | exec_stmt | assert_stmt
-
 
     def p_small_stmt(self, p):
         """small_stmt : return_stmt
@@ -488,7 +477,7 @@ class Parser:
                 | expr GT expr
                 | power"""
         if len(p) == 4:
-            p[0] = binary_ops[p[2]](p[1], p[3])
+            p[0] = self.binary_ops[p[2]](p[1], p[3])
         else:
             p[0] = p[1]
 
@@ -500,6 +489,9 @@ class Parser:
         "expr : LPAR type_declaration RPAR expr"
         p[0] = Cast(p[2], p[4])
 
+    #def p_comparison_deref(self, p):
+    #    "expr : MULT expr"
+    #    p[0] =
 
     def p_comparison_uadd(self, p):
         """expr : PLUS expr"""
