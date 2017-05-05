@@ -68,4 +68,5 @@ int main(){
     printf("*a == func: %d\n", *a == func);
     printf("*a == &func: %d\n", *a == &func);
     printf("glob_var == func: %d\n", glob_var == func);
+
 }

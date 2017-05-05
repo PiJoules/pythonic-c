@@ -1,5 +1,5 @@
 from ply import *
-from clex import IndentLexer, tokens
+from clex import Lexer
 from lang_ast import *
 
 import logging
@@ -7,6 +7,7 @@ import logging
 LOGGER = logging.getLogger("ply")
 LOGGER.setLevel(logging.ERROR)
 
+tokens = Lexer.tokens
 INFER_TYPES = True
 
 ##########   Parser (tokens -> AST) ######
@@ -574,7 +575,7 @@ class Parser(object):
 
     def __init__(self, lexer=None, **kwargs):
         if lexer is None:
-            lexer = IndentLexer()
+            lexer = Lexer()
         self.lexer = lexer
         self.parser = yacc.yacc(errorlog=LOGGER)
 

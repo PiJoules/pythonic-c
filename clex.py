@@ -1,165 +1,180 @@
 from ply import lex
 
-##### Lexer ######
 
-RESERVED = {
-    "def": "DEF",
-    "if": "IF",
-    "else": "ELSE",
-    "elif": "ELIF",
-    "while": "WHILE",
-    "do": "DO",
-    "return": "RETURN",
-    "define": "DEFINE",
-    "include": "INCLUDE",
-    "includel": "INCLUDE_LOCAL",
-    "enum": "ENUM",
-    "pass": "PASS",
-}
+class Lexer:
+    def __init__(self, **kwargs):
+        self.token_stream = None
+        self.lexer = lex.lex(module=self, **kwargs)
 
-tokens = (
-    'NAME',
+    def input(self, s):
+        self.lexer.input(s)
+        self.lexer.paren_count = 0
+        self.lexer.bracket_count = 0
+        self.token_stream = filter(self.lexer)
 
-    # Literals
-    'INT', "FLOAT", 'STRING',
+    def token(self):
+        try:
+            return next(self.token_stream)
+        except StopIteration:
+            return None
 
-    # ( ) [ ] { }
-    'LPAR', 'RPAR', "LBRACKET", "RBRACKET", "LBRACE", "RBRACE",
+    RESERVED = {
+        "def": "DEF",
+        "if": "IF",
+        "else": "ELSE",
+        "elif": "ELIF",
+        "while": "WHILE",
+        "do": "DO",
+        "return": "RETURN",
+        "define": "DEFINE",
+        "include": "INCLUDE",
+        "includel": "INCLUDE_LOCAL",
+        "enum": "ENUM",
+        "pass": "PASS",
+    }
 
-    'COLON',
-    'EQ',
-    'ASSIGN',
-    "ARROW",
-    'LT',
-    'GT',
-    'PLUS',
-    'MINUS',
-    'MULT',
-    'DIV',
-    'WS',
-    'NEWLINE',
-    'COMMA',
-    'INDENT',
-    'DEDENT',
-) + tuple(RESERVED.values())
+    tokens = (
+        'NAME',
 
+        # Literals
+        'INT', "FLOAT", 'STRING',
 
-def t_INT(t):
-    r'\d+(?!\.)'
-    t.value = int(t.value)
-    return t
+        # ( ) [ ] { }
+        'LPAR', 'RPAR', "LBRACKET", "RBRACKET", "LBRACE", "RBRACE",
 
-# TODO: Add other floating point representations
-def t_FLOAT(t):
-    r"\d+\.\d+"
-    t.value = float(t.value)
-    return t
-
-
-double_quote = r'"(.*?)(?<!\\)"'
-multiline_double = r'"""([\w\W]*?)"""'
-str_token = (
-    r"(" + multiline_double + r")|" +
-    r"(" + double_quote + r")"
-)
-
-@lex.TOKEN(str_token)
-def t_STRING(t):
-    s = t.value
-    if s.startswith('"""'):
-        t.value = s[3:-3]
-    else:
-        t.value = s[1:-1]
-    return t
+        'COLON',
+        'EQ',
+        'ASSIGN',
+        "ARROW",
+        'LT',
+        'GT',
+        'PLUS',
+        'MINUS',
+        'MULT',
+        'DIV',
+        'WS',
+        'NEWLINE',
+        'COMMA',
+        'INDENT',
+        'DEDENT',
+    ) + tuple(RESERVED.values())
 
 
-t_COLON = r':'
-t_EQ = r'=='
-t_ASSIGN = r'='
-t_LT = r'<'
-t_GT = r'>'
-t_PLUS = r'\+'
-t_MINUS = r'-'
-t_MULT = r'\*'
-t_DIV = r'/'
-t_COMMA = r','
-t_ARROW = r"->"
-
-t_LBRACE = r"\{"
-t_RBRACE = r"\}"
-
-# Ply nicely documented how to do this.
-
-
-
-def t_NAME(t):
-    r'[a-zA-Z_][a-zA-Z0-9_]*'
-    t.type = RESERVED.get(t.value, "NAME")
-    return t
-
-# Putting this before t_WS let it consume lines with only comments in
-# them so the latter code never sees the WS part.  Not consuming the
-# newline.  Needed for "if 1: #comment"
-
-
-def t_comment(t):
-    r"[ ]*\043[^\n]*"  # \043 is '#'
-    pass
-
-
-# Whitespace
-def t_WS(t):
-    r'[ ]+'
-    if t.lexer.at_line_start and empty_container(t.lexer):
+    def t_INT(self, t):
+        r'\d+(?!\.)'
+        t.value = int(t.value)
         return t
 
-# Don't generate newline tokens when inside of parenthesis, eg
-#   a = (1,
-#        2, 3)
-
-
-def t_newline(t):
-    r'\n+'
-    t.lexer.lineno += len(t.value)
-    t.type = "NEWLINE"
-    if empty_container(t.lexer):
+    # TODO: Add other floating point representations
+    def t_FLOAT(self, t):
+        r"\d+\.\d+"
+        t.value = float(t.value)
         return t
 
-def t_LBRACKET(t):
-    r"\["
-    t.lexer.bracket_count += 1
-    return t
 
-def t_RBRACKET(t):
-    r"\]"
-    t.lexer.bracket_count -= 1
-    return t
+    double_quote = r'"(.*?)(?<!\\)"'
+    multiline_double = r'"""([\w\W]*?)"""'
+    str_token = (
+        r"(" + multiline_double + r")|" +
+        r"(" + double_quote + r")"
+    )
 
-def t_LPAR(t):
-    r'\('
-    t.lexer.paren_count += 1
-    return t
-
-
-def t_RPAR(t):
-    r'\)'
-    # check for underflow?  should be the job of the parser
-    t.lexer.paren_count -= 1
-    return t
+    @lex.TOKEN(str_token)
+    def t_STRING(self, t):
+        s = t.value
+        if s.startswith('"""'):
+            t.value = s[3:-3]
+        else:
+            t.value = s[1:-1]
+        return t
 
 
-def find_column(input, token):
-    last_cr = input.rfind('\n',0,token.lexpos)
-    if last_cr < 0:
-        last_cr = 0
-    column = (token.lexpos - last_cr) + 1
-    return column
+    t_COLON = r':'
+    t_EQ = r'=='
+    t_ASSIGN = r'='
+    t_LT = r'<'
+    t_GT = r'>'
+    t_PLUS = r'\+'
+    t_MINUS = r'-'
+    t_MULT = r'\*'
+    t_DIV = r'/'
+    t_COMMA = r','
+    t_ARROW = r"->"
+
+    t_LBRACE = r"\{"
+    t_RBRACE = r"\}"
+
+    # Ply nicely documented how to do this.
 
 
-def t_error(t):
-    raise SyntaxError("Unknown symbol '{}' at ({}, {})".format(
-        t.value[0], t.lineno, find_column(t.value, t)
-    ))
+
+    def t_NAME(self, t):
+        r'[a-zA-Z_][a-zA-Z0-9_]*'
+        t.type = self.RESERVED.get(t.value, "NAME")
+        return t
+
+    # Putting this before t_WS let it consume lines with only comments in
+    # them so the latter code never sees the WS part.  Not consuming the
+    # newline.  Needed for "if 1: #comment"
+
+
+    def t_comment(self, t):
+        r"[ ]*\043[^\n]*"  # \043 is '#'
+        pass
+
+
+    # Whitespace
+    def t_WS(self, t):
+        r'[ ]+'
+        if t.lexer.at_line_start and empty_container(t.lexer):
+            return t
+
+    # Don't generate newline tokens when inside of parenthesis, eg
+    #   a = (1,
+    #        2, 3)
+
+    def t_newline(self, t):
+        r'\n+'
+        t.lexer.lineno += len(t.value)
+        t.type = "NEWLINE"
+        if empty_container(t.lexer):
+            return t
+
+    def t_LBRACKET(self, t):
+        r"\["
+        t.lexer.bracket_count += 1
+        return t
+
+    def t_RBRACKET(self, t):
+        r"\]"
+        t.lexer.bracket_count -= 1
+        return t
+
+    def t_LPAR(self, t):
+        r'\('
+        t.lexer.paren_count += 1
+        return t
+
+
+    def t_RPAR(self, t):
+        r'\)'
+        # check for underflow?  should be the job of the parser
+        t.lexer.paren_count -= 1
+        return t
+
+
+    def find_column(self, input, token):
+        last_cr = input.rfind('\n',0,token.lexpos)
+        if last_cr < 0:
+            last_cr = 0
+        column = (token.lexpos - last_cr) + 1
+        return column
+
+
+    def t_error(self, t):
+        raise SyntaxError("Unknown symbol '{}' at ({}, {})".format(
+            t.value[0], t.lineno, find_column(t.value, t)
+        ))
 
 # I implemented INDENT / DEDENT generation as a post-processing filter
 
@@ -332,22 +347,3 @@ def empty_container(lexer):
         (not lexer.paren_count) and
         (not lexer.bracket_count)
     )
-
-
-class IndentLexer(object):
-
-    def __init__(self, **kwargs):
-        self.lexer = lex.lex(**kwargs)
-        self.token_stream = None
-
-    def input(self, s):
-        self.lexer.input(s)
-        self.lexer.paren_count = 0
-        self.lexer.bracket_count = 0
-        self.token_stream = filter(self.lexer)
-
-    def token(self):
-        try:
-            return next(self.token_stream)
-        except StopIteration:
-            return None
