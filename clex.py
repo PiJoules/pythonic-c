@@ -36,6 +36,9 @@ class Lexer:
 
     RESERVED = {
         "def": "DEF",
+        "pass": "PASS",
+
+        # Control flow
         "if": "IF",
         "else": "ELSE",
         "elif": "ELIF",
@@ -45,11 +48,15 @@ class Lexer:
         "case": "CASE",
         "return": "RETURN",
         "break": "BREAK",
+
+        # Macros
         "define": "DEFINE",
         "include": "INCLUDE",
         "includel": "INCLUDE_LOCAL",
+
+        # Types
         "enum": "ENUM",
-        "pass": "PASS",
+        "struct": "STRUCT",
     }
 
     tokens = (
@@ -90,9 +97,6 @@ class Lexer:
     t_COMMA = r','
     t_ARROW = r"->"
 
-    t_LBRACE = r"\{"
-    t_RBRACE = r"\}"
-
 
     ########## Lexer interface #########
 
@@ -100,6 +104,7 @@ class Lexer:
         self.__token_stream = None
         self.__paren_count = 0
         self.__bracket_count = 0
+        self.__brace_count = 0
         self.__lexer = lex.lex(module=self, **kwargs)
 
     def input(self, s):
@@ -264,7 +269,8 @@ class Lexer:
         """Returns if the current token is inside a set of brackets."""
         return (
             (not self.__paren_count) and
-            (not self.__bracket_count)
+            (not self.__bracket_count) and
+            (not self.__brace_count)
         )
 
 
@@ -331,13 +337,20 @@ class Lexer:
         self.__paren_count += 1
         return t
 
-
     def t_RPAR(self, t):
         r'\)'
-        # check for underflow?  should be the job of the parser
         self.__paren_count -= 1
         return t
 
+    def t_LBRACE(self, t):
+        r"\{"
+        self.__brace_count += 1
+        return t
+
+    def t_RBRACE(self, t):
+        r"\}"
+        self.__brace_count -= 1
+        return t
 
     def find_column(self, input, token):
         last_cr = input.rfind('\n',0,token.lexpos)

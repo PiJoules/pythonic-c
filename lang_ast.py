@@ -284,6 +284,12 @@ def _format_c_decl(name, t):
 
 class VarDecl(Node):
     __slots__ = ("name", "type", "init")
+    __types__ = {
+        "name": str,
+        "type": (str, Node),
+        "init": (type(None), Node),
+    }
+    __defaults__ = {"init": None}
 
     def lines(self):
         if self.init:
@@ -745,6 +751,54 @@ class Enum(Node):
             self.name,
             ", ".join(map(str, self.members))
         )
+
+    def c_lines(self):
+        yield "enum {} {{{}}}".format(
+            self.name,
+            ", ".join(map(str, self.members))
+        )
+
+
+class EnumDecl(Node):
+    __slots__ = ("enum", )
+    __types__ = {"enum": Enum}
+
+    def lines(self):
+        yield from self.enum.lines()
+
+    def c_lines(self):
+        yield self.enum.c_code() + ";"
+
+
+class Struct(Node):
+    __slots__ = ("name", "decls")
+    __types__ = {
+        "name": str,
+        "decls": [VarDecl],
+    }
+
+    def lines(self):
+        yield "struct {} {{{}}}".format(
+            self.name,
+            ", ".join(map(str, self.decls))
+        )
+
+    def c_lines(self):
+        yield "struct {} {{{}}}".format(
+            self.name,
+            "; ".join(n.c_code() for n in self.decls) + ";"
+        )
+
+
+class StructDecl(Node):
+    __slots__ = ("struct", )
+    __types__ = {"struct": Struct}
+
+    def lines(self):
+        yield from self.struct.lines()
+
+    def c_lines(self):
+        yield self.struct.c_code() + ";"
 
 
 ##### Macros ######

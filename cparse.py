@@ -170,7 +170,8 @@ class Parser:
                       | assign_stmt
                       | func_decl
                       | var_decl
-                      | enum_decl
+                      | enum_decl_stmt
+                      | struct_decl_stmt
                       | break
                       | pass"""
         p[0] = p[1]
@@ -182,6 +183,11 @@ class Parser:
     def p_break(self, p):
         "break : BREAK"
         p[0] = Break()
+
+    # Enums
+    def p_enum_decl_stmt(self, p):
+        "enum_decl_stmt : enum_decl"
+        p[0] = EnumDecl(p[1])
 
     def p_enum_decl(self, p):
         "enum_decl : ENUM NAME LBRACE enum_name_list RBRACE"
@@ -195,6 +201,23 @@ class Parser:
         "enum_name_list : enum_name_list COMMA NAME"
         p[0] = p[1] + [p[3]]
 
+    # Structs
+    # They must have at least 1 member
+    def p_struct_decl_stmt(self, p):
+        "struct_decl_stmt : struct_decl"
+        p[0] = StructDecl(p[1])
+
+    def p_struct_decl(self, p):
+        "struct_decl : STRUCT NAME LBRACE struct_decl_list RBRACE"
+        p[0] = Struct(p[2], p[4])
+
+    def p_struct_decl_list(self, p):
+        "struct_decl_list : struct_decl_list COMMA var_decl"
+        p[0] = p[1] + [p[3]]
+
+    def p_struct_decl_list_empty(self, p):
+        "struct_decl_list : var_decl"
+        p[0] = [p[1]]
 
     # def func(a, b:int)
     def p_func_decl(self, p):
@@ -489,14 +512,13 @@ class Parser:
         "expr : LPAR type_declaration RPAR expr"
         p[0] = Cast(p[2], p[4])
 
-    #def p_comparison_deref(self, p):
-    #    "expr : MULT expr"
-    #    p[0] =
+    def p_comparison_deref(self, p):
+        "expr : MULT expr"
+        p[0] = Deref(p[2])
 
     def p_comparison_uadd(self, p):
         """expr : PLUS expr"""
         p[0] = UnaryOp(UAdd(), p[2])
-
 
     def p_comparison_usub(self, p):
         """expr : MINUS expr"""

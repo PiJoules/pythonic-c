@@ -82,10 +82,50 @@ enum days {MON, TUE, WED, THU, FRI, SAT, SUN}
         self.assertEqual(
             ast,
             Module([
-                Enum("days", [
-                    "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"
-                ])
+                EnumDecl(
+                    Enum("days", [
+                        "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"
+                    ])
+                )
             ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+enum days {MON, TUE, WED, THU, FRI, SAT, SUN};
+            """.strip()
+        )
+
+    def test_struct_creation(self):
+        """Test creating a new struct."""
+        code = """
+struct s {x: int, y: char[][]}
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                StructDecl(
+                    Struct("s", [
+                        VarDecl("x", "int"),
+                        VarDecl("y", Pointer(Pointer("char")))
+                    ])
+                )
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+struct s {int x; char **y;};
+            """.strip()
         )
 
     def test_include_standard(self):
@@ -613,6 +653,31 @@ switch (x){
     default:
         func3();
 }
+            """.strip()
+        )
+
+    ###### Expressions #########
+
+    def test_dereference(self):
+        """Test dereferencing a pointer."""
+        code = """
+*x
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                ExprStmt(Deref(Name("x")))
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+*x;
             """.strip()
         )
 
