@@ -2,26 +2,29 @@ from cparse import Parser
 from lang_ast import *
 
 
-def create_c_file(source, code):
+def create_c_file(source, ast):
     import os.path
     base, ext = os.path.splitext(source)
     c_fname = base + ".c"
 
     with open(c_fname, "w") as f:
-        f.write(code)
+        f.write(ast.c_code())
 
     return c_fname
 
 
-def compile_source(source, code, compiler="gcc", std="c11", output=None):
+def compile_sources(sources, asts, compiler="gcc", std="c11", output=None):
     import subprocess, os.path
-    source = create_c_file(source, code)
+    c_sources = []
+    for i, source in enumerate(sources):
+        c_sources.append(create_c_file(source, asts[i]))
+    c_source_str = " ".join(c_sources)
 
     if not output:
         output = "a.out"
 
     subprocess.run(
-        "{compiler} -std={std} -o {output} {source}".format(**locals()).split(),
+        "{compiler} -std={std} -o {output} {c_source_str}".format(**locals()).split(),
         check=True,
     )
 
@@ -32,11 +35,17 @@ def get_args():
     from argparse import ArgumentParser
     parser = ArgumentParser()
 
-    parser.add_argument("filename")
-    parser.add_argument("-t", "--tree", default=False, action="store_true")
-    parser.add_argument("-d", "--dump", default=False, action="store_true")
-    parser.add_argument("-p", "--print", default=False, action="store_true")
-    parser.add_argument("-o", "--output")
+    parser.add_argument("files", nargs="+")
+    parser.add_argument("-t", "--tree", default=False, action="store_true",
+                        help="Dump the ast tree")
+    parser.add_argument("-d", "--dump", default=False, action="store_true",
+                        help="Dump the original code with type inference added.")
+    parser.add_argument("-p", "--print", default=False, action="store_true",
+                        help="Dump the c representation of the code.")
+    parser.add_argument("-o", "--output",
+                        help="The name of the target executable.")
+    parser.add_argument("-w", "--working-dir",
+                        help="Working directory to store intermediate files.")
 
     return parser.parse_args()
 
@@ -46,17 +55,25 @@ def main():
 
     parser = Parser()
 
-    with open(args.filename, "r") as f:
-        ast = parser.parse(f.read())
+    asts = []
+    for filename in args.files:
+        with open(filename, "r") as f:
+            asts.append(parser.parse(f.read()))
 
     if args.tree:
-        print(dump_tree(ast))
+        for i, ast in enumerate(asts):
+            print("------- {} --------".format(args.files[i]))
+            print(dump_tree(ast))
     elif args.dump:
-        print(ast)
+        for i, ast in enumerate(asts):
+            print("------- {} --------".format(args.files[i]))
+            print(ast)
     elif args.print:
-        print(ast.c_code())
+        for i, ast in enumerate(asts):
+            print("------- {} --------".format(args.files[i]))
+            print(ast.c_code())
     else:
-        compile_source(args.filename, ast.c_code(), output=args.output)
+        compile_sources(args.files, asts, output=args.output)
 
 
 if __name__ == "__main__":

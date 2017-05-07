@@ -124,6 +124,7 @@ struct s {x: int, y: char[][]}
         self.assertEqual(
             ast.c_code(),
             """
+typedef struct s s;
 struct s {int x; char **y;};
             """.strip()
         )

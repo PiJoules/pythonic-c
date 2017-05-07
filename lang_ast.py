@@ -798,6 +798,10 @@ class StructDecl(Node):
         yield from self.struct.lines()
 
     def c_lines(self):
+        yield "typedef struct {} {};".format(
+            self.struct.name,
+            self.struct.name
+        )
         yield self.struct.c_code() + ";"
 
 
@@ -831,3 +835,21 @@ class IncludeLocal(Node):
 
     def c_lines(self):
         yield '#include {}'.format(self.path)
+
+
+class Ifndef(Node):
+    __slots__ = ("guard", )
+
+    def lines(self):
+        yield "ifndef {}".format(self.guard)
+
+    def c_lines(self):
+        yield "#ifndef {}".format(self.guard)
+
+
+class Endif(Node):
+    def lines(self):
+        yield "endif"
+
+    def c_lines(self):
+        yield "#endif"

@@ -166,6 +166,8 @@ class Parser:
         """small_stmt : return_stmt
                       | include_stmt
                       | define_stmt
+                      | ifndef_stmt
+                      | endif_stmt
                       | expr_stmt
                       | assign_stmt
                       | func_decl
@@ -175,6 +177,25 @@ class Parser:
                       | break
                       | pass"""
         p[0] = p[1]
+
+    # Macros
+
+    def p_define_stmt(self, p):
+        "define_stmt : DEFINE NAME expr"
+        p[0] = Define(p[2], p[3])
+
+    def p_define_stmt_empty(self, p):
+        "define_stmt : DEFINE NAME"
+        p[0] = Define(p[2], None)
+
+    def p_ifndef_stmt(self, p):
+        "ifndef_stmt : IFNDEF NAME"
+        p[0] = Ifndef(p[2])
+
+    def p_endif_stmt(self, p):
+        "endif_stmt : ENDIF"
+        p[0] = Endif()
+
 
     def p_pass(self, p):
         "pass : PASS"
@@ -216,7 +237,7 @@ class Parser:
         p[0] = p[1] + [p[3]]
 
     def p_struct_decl_list_empty(self, p):
-        "struct_decl_list : var_decl"
+        """struct_decl_list : var_decl"""
         p[0] = [p[1]]
 
     # def func(a, b:int)
@@ -342,15 +363,6 @@ class Parser:
         "return_stmt : RETURN expr"
         p[0] = Return(p[2])
 
-
-    def p_define_stmt(self, p):
-        "define_stmt : DEFINE NAME expr"
-        p[0] = Define(p[2], p[3])
-
-
-    def p_define_stmt_empty(self, p):
-        "define_stmt : DEFINE NAME"
-        p[0] = Define(p[2], None)
 
 
     # compound_stmt is a multiline statement
