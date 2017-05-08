@@ -229,21 +229,27 @@ class Parser:
         p[0] = StructDecl(p[1])
 
     def p_struct_decl(self, p):
-        "struct_decl : STRUCT NAME LBRACE struct_decl_list RBRACE"
+        "struct_decl : STRUCT NAME LBRACE struct_decl_list optional_comma RBRACE"
         p[0] = Struct(p[2], p[4])
+
+    def p_optional_seq_comma(self, p):
+        """optional_comma : COMMA
+                          | empty"""
+        # The extra optional comma in a sequence
+        pass
 
     def p_struct_decl_list(self, p):
         "struct_decl_list : struct_decl_list COMMA var_decl"
         p[0] = p[1] + [p[3]]
 
-    def p_struct_decl_list_empty(self, p):
+    def p_struct_decl_list_one(self, p):
         """struct_decl_list : var_decl"""
         p[0] = [p[1]]
 
     # def func(a, b:int)
     def p_func_decl(self, p):
         "func_decl : DEF NAME parameters"
-        p[0] = FuncDecl(p[2], p[3], None)
+        p[0] = FuncDecl(p[2], p[3], "void")
 
 
     # def func(a, b:int) -> ret

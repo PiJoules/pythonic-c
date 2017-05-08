@@ -1,5 +1,8 @@
 from cparse import Parser
 from lang_ast import *
+from inference import Inferer
+
+import os.path
 
 
 def create_c_file(source, ast):
@@ -70,6 +73,11 @@ def main():
             print(ast)
     elif args.print:
         for i, ast in enumerate(asts):
+            source = args.files[i]
+            file_dir = os.path.dirname(source)
+
+            inferer = Inferer(source_dir=file_dir)
+            inferer.check_module(ast)
             print("------- {} --------".format(args.files[i]))
             print(ast.c_code())
     else:

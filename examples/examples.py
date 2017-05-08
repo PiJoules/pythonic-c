@@ -53,13 +53,13 @@ def x(a: int) -> {(float) -> str}
 x: ((int) -> float) -> str
 
 # A function declaration or definition must use definition style params
-def x(a: int, b, c: float) -> str
+def x(a: int, b: char, c: float) -> str
 
 
 # Function declaration
 def func()
 def func() -> None  # Func decl with optional return type
-def func(a, b) -> int
+def func(a: char, b: int) -> int
 
 
 enum days {MON, TUE, WED, THU, FRI, SAT, SUN}

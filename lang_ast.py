@@ -1,6 +1,10 @@
 INDENT = "    "
 
 
+class TypeMixin:
+    """Mixin to indicate this node represents a type."""
+
+
 class Node:
     __slots__ = tuple()
     __types__ = {}
@@ -189,8 +193,34 @@ class Module(Node):
             yield from node.c_lines()
 
 
+class VarDecl(Node):
+    __slots__ = ("name", "type", "init")
+    __types__ = {
+        "name": str,
+        "type": (str, TypeMixin),
+        "init": (type(None), Node),
+    }
+    __defaults__ = {"init": None}
+
+    def lines(self):
+        if self.init:
+            yield "{}: {} = {}".format(self.name, self.type, self.init)
+        else:
+            yield "{}: {}".format(self.name, self.type)
+
+    def c_lines(self):
+        line = _format_c_decl(self.name, self.type)
+        if self.init:
+            line += " = {}".format(self.init)
+        yield line
+
+
 class FuncDef(Node):
     __slots__ = ("name", "params", "body", "returns")
+    __types__ = {
+        "name": str,
+        "params": [(str, VarDecl)]
+    }
 
     def lines(self):
         line1 = "def {}({})".format(
@@ -232,8 +262,15 @@ class FuncDef(Node):
         yield "}"
 
 
+
+
 class FuncDecl(Node):
     __slots__ = ("name", "params", "returns")
+    __types__ = {
+        "name": str,
+        "params": [VarDecl],
+        "returns": (str, TypeMixin)
+    }
 
     def lines(self):
         if self.returns:
@@ -248,9 +285,27 @@ class FuncDecl(Node):
                 ", ".join(map(str, self.params))
             )
 
+    def c_lines(self):
+        assert self.returns, "returns parameter expected for FuncDecl to produce c equivalent code"
+        if isinstance(self.returns, str):
+            returns = self.returns
+        else:
+            returns = self.returns.c_code()
+        yield "{} {}({});".format(
+            returns,
+            self.name,
+            ", ".join(p.c_code() for p in self.params)
+        )
 
-class FuncType(Node):
+    def type(self):
+        return FuncType([p.type for p in self.params], self.returns)
+
+
+class FuncType(Node, TypeMixin):
     __slots__ = ("params", "returns")
+    __types__ = {
+        "params": [(str, TypeMixin)],
+    }
 
     def lines(self):
         if isinstance(self.returns, FuncType):
@@ -264,8 +319,19 @@ class FuncType(Node):
                 self.returns
             )
 
+    def __hash__(self):
+        return hash((
+            tuple(self.params),
+            self.returns
+        ))
+
 
 def _format_c_decl(name, t):
+    """
+    Args:
+        name (str): Name of the variable
+        t (Node): The type of the variable
+    """
     if isinstance(t, Pointer):
         return _format_c_decl(
             "*" + name,
@@ -282,26 +348,6 @@ def _format_c_decl(name, t):
         raise RuntimeError("Unable to handle type {}".format(type(t)))
 
 
-class VarDecl(Node):
-    __slots__ = ("name", "type", "init")
-    __types__ = {
-        "name": str,
-        "type": (str, Node),
-        "init": (type(None), Node),
-    }
-    __defaults__ = {"init": None}
-
-    def lines(self):
-        if self.init:
-            yield "{}: {} = {}".format(self.name, self.type, self.init)
-        else:
-            yield "{}: {}".format(self.name, self.type)
-
-    def c_lines(self):
-        line = _format_c_decl(self.name, self.type)
-        if self.init:
-            line += " = {}".format(self.init)
-        yield line
 
 
 def _format_container(node, sizes=None):
@@ -326,18 +372,40 @@ def _format_container(node, sizes=None):
             return str(node) + s
 
 
-class Array(Node):
+class Array(Node, TypeMixin):
     __slots__ = ("contents", "size")
 
     def lines(self):
         yield _format_container(self)
 
+    def c_lines(self):
+        size_s = self.size.c_code() if self.size else ""
+        if isinstance(self.contents, str):
+            yield "{}[{}]".format(
+                self.contents,
+                size_s
+            )
+        else:
+            yield "{}[{}]".format(
+                self.contents.c_code(),
+                size_s
+            )
 
-class Pointer(Node):
+
+class Pointer(Node, TypeMixin):
     __slots__ = ("contents", )
 
     def lines(self):
         yield _format_container(self)
+
+    def c_lines(self):
+        if isinstance(self.contents, str):
+            yield "{}*".format(self.contents)
+        else:
+            yield "{}*".format(self.contents.c_code())
+
+    def __hash__(self):
+        return hash(self.contents)
 
 
 class Deref(Node):
@@ -771,11 +839,12 @@ class EnumDecl(Node):
 
 
 class Struct(Node):
-    __slots__ = ("name", "decls")
+    __slots__ = ("name", "decls", "_members")
     __types__ = {
         "name": str,
         "decls": [VarDecl],
     }
+    __defaults__ = {"_members": None}
 
     def lines(self):
         yield "struct {} {{{}}}".format(
@@ -788,6 +857,14 @@ class Struct(Node):
             self.name,
             "; ".join(n.c_code() for n in self.decls) + ";"
         )
+
+    def members(self):
+        if self._members is None:
+            self._members = {d.name: d.type for d in self.decls}
+        return self._members
+
+    def member_type(self, member):
+        return self._members[member]
 
 
 class StructDecl(Node):
@@ -808,13 +885,20 @@ class StructDecl(Node):
 ##### Macros ######
 
 class Define(Node):
-    __slots__ = ("name", "value")
+    __slots__ = ("name", "value", "type")
+    __defaults__ = {"type": None}
 
     def lines(self):
         if self.value:
             yield "define {} {}".format(self.name, self.value)
         else:
             yield "define {}".format(self.name)
+
+    def c_lines(self):
+        if self.value:
+            yield "#define {} {}".format(self.name, self.value)
+        else:
+            yield "#define {}".format(self.name)
 
 
 class Include(Node):
