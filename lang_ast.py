@@ -219,7 +219,8 @@ class FuncDef(Node):
     __slots__ = ("name", "params", "body", "returns")
     __types__ = {
         "name": str,
-        "params": [(str, VarDecl)]
+        "params": [(str, VarDecl)],
+        "body": [Node],
     }
 
     def lines(self):
@@ -246,7 +247,7 @@ class FuncDef(Node):
         if isinstance(self.returns, str):
             return_s = self.returns
         else:
-            returns_s = self.returns.c_code()
+            return_s = self.returns.c_code()
 
         yield "{} {}({}){{".format(
             return_s,

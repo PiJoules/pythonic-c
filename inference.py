@@ -11,10 +11,11 @@ class Inferer:
     ######### Interface ########
 
     def __init__(self, init_variables=None, init_types=INIT_TYPES,
-                 source_dir=None):
+                 source_dir=None, parent=None):
         self.__variables = init_variables or {}
         self.__types = init_types or set()
         self.__source_dir = source_dir or os.getcwd()
+        self.__parent = parent
 
     def variables(self):
         return self.__variables
@@ -28,6 +29,15 @@ class Inferer:
             assert self.__variables[varname] == type
         else:
             self.__variables[varname] = type
+
+    def lookup(self, varname):
+        type = self.__variables.get(varname, None)
+        if type is not None:
+            return type
+        elif self.__parent:
+            return self.__parent.lookup(varname)
+
+        raise KeyError("Undeclared variable '{}'".format(varname))
 
     def assert_type_exists(self, type):
         if isinstance(type, (Array, Pointer)):
@@ -79,12 +89,39 @@ class Inferer:
         name = node.name
 
         if name in self.variables():
+            # Func was previously declared
             # Check and match parameters and types
-            pass
-        else:
-            pass
+            expected_func_t = self.lookup(name)
 
-        raise NotImplementedError
+            assert isinstance(expected_func_t, FuncType)
+
+            if len(node.params) != len(expected_func_t.params):
+                raise RuntimeError("Function definition and declaration of '{}' expected to have the same number of arguments".format(name))
+
+            # Check and replace params
+            new_node_params = []
+            for i, param in enumerate(node.params):
+                expected_param_t = expected_func_t.params[i]
+                if isinstance(param, str):
+                    new_node_params.append(
+                        VarDecl(param, expected_param_t)
+                    )
+                elif param.type != expected_func_t.params[i]:
+                    raise RuntimeError("Expected {} to be of type {} from previous declaration".format(param.name))
+                else:
+                    new_node_params.append(param)
+            node.params = new_node_params
+
+            # Check and replace returns
+            expected_returns = expected_func_t.returns
+            if node.returns:
+                assert node.returns == expected_returns
+            else:
+                node.returns = expected_returns
+        else:
+            # First instance of function
+            # Will need to perform type inference when calling function
+            pass
 
     def check(self, node):
         if isinstance(node, Module):
