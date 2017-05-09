@@ -1,4 +1,5 @@
 includel "ll.h"
 
 def new_list():
-    pass
+    lst = (List[])malloc(sizeof(List))
+    return lst
