@@ -1,8 +1,26 @@
 INDENT = "    "
 
+HEADER_END = ".h.py"
+SOURCE_END = ".py"
+
+
+def to_c_source(source):
+    if source.endswith(HEADER_END):
+        return source[:-len(HEADER_END)] + ".h"
+    elif source.endswith(SOURCE_END):
+        return source[:-len(SOURCE_END)] + ".c"
+    elif source.endswith(".h"):
+        # To enable using C headers
+        return source
+    else:
+        raise RuntimeError("Unknown file type '{}'".format(source))
+
 
 class TypeMixin:
     """Mixin to indicate this node represents a type."""
+
+
+LANG_TYPES = (str, TypeMixin)
 
 
 class Node:
@@ -197,7 +215,7 @@ class VarDecl(Node):
     __slots__ = ("name", "type", "init")
     __types__ = {
         "name": str,
-        "type": (str, TypeMixin),
+        "type": LANG_TYPES,
         "init": (type(None), Node),
     }
     __defaults__ = {"init": None}
@@ -211,7 +229,7 @@ class VarDecl(Node):
     def c_lines(self):
         line = _format_c_decl(self.name, self.type)
         if self.init:
-            line += " = {}".format(self.init)
+            line += " = {}".format(self.init.c_code())
         yield line
 
 
@@ -270,7 +288,7 @@ class FuncDecl(Node):
     __types__ = {
         "name": str,
         "params": [VarDecl],
-        "returns": (str, TypeMixin)
+        "returns": LANG_TYPES
     }
 
     def lines(self):
@@ -305,7 +323,7 @@ class FuncDecl(Node):
 class FuncType(Node, TypeMixin):
     __slots__ = ("params", "returns")
     __types__ = {
-        "params": [(str, TypeMixin)],
+        "params": [LANG_TYPES],
     }
 
     def lines(self):
@@ -428,9 +446,18 @@ class ArrayLiteral(Node):
 
 class Cast(Node):
     __slots__ = ("target_type", "expr")
+    __types__ = {
+        "target_type": LANG_TYPES,
+    }
 
     def lines(self):
         yield "({}){}".format(self.target_type, self.expr)
+
+    def c_lines(self):
+        yield "({}){}".format(
+            self.target_type.c_code(),
+            self.expr.c_code()
+        )
 
 
 class ExprStmt(Node):
@@ -448,6 +475,9 @@ class Assign(Node):
 
     def lines(self):
         yield "{} = {}".format(self.left, self.right)
+
+    def c_lines(self):
+        yield "{} = {};".format(self.left.c_code(), self.right.c_code())
 
 
 class Return(Node):
@@ -764,6 +794,9 @@ class Call(Node):
     def lines(self):
         yield "{}({})".format(self.func, ", ".join(map(str, self.args)))
 
+    def c_lines(self):
+        yield "{}({})".format(self.func.c_code(), ", ".join(a.c_code() for a in self.args))
+
 
 class Name(Node):
     __slots__ = ("id", "type")
@@ -909,7 +942,7 @@ class Include(Node):
         yield 'include {}'.format(self.path)
 
     def c_lines(self):
-        yield '#include <{}>'.format(self.path.s)
+        yield '#include <{}>'.format(to_c_source(self.path.s))
 
 
 class IncludeLocal(Node):
@@ -919,7 +952,7 @@ class IncludeLocal(Node):
         yield 'includel {}'.format(self.path)
 
     def c_lines(self):
-        yield '#include {}'.format(self.path)
+        yield '#include "{}"'.format(to_c_source(self.path.s))
 
 
 class Ifndef(Node):

@@ -1,5 +1,6 @@
 parsetab.py
 examples/*.c
+examples/*/*.c
 *.cmm.c
 *_pp.c
 *.preprocessed

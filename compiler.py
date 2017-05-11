@@ -6,10 +6,7 @@ import os.path
 
 
 def create_c_file(source, ast):
-    import os.path
-    base, ext = os.path.splitext(source)
-    c_fname = base + ".c"
-
+    c_fname = to_c_source(source)
     with open(c_fname, "w") as f:
         f.write(ast.c_code())
 
@@ -75,13 +72,20 @@ def main():
         for i, ast in enumerate(asts):
             source = args.files[i]
             file_dir = os.path.dirname(source)
-
             inferer = Inferer(source_dir=file_dir)
-            inferer.check_module(ast)
+            new_ast = inferer.check_module(ast)
+
             print("------- {} --------".format(args.files[i]))
-            print(ast.c_code())
+            print(new_ast.c_code())
     else:
-        compile_sources(args.files, asts, output=args.output)
+        new_asts = []
+        for i, ast in enumerate(asts):
+            source = args.files[i]
+            file_dir = os.path.dirname(source)
+            inferer = Inferer(source_dir=file_dir)
+            new_asts.append(inferer.check_module(ast))
+
+        compile_sources(args.files, new_asts, output=args.output)
 
 
 if __name__ == "__main__":
