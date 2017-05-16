@@ -1,12 +1,13 @@
 from lang_ast import *
 from cparse import Parser
+from clibs import INIT_LIBS
 
 import os
 
 
-INIT_TYPES = {"int", "float", "void", "char"}
-
-INIT_LIBS = {
+INIT_TYPES = {
+    "int", "uint",
+    "float", "void", "char"
 }
 
 
@@ -128,12 +129,13 @@ class Inferer:
         return node
 
     def check_Include(self, node):
-        parser = Parser()
-        path = os.path.join(self.__source_dir, node.path.s)
-        if path in self.__libs:
-            module_ast = parser.parse(self.__libs[path])
+        path = node.path.s
+
+        if path not in self.__libs:
+            raise RuntimeError("File '{}' not found".format(path))
         else:
-            raise RuntimeError("Unknown lib '{}'".format(path))
+            self.check_module(self.__libs[path])
+
         return node
 
     def check_FuncDef(self, node):
@@ -200,11 +202,11 @@ class Inferer:
             else:
                 # First instance of this variable
                 # Change to a VarDecl
-                return VarDecl(
+                return VarDeclStmt(VarDecl(
                     name,
                     right_t,
                     right
-                )
+                ))
         else:
             raise NotImplementedError("Unable to assign to {}".format(left))
 
@@ -215,6 +217,10 @@ class Inferer:
         return node
 
     def check_Endif(self, node):
+        return node
+
+    def check_TypeDefStmt(self, node):
+        self.add_type(node.name)
         return node
 
     def check_list(self, seq):

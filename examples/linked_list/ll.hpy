@@ -1,6 +1,8 @@
 ifndef _LINKED_LIST_H
 define _LINKED_LIST_H
 
+include "stdlib.h"
+
 struct Node {
     value: int, 
     next: Node[],
@@ -8,7 +10,7 @@ struct Node {
 
 struct List {
     head: Node[],
-    length: int,
+    length: size_t,
 }
 
 # Create a list

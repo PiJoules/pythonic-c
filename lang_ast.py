@@ -1,7 +1,7 @@
 INDENT = "    "
 
-HEADER_END = ".h.py"
-SOURCE_END = ".py"
+HEADER_END = ".hpy"
+SOURCE_END = ".cpy"
 
 
 def to_c_source(source):
@@ -231,6 +231,17 @@ class VarDecl(Node):
         if self.init:
             line += " = {}".format(self.init.c_code())
         yield line
+
+
+class VarDeclStmt(Node):
+    __slots__ = ("decl", )
+    __types__ = {"decl": VarDecl}
+
+    def lines(self):
+        yield from self.decl
+
+    def c_lines(self):
+        yield self.decl.c_code() + ";"
 
 
 class FuncDef(Node):
@@ -467,7 +478,7 @@ class ExprStmt(Node):
         yield from self.value.lines()
 
     def c_lines(self):
-        yield "{};".format(self.value)
+        yield "{};".format(self.value.c_code())
 
 
 class Assign(Node):
@@ -771,6 +782,9 @@ class Not(Node):
     def lines(self):
         yield "not"
 
+    def c_lines(self):
+        yield "!"
+
 
 class Invert(Node):
     def lines(self):
@@ -785,6 +799,9 @@ class UnaryOp(Node):
             yield "{} {}".format(self.op, self.value)
         else:
             yield "{}{}".format(self.op, self.value)
+
+    def c_lines(self):
+        yield "{}{}".format(self.op.c_code(), self.value.c_code())
 
 
 class Call(Node):
@@ -870,6 +887,20 @@ class EnumDecl(Node):
 
     def c_lines(self):
         yield self.enum.c_code() + ";"
+
+
+class TypeDefStmt(Node):
+    __slots__ = ("type", "name")
+    __types__ = {
+        "type": LANG_TYPES,
+        "name": str
+    }
+
+    def lines(self):
+        yield "typedef {} {}".format(self.type, self.name)
+
+    def c_lines(self):
+        yield "typedef {} {};".format(self.type.c_code(), self.name)
 
 
 class Struct(Node):

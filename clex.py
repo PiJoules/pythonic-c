@@ -49,6 +49,9 @@ class Lexer:
         "return": "RETURN",
         "break": "BREAK",
 
+        # Exprs
+        "not": "NOT",
+
         # Macros
         "define": "DEFINE",
         "include": "INCLUDE",
@@ -59,6 +62,7 @@ class Lexer:
         # Types
         "enum": "ENUM",
         "struct": "STRUCT",
+        "typedef": "TYPEDEF",
     }
 
     tokens = (
@@ -364,5 +368,5 @@ class Lexer:
 
     def t_error(self, t):
         raise SyntaxError("Unknown symbol '{}' at ({}, {})".format(
-            t.value[0], t.lineno, find_column(t.value, t)
+            t.value[0], t.lineno, self.find_column(t.value, t)
         ))

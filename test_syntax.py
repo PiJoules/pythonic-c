@@ -682,6 +682,35 @@ switch (x){
             """.strip()
         )
 
+    def test_not(self):
+        """Test boolean not."""
+        code = """
+not x
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                ExprStmt(UnaryOp(Not(), Name("x")))
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            code.strip()
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+!x;
+            """.strip()
+        )
+
+        # Test precedence
+#        code = """
+#not x->y
+#        """
+#        ast = self.__create_ast(code)
+
 
 if __name__ == "__main__":
     unittest.main()

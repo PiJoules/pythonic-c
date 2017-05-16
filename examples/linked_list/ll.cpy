@@ -1,5 +1,5 @@
-includel "ll.h.py"
-#include "stdlib.h"
+includel "ll.hpy"
+
 
 def new_list():
     lst = (List[])malloc(sizeof(List))

@@ -171,12 +171,19 @@ class Parser:
                       | expr_stmt
                       | assign_stmt
                       | func_decl
-                      | var_decl
+                      | var_decl_stmt
                       | enum_decl_stmt
                       | struct_decl_stmt
+                      | typedef_stmt
                       | break
                       | pass"""
         p[0] = p[1]
+
+    # typdef
+
+    def p_typedef_stmt(self, p):
+        "typedef_stmt : TYPEDEF type_declaration NAME"
+        p[0] = TypeDefStmt(p[2], p[3])
 
     # Macros
 
@@ -257,6 +264,9 @@ class Parser:
         "func_decl : DEF NAME parameters ARROW type_declaration"
         p[0] = FuncDecl(p[2], p[3], p[5])
 
+    def p_var_decl_stmt(self, p):
+        "var_decl_stmt : var_decl"
+        p[0] = VarDeclStmt(p[1])
 
     # x: int
     def p_vardecl(self, p):
@@ -348,7 +358,6 @@ class Parser:
     def p_include_standard(self, p):
         "include_stmt : INCLUDE STRING"
         p[0] = Include(Str(p[2]))
-
 
     def p_include_local(self, p):
         "include_stmt : INCLUDE_LOCAL STRING"
@@ -495,6 +504,8 @@ class Parser:
         ("left", "EQ", "GT", "LT"),
         ("left", "PLUS", "MINUS"),
         ("left", "MULT", "DIV"),
+        ("left", "NOT"),
+        ("left", "ARROW")
     )
 
 
@@ -541,6 +552,10 @@ class Parser:
     def p_comparison_usub(self, p):
         """expr : MINUS expr"""
         p[0] = UnaryOp(USub(), p[2])
+
+    def p_comparison_not(self, p):
+        "expr : NOT expr"
+        p[0] = UnaryOp(Not(), p[2])
 
     # power: atom trailer* ['**' factor]
     # trailers enables function calls.  I only allow one level of calls
@@ -593,12 +608,7 @@ class Parser:
         p[0] = p[1] + [p[3]]
 
 
-    #def p_atom_tuple(self, p):
-    #    """atom : LPAR testlist RPAR"""
-    #    p[0] = p[2]
-
     # trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
-
 
     def p_trailer(self, p):
         "trailer : LPAR arglist RPAR"
