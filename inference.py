@@ -5,6 +5,9 @@ from clibs import INIT_LIBS
 import os
 
 
+HEADERS_DIR = os.path.join(os.path.dirname(__file__), "LangInclude")
+
+
 INIT_TYPES = {
     "int", "uint",
     "float", "void", "char"
@@ -22,6 +25,7 @@ class Inferer:
         self.__source_dir = source_dir or os.getcwd()
         self.__parent = parent
         self.__libs = init_libs or {}
+        self.__call_stack = []
 
     def variables(self):
         return self.__variables
@@ -63,21 +67,42 @@ class Inferer:
     def add_type(self, type):
         self.__types.add(type)
 
+    def __dump_call_stack(self):
+        print("------ Call stack --------")
+        for func in self.__call_stack:
+            print(func)
+
     def __call_node_method(self, node, prefix, expected=None):
         name = node.__class__.__name__
+
+        self.__call_stack.append("{}: {}".format(prefix, name))
+
         method_name = prefix + "_" + name
         if hasattr(self, method_name):
             method = getattr(self, method_name)
             result = method(node)
+
             if expected is not None and not isinstance(result, expected):
+                self.__dump_call_stack()
                 raise RuntimeError("Expected {} back from {}(). Got {}.".format(expected, method_name, type(result)))
+
+            self.__call_stack.pop()
+
             return result
         else:
+            self.__dump_call_stack()
             raise RuntimeError("No {} method implemented for node '{}'. Implement {}(self, node) to check this type of node".format(
                 prefix,
                 name,
                 method_name
             ))
+
+    def __check_module_path(self, path):
+        parser = Parser()
+        path = os.path.join(self.__source_dir, path)
+        with open(path, "r") as f:
+            module_ast = parser.parse(f.read())
+            self.check(module_ast)
 
     ######## Type inference ###########
 
@@ -87,10 +112,25 @@ class Inferer:
     def infer_Cast(self, node):
         return node.target_type
 
+    def infer_Call(self, node):
+        func = node.func
+
+        if isinstance(func, Name):
+            return self.lookup(func.id).returns
+        else:
+            raise NotImplementedError("No logic yet implemented for inferring type for node {}".format(type(func)))
+
+    def infer_Int(self, node):
+        return "int"
+
+    def infer_Name(self, node):
+        return self.lookup(node.id)
+
+
     ######## Node checking ###########
 
     def check(self, node):
-        return self.__call_node_method(node, "check", expected=Node)
+        return self.__call_node_method(node, "check", expected=(Node, list))
 
     def check_Define(self, node):
         if node.value:
@@ -121,20 +161,21 @@ class Inferer:
         return node
 
     def check_IncludeLocal(self, node):
-        parser = Parser()
-        path = os.path.join(self.__source_dir, node.path.s)
-        with open(path, "r") as f:
-            module_ast = parser.parse(f.read())
-            self.check_module(module_ast)
+        self.__check_module_path(node.path.s)
         return node
 
     def check_Include(self, node):
         path = node.path.s
+        header_path = os.path.join(HEADERS_DIR, path)
 
-        if path not in self.__libs:
-            raise RuntimeError("File '{}' not found".format(path))
+        if path in self.__libs:
+            self.check(self.__libs[path])
+        #elif os.path.isfile(header_path):
+        #    with open(header_path, "r") as f:
+        #        module_ast = parser.parse(f.read())
+        #        self.check(module_ast)
         else:
-            self.check_module(self.__libs[path])
+            raise RuntimeError("File '{}' not found".format(path))
 
         return node
 
@@ -179,7 +220,7 @@ class Inferer:
             pass
 
         # Check the body
-        body = self.check_list(node.body)
+        body = self.check(node.body)
         return FuncDef(
             name,
             node_params,
@@ -202,15 +243,16 @@ class Inferer:
             else:
                 # First instance of this variable
                 # Change to a VarDecl
-                return VarDeclStmt(VarDecl(
+                return self.check(VarDeclStmt(VarDecl(
                     name,
                     right_t,
                     right
-                ))
+                )))
         else:
             raise NotImplementedError("Unable to assign to {}".format(left))
 
     def check_Return(self, node):
+        self.infer(node.value)
         return node
 
     def check_Ifndef(self, node):
@@ -223,8 +265,33 @@ class Inferer:
         self.add_type(node.name)
         return node
 
+    def check_ExprStmt(self, node):
+        self.infer(node.value)
+        return node
+
+    def check_VarDecl(self, node):
+        self.assert_type_exists(node.type)
+        name = node.name
+        init = node.init
+
+        # Make sure the variable is not declared in the same scope
+        if name in self.__variables:
+            raise RuntimeError("Cannot declare variable '{}' again in same scope".format(name))
+
+        # Check types
+        init_t = self.infer(init)
+        if init_t != node.type:
+            raise TypeError("Expected type {} for {}. Found {}.".format(node_t, name, init_t))
+
+        # Add variable
+        self.bind(name, node.type)
+        return node
+
+    def check_VarDeclStmt(self, node):
+        return VarDeclStmt(self.check(node.decl))
+
     def check_list(self, seq):
         return [self.check(n) for n in seq]
 
-    def check_module(self, node):
-        return Module(self.check_list(node.body))
+    def check_Module(self, node):
+        return Module(self.check(node.body))

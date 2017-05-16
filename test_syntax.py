@@ -705,11 +705,33 @@ not x
             """.strip()
         )
 
-        # Test precedence
-#        code = """
-#not x->y
-#        """
-#        ast = self.__create_ast(code)
+    def test_struct_deref(self):
+        """Test struct member dereference."""
+        code = """
+not x->y
+        """
+        ast = self.__create_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                ExprStmt(
+                    UnaryOp(
+                        Not(),
+                        StructPointerDeref(Name("x"), "y")
+                    )
+                )
+            ])
+        )
+        self.assertEqual(
+            str(ast),
+            "not x->y"
+        )
+        self.assertEqual(
+            ast.c_code(),
+            """
+!x->y;
+            """.strip()
+        )
 
 
 if __name__ == "__main__":

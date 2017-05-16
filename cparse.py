@@ -533,6 +533,10 @@ class Parser:
         else:
             p[0] = p[1]
 
+    def p_expr_struct_deref(self, p):
+        "expr : expr ARROW NAME"
+        p[0] = StructPointerDeref(p[1], p[3])
+
     def p_comparison_scoped(self, p):
         "expr : LPAR expr RPAR"
         p[0] = p[2]

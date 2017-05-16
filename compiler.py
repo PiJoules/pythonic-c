@@ -73,7 +73,7 @@ def main():
             source = args.files[i]
             file_dir = os.path.dirname(source)
             inferer = Inferer(source_dir=file_dir)
-            new_ast = inferer.check_module(ast)
+            new_ast = inferer.check(ast)
 
             print("------- {} --------".format(args.files[i]))
             print(new_ast.c_code())
@@ -83,7 +83,7 @@ def main():
             source = args.files[i]
             file_dir = os.path.dirname(source)
             inferer = Inferer(source_dir=file_dir)
-            new_asts.append(inferer.check_module(ast))
+            new_asts.append(inferer.check(ast))
 
         compile_sources(args.files, new_asts, output=args.output)
 

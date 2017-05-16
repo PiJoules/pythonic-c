@@ -4,6 +4,10 @@ HEADER_END = ".hpy"
 SOURCE_END = ".cpy"
 
 
+def is_c_header(source):
+    return source.endswith(".h")
+
+
 def to_c_source(source):
     if source.endswith(HEADER_END):
         return source[:-len(HEADER_END)] + ".h"
@@ -19,8 +23,17 @@ def to_c_source(source):
 class TypeMixin:
     """Mixin to indicate this node represents a type."""
 
+class ValueMixin:
+    """Mixin to indicate this node represents a value."""
+
 
 LANG_TYPES = (str, TypeMixin)
+
+
+def optional(t):
+    if isinstance(t, tuple):
+        return t + (type(None), )
+    return (t, type(None))
 
 
 class Node:
@@ -53,7 +66,7 @@ class Node:
             if isinstance(expected, list):
                 if not isinstance(val, list):
                     raise TypeError("Expected '{}' of {} to be type {}. Found {}.".format(
-                        attr, type(self), original, val
+                        attr, type(self), original, type(val)
                     ))
 
                 for item in val:
@@ -61,7 +74,7 @@ class Node:
             else:
                 if not isinstance(val, expected):
                     raise TypeError("Expected '{}' of {} to be type {}. Found {}.".format(
-                        attr, type(self), original, val
+                        attr, type(self), original, type(val)
                     ))
 
 
@@ -211,12 +224,12 @@ class Module(Node):
             yield from node.c_lines()
 
 
-class VarDecl(Node):
+class VarDecl(Node, ValueMixin):
     __slots__ = ("name", "type", "init")
     __types__ = {
         "name": str,
         "type": LANG_TYPES,
-        "init": (type(None), Node),
+        "init": optional(ValueMixin),
     }
     __defaults__ = {"init": None}
 
@@ -335,19 +348,14 @@ class FuncType(Node, TypeMixin):
     __slots__ = ("params", "returns")
     __types__ = {
         "params": [LANG_TYPES],
+        "returns": LANG_TYPES
     }
 
     def lines(self):
-        if isinstance(self.returns, FuncType):
-            yield "({}) -> {{{}}}".format(
-                ", ".join(map(str, self.params)),
-                self.returns
-            )
-        else:
-            yield "({}) -> {}".format(
-                ", ".join(map(str, self.params)),
-                self.returns
-            )
+        yield "({}) -> {}".format(
+            ", ".join(map(str, self.params)),
+            self.returns
+        )
 
     def __hash__(self):
         return hash((
@@ -358,10 +366,15 @@ class FuncType(Node, TypeMixin):
 
 def _format_c_decl(name, t):
     """
+    Format type declaration to C code
+
     Args:
         name (str): Name of the variable
         t (Node): The type of the variable
     """
+    assert isinstance(t, LANG_TYPES)
+    assert isinstance(name, str)
+
     if isinstance(t, Pointer):
         return _format_c_decl(
             "*" + name,
@@ -375,8 +388,13 @@ def _format_c_decl(name, t):
     elif isinstance(t, str):
         return "{} {}".format(t, name)
     else:
-        raise RuntimeError("Unable to handle type {}".format(type(t)))
-
+        params = t.params
+        returns = t.returns
+        return "{} (*{})({})".format(
+            returns.c_code(),
+            name,
+            ", ".join(p.c_code() for p in params)
+        )
 
 
 
@@ -438,7 +456,7 @@ class Pointer(Node, TypeMixin):
         return hash(self.contents)
 
 
-class Deref(Node):
+class Deref(Node, ValueMixin):
     __slots__ = ("value", )
 
     def lines(self):
@@ -448,14 +466,27 @@ class Deref(Node):
         yield "*{}".format(self.value.c_code())
 
 
-class ArrayLiteral(Node):
+class StructPointerDeref(Node, ValueMixin):
+    __slots__ = ("value", "member")
+    __types__ = {
+        "member": str,
+    }
+
+    def lines(self):
+        yield "{}->{}".format(self.value, self.member)
+
+    def c_lines(self):
+        yield "{}->{}".format(self.value.c_code(), self.member)
+
+
+class ArrayLiteral(Node, ValueMixin):
     __slots__ = ("contents", )
 
     def lines(self):
         yield "[{}]".format(", ".join(map(str, self.contents)))
 
 
-class Cast(Node):
+class Cast(Node, ValueMixin):
     __slots__ = ("target_type", "expr")
     __types__ = {
         "target_type": LANG_TYPES,
@@ -483,6 +514,10 @@ class ExprStmt(Node):
 
 class Assign(Node):
     __slots__ = ("left", "right")
+    __types__ = {
+        "left": ValueMixin,
+        "right": ValueMixin,
+    }
 
     def lines(self):
         yield "{} = {}".format(self.left, self.right)
@@ -804,7 +839,7 @@ class UnaryOp(Node):
         yield "{}{}".format(self.op.c_code(), self.value.c_code())
 
 
-class Call(Node):
+class Call(Node, ValueMixin):
     __slots__ = ("func", "args")
     __defaults__ = {"args": []}
 
@@ -815,8 +850,12 @@ class Call(Node):
         yield "{}({})".format(self.func.c_code(), ", ".join(a.c_code() for a in self.args))
 
 
-class Name(Node):
+class Name(Node, ValueMixin):
     __slots__ = ("id", "type")
+    __types__ = {
+        "id": str,
+        "type": optional(LANG_TYPES)
+    }
     __defaults__ = {"type": None}
 
     def lines(self):
@@ -826,7 +865,7 @@ class Name(Node):
         yield str(self.id)
 
 
-class Int(Node):
+class Int(Node, ValueMixin):
     __slots__ = ("n", )
 
     def lines(self):
@@ -836,7 +875,7 @@ class Int(Node):
         yield str(self.n)
 
 
-class Float(Node):
+class Float(Node, ValueMixin):
     __slots__ = ("n", )
 
     def lines(self):
@@ -846,7 +885,7 @@ class Float(Node):
         yield str(self.n)
 
 
-class Str(Node):
+class Str(Node, ValueMixin):
     __slots__ = ("s", )
 
     def lines(self):
