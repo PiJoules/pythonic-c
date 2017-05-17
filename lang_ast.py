@@ -1,3 +1,7 @@
+from file_locs import FAKE_LANG_HEADERS_DIR
+import os
+
+
 INDENT = "    "
 
 HEADER_END = ".hpy"
@@ -6,6 +10,14 @@ SOURCE_END = ".cpy"
 
 def is_c_header(source):
     return source.endswith(".h")
+
+
+def is_c_source(source):
+    return source.endswith(".c")
+
+
+def is_lang_source(source):
+    return source.endswith(SOURCE_END)
 
 
 def to_c_source(source):
@@ -939,7 +951,10 @@ class TypeDefStmt(Node):
         yield "typedef {} {}".format(self.type, self.name)
 
     def c_lines(self):
-        yield "typedef {} {};".format(self.type.c_code(), self.name)
+        if isinstance(self.type, Node):
+            yield "typedef {} {};".format(self.type.c_code(), self.name)
+        else:
+            yield "typedef {} {};".format(self.type, self.name)
 
 
 class Struct(Node):
@@ -1041,3 +1056,73 @@ class Endif(Node):
 
     def c_lines(self):
         yield "#endif"
+
+
+######### Node Manipulators ###########
+
+class NodeVisitor:
+    def __init__(self, *, require_all=False):
+        """
+        Args:
+            require_all (bool): If True, a RuntimeError is thrown when there is an
+                attempt to visit a node for which there is no proper visit method.
+                Otherwise, any child nodes of the node are visited and None is returned.
+        """
+        self.__require_all = require_all
+
+    def visit(self, node):
+        name = node.__class__.__name__
+        method_name = "visit_" + name
+        if hasattr(self, method_name):
+            method = getattr(self, method_name)
+            return method(node)
+        elif self.__require_all:
+            raise RuntimeError("No {} method implemented for type '{}'. Implement {}(self, node) to check this type of node".format(
+                prefix,
+                name,
+                method_name
+            ))
+        else:
+            self.visit_children(node)
+
+    def visit_children(self, node):
+        if isinstance(node, Node):
+            for attr in node.__slots__:
+                val = getattr(node, attr)
+                if val is not None:
+                    self.visit(val)
+
+    def visit_list(self, seq):
+        return [self.visit(n) for n in seq]
+
+    def visit_dict(self, d):
+        return {k: self.visit(v) for k, v in d.items()}
+
+
+class IncludeFinder(NodeVisitor):
+    def __init__(self, source_dir, *, include_dirs=None,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.__includes = set()
+        self.__source_dir = os.path.abspath(source_dir)
+        self.__include_dirs = (include_dirs or set()) | {FAKE_LANG_HEADERS_DIR}
+
+    def visit_IncludeLocal(self, node):
+        path = node.path.s
+        if not os.path.isabs(path):
+            path = os.path.join(self.__source_dir, node.path.s)
+        self.__includes.add(path)
+
+    def visit_Include(self, node):
+        path = node.path.s
+        if os.path.isabs(path):
+            self.__includes.add(path)
+        else:
+            for include_dir in self.__include_dirs:
+                new_path = os.path.join(include_dir, path)
+                if os.path.isfile(new_path):
+                    self.__includes.add(new_path)
+                    return
+
+    def includes(self):
+        return self.__includes

@@ -1,11 +1,8 @@
 from lang_ast import *
 from cparse import Parser
-from clibs import INIT_LIBS
+from file_locs import FAKE_LANG_HEADERS_DIR
 
 import os
-
-
-HEADERS_DIR = os.path.join(os.path.dirname(__file__), "LangInclude")
 
 
 INIT_TYPES = {
@@ -17,14 +14,14 @@ INIT_TYPES = {
 class Inferer:
     ######### Interface ########
 
-    def __init__(self, init_variables=None, init_types=INIT_TYPES,
+    def __init__(self, *, init_variables=None, init_types=INIT_TYPES,
                  source_dir=None, parent=None,
-                 init_libs=INIT_LIBS):
+                 include_dirs=None):
         self.__variables = init_variables or {}
         self.__types = init_types or set()
         self.__source_dir = source_dir or os.getcwd()
+        self.__include_dirs = (include_dirs or set()) | {FAKE_LANG_HEADERS_DIR}
         self.__parent = parent
-        self.__libs = init_libs or {}
         self.__call_stack = []
 
     def variables(self):
@@ -99,7 +96,6 @@ class Inferer:
 
     def __check_module_path(self, path):
         parser = Parser()
-        path = os.path.join(self.__source_dir, path)
         with open(path, "r") as f:
             module_ast = parser.parse(f.read())
             self.check(module_ast)
@@ -161,19 +157,18 @@ class Inferer:
         return node
 
     def check_IncludeLocal(self, node):
-        self.__check_module_path(node.path.s)
+        path = os.path.join(self.__source_dir, node.path.s)
+        self.__check_module_path(path)
         return node
 
     def check_Include(self, node):
         path = node.path.s
-        header_path = os.path.join(HEADERS_DIR, path)
+        possible_files = (os.path.join(h, path) for h in self.__include_dirs)
 
-        if path in self.__libs:
-            self.check(self.__libs[path])
-        #elif os.path.isfile(header_path):
-        #    with open(header_path, "r") as f:
-        #        module_ast = parser.parse(f.read())
-        #        self.check(module_ast)
+        for f in possible_files:
+            if os.path.isfile(f):
+                self.__check_module_path(f)
+                break
         else:
             raise RuntimeError("File '{}' not found".format(path))
 
