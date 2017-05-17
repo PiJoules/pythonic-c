@@ -5,6 +5,6 @@ include "assert.hpy"
 def main():
     lst = new_list()
     assert(not lst->length)
-    free(lst)
+    del_list(lst)
 
     return 0

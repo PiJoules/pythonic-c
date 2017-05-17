@@ -16,11 +16,14 @@ struct List {
 # Create a list
 def new_list() -> List[]
 
+# Free a list 
+def del_list(l: List[]) -> void
+
 # Print a list 
 def print_list(l: List[]) -> void
 
 # Append to a list 
-def list_append(l: List[], i: int) -> void
+def list_prepend(l: List[], i: int) -> void
 
 # Pop from the list head
 def list_pop(l: List[]) -> int
