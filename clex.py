@@ -75,7 +75,10 @@ class Lexer:
         'LPAR', 'RPAR', "LBRACKET", "RBRACKET", "LBRACE", "RBRACE",
 
         'COLON',
-        'EQ',
+
+        # Binary ops
+        'EQ', "NE",
+
         'ASSIGN',
         "ARROW",
         'LT',
@@ -93,6 +96,7 @@ class Lexer:
 
     t_COLON = r':'
     t_EQ = r'=='
+    t_NE = r"!="
     t_ASSIGN = r'='
     t_LT = r'<'
     t_GT = r'>'

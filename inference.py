@@ -5,10 +5,85 @@ from file_locs import FAKE_LANG_HEADERS_DIR
 import os
 
 
+class LangType(SlottedClass):
+    __slots__ = ("name", )
+    __types__ = {
+        "name": str,
+    }
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __str__(self):
+        return self.name
+
+
 INIT_TYPES = {
-    "int", "uint",
-    "float", "void", "char"
+    LangType("int"),
+    LangType("uint"),
+    LangType("float"),
+    LangType("void"),
+    LangType("char"),
 }
+
+
+def node_to_type(node):
+    assert isinstance(node, LANG_TYPES)
+
+    if isinstance(node, FuncType):
+        param_nodes = node.params
+        return_node = node.returns
+
+        return CallableType(
+            [node_to_type(p) for p in param_nodes],
+            node_to_type(return_node)
+        )
+    elif isinstance(node, str):
+        return LangType(node)
+    elif isinstance(node, Pointer):
+        return PointerType(node_to_type(node.contents))
+    elif isinstance(node, Struct):
+        return StructType(
+            node.name,
+            {d.name: node_to_type(d.type) for d in node.decls}
+        )
+    else:
+        raise RuntimeError("Logic for converting node {} to LangType not implemented".format(type(node)))
+
+
+class StructType(LangType):
+    __slots__ = LangType.__slots__ + ("members", )
+    __types__ = merge_dicts(LangType.__types__, {
+        "members": {str: LangType}
+    })
+
+    def __str__(self):
+        return "struct {} {{{}}}".format(
+            self.name,
+            ", ".join("{}:{}".format(k, v) for k, v in self.members)
+        )
+
+
+class CallableType(LangType):
+    __slots__ = LangType.__slots__ + ("args", "returns")
+    __types__ = merge_dicts(LangType.__types__, {
+        "args": [LangType],
+        "returns": LangType
+    })
+
+    def __init__(self, *args, **kwargs):
+        super().__init__("callable", *args, **kwargs)
+
+
+class PointerType(LangType):
+    __slots__ = LangType.__slots__ + ("contents", )
+    __types__ = merge_dicts(LangType.__types__, {
+        "contents": LangType,
+    })
+
+    def __init__(self, *args, **kwargs):
+        super().__init__("pointer", *args, **kwargs)
+
 
 
 class Inferer:
@@ -55,14 +130,16 @@ class Inferer:
         else:
             return True
 
-    def assert_type_exists(self, type):
-        if isinstance(type, (Array, Pointer)):
-            self.assert_type_exists(type.contents)
-        elif not type in self.types():
-            raise RuntimeError("Type '{}' not previously declared.".format(type))
+    def assert_type_exists(self, t):
+        assert isinstance(t, LangType)
+        if isinstance(t, PointerType):
+            self.assert_type_exists(t.contents)
+        elif t not in self.types():
+            raise RuntimeError("Type '{}' not previously declared.".format(t))
 
-    def add_type(self, type):
-        self.__types.add(type)
+    def add_type(self, t):
+        assert isinstance(t, LangType)
+        self.__types.add(t)
 
     def __dump_call_stack(self):
         print("------ Call stack --------")
@@ -142,16 +219,18 @@ class Inferer:
 
     def check_StructDecl(self, node):
         # Check struct members
-        self.add_type(node.struct.name)
-        for member, type in node.struct.members().items():
-            self.assert_type_exists(type)
+        struct_t = node_to_type(node.struct)
+        self.add_type(struct_t)
+        for t in struct_t.members.values():
+            self.assert_type_exists(t)
         return node
 
     def check_FuncDecl(self, node):
-        func_t = node.type()
+        func_t = node_to_type(node.type())
         self.assert_type_exists(func_t.returns)
-        for param in func_t.params:
+        for param in func_t.args:
             self.assert_type_exists(param)
+
         self.add_type(func_t)
         self.bind(node.name, func_t)
         return node
@@ -243,8 +322,16 @@ class Inferer:
                     right_t,
                     right
                 )))
+        elif isinstance(left, StructPointerDeref):
+            # Get the struct and check the member
+            value = left.value
+            member = left.member
+
+            expected_t = self.infer(value)
+            print(type(expected_t))
+            raise NotImplementedError
         else:
-            raise NotImplementedError("Unable to assign to {}".format(left))
+            raise NotImplementedError("Unable to assign to {}".format(type(left)))
 
     def check_Return(self, node):
         self.infer(node.value)
@@ -257,7 +344,7 @@ class Inferer:
         return node
 
     def check_TypeDefStmt(self, node):
-        self.add_type(node.name)
+        self.add_type(LangType(node.name))
         return node
 
     def check_ExprStmt(self, node):

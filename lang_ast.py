@@ -48,7 +48,14 @@ def optional(t):
     return (t, type(None))
 
 
-class Node:
+def merge_dicts(d1, d2):
+    d = {}
+    d.update(d1)
+    d.update(d2)
+    return d
+
+
+class SlottedClass:
     __slots__ = tuple()
     __types__ = {}
     __defaults__ = {}
@@ -73,29 +80,56 @@ class Node:
             assert attr in self.__slots__, "default {} not in __slots__ for {}".format(attr, type(self))
 
     def assign_and_check(self, attr, val):
-        def _recusrive_check(val, expected, original):
+        def __raise_type_error(attr, owner_t, expected_t, found_t):
+            raise TypeError("Expected '{}' of {} to be type {}. Found {}.".format(
+                attr, owner_t, expected_t, found_t
+            ))
+
+        def __recursive_check(val, expected, original):
             """Recursively check container items."""
             if isinstance(expected, list):
                 if not isinstance(val, list):
-                    raise TypeError("Expected '{}' of {} to be type {}. Found {}.".format(
-                        attr, type(self), original, type(val)
-                    ))
+                    __raise_type_error(attr, type(self), original, type(val))
 
                 for item in val:
-                    _recusrive_check(item, expected[0], original)
+                    __recursive_check(item, expected[0], original)
+            elif isinstance(expected, dict):
+                if not isinstance(val, dict):
+                    __raise_type_error(attr, type(self), original, type(val))
+
+                for k in val.keys():
+                    __recursive_check(k, list(expected.keys())[0], original)
+                for v in val.values():
+                    __recursive_check(v, list(expected.values())[0], original)
             else:
                 if not isinstance(val, expected):
-                    raise TypeError("Expected '{}' of {} to be type {}. Found {}.".format(
-                        attr, type(self), original, type(val)
-                    ))
+                    __raise_type_error(attr, type(self), original, type(val))
 
 
         if attr in self.__types__:
             expected = self.__types__[attr]
-            _recusrive_check(val, expected, expected)
+            __recursive_check(val, expected, expected)
 
         setattr(self, attr, val)
 
+    def __eq__(self, other):
+        if not isinstance(other, SlottedClass):
+            return False
+
+        if self.__slots__ != other.__slots__:
+            return False
+
+        for attr in self.__slots__:
+            if getattr(self, attr) != getattr(other, attr):
+                return False
+
+        return True
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
+class Node(SlottedClass):
     def lines(self):
         """
         Yields strings representing each line in the textual representation
@@ -114,19 +148,6 @@ class Node:
 
     def __str__(self):
         return "\n".join(self.lines())
-
-    def __eq__(self, other):
-        if self.__slots__ != other.__slots__:
-            return False
-
-        for attr in self.__slots__:
-            if getattr(self, attr) != getattr(other, attr):
-                return False
-
-        return True
-
-    def __ne__(self, other):
-        return not (self == other)
 
 
 def assert_node(n):
@@ -454,6 +475,7 @@ class Array(Node, TypeMixin):
 
 class Pointer(Node, TypeMixin):
     __slots__ = ("contents", )
+    __types__ = {"contents": LANG_TYPES}
 
     def lines(self):
         yield _format_container(self)
@@ -481,6 +503,7 @@ class Deref(Node, ValueMixin):
 class StructPointerDeref(Node, ValueMixin):
     __slots__ = ("value", "member")
     __types__ = {
+        "value": ValueMixin,
         "member": str,
     }
 
@@ -778,6 +801,11 @@ class Default(Node):
 
 class BinOp(Node):
     __slots__ = ("left", "op", "right")
+    __types__ = {
+        "left": ValueMixin,
+        "op": str,
+        "right": ValueMixin
+    }
 
     def lines(self):
         yield "({} {} {})".format(self.left, self.op, self.right)
@@ -957,7 +985,7 @@ class TypeDefStmt(Node):
             yield "typedef {} {};".format(self.type, self.name)
 
 
-class Struct(Node):
+class Struct(Node, TypeMixin):
     __slots__ = ("name", "decls", "_members")
     __types__ = {
         "name": str,

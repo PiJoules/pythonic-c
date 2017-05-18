@@ -501,7 +501,7 @@ class Parser:
 
 
     precedence = (
-        ("left", "EQ", "GT", "LT"),
+        ("left", "EQ", "NE", "GT", "LT"),
         ("left", "PLUS", "MINUS"),
         ("left", "MULT", "DIV"),
         ("left", "NOT"),
@@ -532,6 +532,10 @@ class Parser:
             p[0] = self.binary_ops[p[2]](p[1], p[3])
         else:
             p[0] = p[1]
+
+    def p_ne(self, p):
+        "expr : expr NE expr"
+        p[0] = Compare(p[1], "!=", p[3])
 
     def p_expr_struct_deref(self, p):
         "expr : expr ARROW NAME"
