@@ -27,28 +27,6 @@ INIT_TYPES = {
 }
 
 
-def node_to_type(node):
-    assert isinstance(node, LANG_TYPES)
-
-    if isinstance(node, FuncType):
-        param_nodes = node.params
-        return_node = node.returns
-
-        return CallableType(
-            [node_to_type(p) for p in param_nodes],
-            node_to_type(return_node)
-        )
-    elif isinstance(node, str):
-        return LangType(node)
-    elif isinstance(node, Pointer):
-        return PointerType(node_to_type(node.contents))
-    elif isinstance(node, Struct):
-        return StructType(
-            node.name,
-            {d.name: node_to_type(d.type) for d in node.decls}
-        )
-    else:
-        raise RuntimeError("Logic for converting node {} to LangType not implemented".format(type(node)))
 
 
 class StructType(LangType):
@@ -56,11 +34,14 @@ class StructType(LangType):
     __types__ = merge_dicts(LangType.__types__, {
         "members": {str: LangType}
     })
+    __defaults__ = {
+        "members": {}
+    }
 
     def __str__(self):
         return "struct {} {{{}}}".format(
             self.name,
-            ", ".join("{}:{}".format(k, v) for k, v in self.members)
+            ", ".join("{}:{}".format(k, v) for k, v in self.members.items())
         )
 
 
@@ -84,20 +65,26 @@ class PointerType(LangType):
     def __init__(self, *args, **kwargs):
         super().__init__("pointer", *args, **kwargs)
 
+    #def __str__(self):
+    #    return "Ptr[{}]".format(self.contents)
+
 
 
 class Inferer:
     ######### Interface ########
 
     def __init__(self, *, init_variables=None, init_types=INIT_TYPES,
+                 init_typedefs=None,
                  source_dir=None, parent=None,
-                 include_dirs=None):
+                 include_dirs=None,
+                 call_stack=None):
         self.__variables = init_variables or {}
         self.__types = init_types or set()
+        self.__typedefs = init_typedefs or {}
         self.__source_dir = source_dir or os.getcwd()
         self.__include_dirs = (include_dirs or set()) | {FAKE_LANG_HEADERS_DIR}
         self.__parent = parent
-        self.__call_stack = []
+        self.__call_stack = call_stack or []
 
     def variables(self):
         return self.__variables
@@ -132,6 +119,8 @@ class Inferer:
 
     def assert_type_exists(self, t):
         assert isinstance(t, LangType)
+
+        print(t, type(t))
         if isinstance(t, PointerType):
             self.assert_type_exists(t.contents)
         elif t not in self.types():
@@ -177,6 +166,39 @@ class Inferer:
             module_ast = parser.parse(f.read())
             self.check(module_ast)
 
+    ####### Type handling ###########
+
+    def bind_type(self, typename, base_t):
+        self.assert_type_exists(base_t)
+        assert isinstance(typename, str)
+
+        if typename in self.__typedefs:
+            raise RuntimeError("{} already typedef'd to {}".format(base_t, typename))
+        else:
+            self.__typedefs[typename] = base_t
+
+    def node_to_type(self, node):
+        assert isinstance(node, LANG_TYPES)
+
+        if isinstance(node, FuncType):
+            param_nodes = node.params
+            return_node = node.returns
+
+            return CallableType(
+                [self.node_to_type(p) for p in param_nodes],
+                self.node_to_type(return_node)
+            )
+        elif isinstance(node, str):
+            # Account for typedefs
+            return self.__typedefs.get(node, LangType(node))
+        elif isinstance(node, Pointer):
+            return PointerType(self.node_to_type(node.contents))
+        elif isinstance(node, Struct):
+            struct_t = StructType(node.name)
+            return struct_t
+        else:
+            raise RuntimeError("Logic for converting node {} to LangType not implemented".format(type(node)))
+
     ######## Type inference ###########
 
     def infer(self, node):
@@ -219,14 +241,18 @@ class Inferer:
 
     def check_StructDecl(self, node):
         # Check struct members
-        struct_t = node_to_type(node.struct)
+        struct_t = self.node_to_type(node.struct)
+
         self.add_type(struct_t)
+        self.bind_type(node.struct.name, struct_t)
+        struct_t.members = {d.name: self.node_to_type(d.type) for d in node.struct.decls}
+
         for t in struct_t.members.values():
             self.assert_type_exists(t)
         return node
 
     def check_FuncDecl(self, node):
-        func_t = node_to_type(node.type())
+        func_t = self.node_to_type(node.type())
         self.assert_type_exists(func_t.returns)
         for param in func_t.args:
             self.assert_type_exists(param)
@@ -328,7 +354,6 @@ class Inferer:
             member = left.member
 
             expected_t = self.infer(value)
-            print(type(expected_t))
             raise NotImplementedError
         else:
             raise NotImplementedError("Unable to assign to {}".format(type(left)))
@@ -344,7 +369,9 @@ class Inferer:
         return node
 
     def check_TypeDefStmt(self, node):
-        self.add_type(LangType(node.name))
+        base_t = self.node_to_type(node.type)
+        self.assert_type_exists(base_t)
+        self.bind_type(node.name, base_t)
         return node
 
     def check_ExprStmt(self, node):

@@ -1,5 +1,6 @@
 from file_locs import FAKE_LANG_HEADERS_DIR
 import os
+import copy
 
 
 INDENT = "    "
@@ -68,7 +69,7 @@ class SlottedClass:
 
         for attr in self.__slots__[len(args):]:
             if attr not in kwargs:
-                val = self.__defaults__[attr]
+                val = copy.copy(self.__defaults__[attr])
             else:
                 val = kwargs[attr]
             self.assign_and_check(attr, val)
@@ -113,14 +114,15 @@ class SlottedClass:
         setattr(self, attr, val)
 
     def __eq__(self, other):
-        if not isinstance(other, SlottedClass):
+        if not isinstance(other, type(self)):
             return False
 
         if self.__slots__ != other.__slots__:
             return False
 
         for attr in self.__slots__:
-            if getattr(self, attr) != getattr(other, attr):
+            val = getattr(self, attr)
+            if val != getattr(other, attr):
                 return False
 
         return True
