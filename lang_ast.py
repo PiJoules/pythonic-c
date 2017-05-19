@@ -36,6 +36,7 @@ def to_c_source(source):
 class TypeMixin:
     """Mixin to indicate this node represents a type."""
 
+
 class ValueMixin:
     """Mixin to indicate this node represents a value."""
 
@@ -54,6 +55,11 @@ def merge_dicts(d1, d2):
     d.update(d1)
     d.update(d2)
     return d
+
+
+# Used to prevent infinite recurson when calling __eq__ on SlottedClasses with
+# circular references
+CHECKED_IDS = set()
 
 
 class SlottedClass:
@@ -106,7 +112,6 @@ class SlottedClass:
                 if not isinstance(val, expected):
                     __raise_type_error(attr, type(self), original, type(val))
 
-
         if attr in self.__types__:
             expected = self.__types__[attr]
             __recursive_check(val, expected, expected)
@@ -114,15 +119,49 @@ class SlottedClass:
         setattr(self, attr, val)
 
     def __eq__(self, other):
+        result = self._equal(other)
+
+        self_id = id(self)
+        other_id = id(self)
+        if self_id in CHECKED_IDS:
+            CHECKED_IDS.remove(self_id)
+        if other_id in CHECKED_IDS:
+            CHECKED_IDS.remove(other_id)
+
+        return result
+
+    def _equal(self, other):
+        """
+        Equals method to account for circular references where an attribute
+        could refer back to itself.
+        """
+        # Same tyoes
         if not isinstance(other, type(self)):
             return False
 
+        # Same attributes
         if self.__slots__ != other.__slots__:
             return False
 
+        # Get ids and save them
+        self_id = id(self)
+        if self_id not in CHECKED_IDS:
+            CHECKED_IDS.add(self_id)
+        other_id = id(self)
+        if other_id not in CHECKED_IDS:
+            CHECKED_IDS.add(other_id)
+
+        # Check attribute values
         for attr in self.__slots__:
-            val = getattr(self, attr)
-            if val != getattr(other, attr):
+            self_val = getattr(self, attr)
+            if id(self_val) in CHECKED_IDS:
+                continue
+
+            other_val = getattr(other, attr)
+            if id(other_val) in CHECKED_IDS:
+                continue
+
+            if self_val != other_val:
                 return False
 
         return True
@@ -430,7 +469,6 @@ def _format_c_decl(name, t):
             name,
             ", ".join(p.c_code() for p in params)
         )
-
 
 
 def _format_container(node, sizes=None):
@@ -905,6 +943,14 @@ class Name(Node, ValueMixin):
 
     def c_lines(self):
         yield str(self.id)
+
+
+class Null(Node, ValueMixin):
+    def lines(self):
+        yield "NULL"
+
+    def c_lines(self):
+        yield "NULL"
 
 
 class Int(Node, ValueMixin):

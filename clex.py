@@ -63,6 +63,9 @@ class Lexer:
         "enum": "ENUM",
         "struct": "STRUCT",
         "typedef": "TYPEDEF",
+
+        # Constants
+        "NULL": "NULL",
     }
 
     tokens = (
@@ -106,6 +109,8 @@ class Lexer:
     t_DIV = r'/'
     t_COMMA = r','
     t_ARROW = r"->"
+
+    t_NULL = r"NULL"
 
 
     ########## Lexer interface #########

@@ -18,15 +18,71 @@ class LangType(SlottedClass):
         return self.name
 
 
+class PointerType(LangType):
+    __slots__ = LangType.__slots__ + ("contents", )
+    __types__ = merge_dicts(LangType.__types__, {
+        "contents": LangType,
+    })
+
+    def __init__(self, *args, **kwargs):
+        super().__init__("pointer", *args, **kwargs)
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        if isinstance(other, NullType):
+            return True
+
+        return super().__eq__(other)
+
+
+class NumericTypeMixin:
+    pass
+
+
+class NullType(LangType, NumericTypeMixin):
+    def __init__(self, *args, **kwargs):
+        super().__init__("NULL", *args, **kwargs)
+
+    def __eq__(self, other):
+        return isinstance(other, (PointerType, NullType))
+
+    def __hash__(self):
+        return hash(self.name)
+
+
+class IntType(LangType, NumericTypeMixin):
+    def __init__(self, *args, **kwargs):
+        super().__init__("int", *args, **kwargs)
+
+    def __eq__(self, other):
+        return isinstance(other, NumericTypeMixin)
+
+    def __hash__(self):
+        return hash(self.name)
+
+
+class UIntType(LangType, NumericTypeMixin):
+    def __init__(self, *args, **kwargs):
+        super().__init__("uint", *args, **kwargs)
+
+    def __eq__(self, other):
+        return isinstance(other, NumericTypeMixin)
+
+    def __hash__(self):
+        return hash(self.name)
+
+
 INIT_TYPES = {
-    LangType("int"),
-    LangType("uint"),
+    IntType(),
+    UIntType(),
     LangType("float"),
     LangType("void"),
     LangType("char"),
+    NullType(),
 }
-
-
+BUILTIN_TYPES = {t.name: t for t in INIT_TYPES}
 
 
 class StructType(LangType):
@@ -38,12 +94,6 @@ class StructType(LangType):
         "members": {}
     }
 
-    def __str__(self):
-        return "struct {} {{{}}}".format(
-            self.name,
-            ", ".join("{}:{}".format(k, v) for k, v in self.members.items())
-        )
-
 
 class CallableType(LangType):
     __slots__ = LangType.__slots__ + ("args", "returns")
@@ -54,19 +104,6 @@ class CallableType(LangType):
 
     def __init__(self, *args, **kwargs):
         super().__init__("callable", *args, **kwargs)
-
-
-class PointerType(LangType):
-    __slots__ = LangType.__slots__ + ("contents", )
-    __types__ = merge_dicts(LangType.__types__, {
-        "contents": LangType,
-    })
-
-    def __init__(self, *args, **kwargs):
-        super().__init__("pointer", *args, **kwargs)
-
-    #def __str__(self):
-    #    return "Ptr[{}]".format(self.contents)
 
 
 
@@ -120,7 +157,6 @@ class Inferer:
     def assert_type_exists(self, t):
         assert isinstance(t, LangType)
 
-        print(t, type(t))
         if isinstance(t, PointerType):
             self.assert_type_exists(t.contents)
         elif t not in self.types():
@@ -190,22 +226,40 @@ class Inferer:
             )
         elif isinstance(node, str):
             # Account for typedefs
-            return self.__typedefs.get(node, LangType(node))
+            if node in self.__typedefs:
+                return self.__typedefs[node]
+            elif node in BUILTIN_TYPES:
+                return BUILTIN_TYPES[node]
+            else:
+                raise RuntimeError("type for name '{}' not previously declared".format(node))
         elif isinstance(node, Pointer):
             return PointerType(self.node_to_type(node.contents))
         elif isinstance(node, Struct):
-            struct_t = StructType(node.name)
-            return struct_t
+            return StructType(node.name)
         else:
             raise RuntimeError("Logic for converting node {} to LangType not implemented".format(type(node)))
+
+    def type_to_node(self, t):
+        assert isinstance(t, LangType)
+
+        if isinstance(t, PointerType):
+            return Pointer(self.type_to_node(t.contents))
+        elif isinstance(t, StructType):
+            return t.name
+        elif type(t) == LangType:
+            return t.name
+        else:
+            raise RuntimeError("Logic for converting type {} to Node not implemented".format(type(t)))
 
     ######## Type inference ###########
 
     def infer(self, node):
-        return self.__call_node_method(node, "infer", expected=LANG_TYPES)
+        return self.__call_node_method(node, "infer", expected=LangType)
 
     def infer_Cast(self, node):
-        return node.target_type
+        t = self.node_to_type(node.target_type)
+        self.assert_type_exists(t)
+        return t
 
     def infer_Call(self, node):
         func = node.func
@@ -216,10 +270,13 @@ class Inferer:
             raise NotImplementedError("No logic yet implemented for inferring type for node {}".format(type(func)))
 
     def infer_Int(self, node):
-        return "int"
+        return IntType()
 
     def infer_Name(self, node):
         return self.lookup(node.id)
+
+    def infer_Null(self, node):
+        return NullType()
 
 
     ######## Node checking ###########
@@ -290,18 +347,18 @@ class Inferer:
             # Check and match parameters and types
             expected_func_t = self.lookup(name)
 
-            assert isinstance(expected_func_t, FuncType)
+            assert isinstance(expected_func_t, CallableType)
 
-            if len(node.params) != len(expected_func_t.params):
+            if len(node.params) != len(expected_func_t.args):
                 raise RuntimeError("Function definition and declaration of '{}' expected to have the same number of arguments".format(name))
 
             # Check and replace params
             new_node_params = []
             for i, param in enumerate(node.params):
-                expected_param_t = expected_func_t.params[i]
+                expected_param_t = expected_func_t.args[i]
                 if isinstance(param, str):
                     new_node_params.append(
-                        VarDecl(param, expected_param_t)
+                        VarDecl(param, self.type_to_node(expected_param_t))
                     )
                 elif param.type != expected_func_t.params[i]:
                     raise RuntimeError("Expected {} to be of type {} from previous declaration".format(param.name))
@@ -331,10 +388,10 @@ class Inferer:
     def check_Assign(self, node):
         left = node.left
         right = node.right
+        right_t = self.infer(right)
 
         if isinstance(left, Name):
             name = left.id
-            right_t = self.infer(right)
             if self.knowsvar(name):
                 expected_t = self.lookup(name)
                 if expected_t != right_t:
@@ -345,7 +402,7 @@ class Inferer:
                 # Change to a VarDecl
                 return self.check(VarDeclStmt(VarDecl(
                     name,
-                    right_t,
+                    self.type_to_node(right_t),
                     right
                 )))
         elif isinstance(left, StructPointerDeref):
@@ -353,8 +410,12 @@ class Inferer:
             value = left.value
             member = left.member
 
-            expected_t = self.infer(value)
-            raise NotImplementedError
+            value_t = self.infer(value)
+            expected_t = value_t.contents.members[member]
+            if expected_t != right_t:
+                raise TypeError("Expected type {} for member {} of struct {}. Found {}.".format(expected_t, member, value_t.contents.name, right_t))
+
+            return node
         else:
             raise NotImplementedError("Unable to assign to {}".format(type(left)))
 
@@ -379,7 +440,9 @@ class Inferer:
         return node
 
     def check_VarDecl(self, node):
-        self.assert_type_exists(node.type)
+        node_t = self.node_to_type(node.type)
+
+        self.assert_type_exists(node_t)
         name = node.name
         init = node.init
 
@@ -389,11 +452,11 @@ class Inferer:
 
         # Check types
         init_t = self.infer(init)
-        if init_t != node.type:
+        if init_t != node_t:
             raise TypeError("Expected type {} for {}. Found {}.".format(node_t, name, init_t))
 
         # Add variable
-        self.bind(name, node.type)
+        self.bind(name, node_t)
         return node
 
     def check_VarDeclStmt(self, node):

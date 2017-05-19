@@ -569,34 +569,32 @@ class Parser:
     # trailers enables function calls.  I only allow one level of calls
     # so this is 'trailer'
 
-
+    def p_null(self, p):
+        "expr : NULL"
+        p[0] = Null()
 
     def p_power_1(self, p):
         """power : atom"""
         p[0] = p[1]
 
-
     def p_power_2(self, p):
         """power : atom trailer"""
         p[0] = Call(p[1], p[2])
-
 
     def p_atom_name(self, p):
         """atom : NAME"""
         p[0] = Name(p[1], None)
 
-
     def p_atom_int(self, p):
-        """atom : INT"""
+        """expr : INT"""
         p[0] = Int(p[1])
 
     def p_atom_float(self, p):
-        """atom : FLOAT"""
+        """expr : FLOAT"""
         p[0] = Float(p[1])
 
-
     def p_atom_str(self, p):
-        """atom : STRING"""
+        """expr : STRING"""
         p[0] = Str(p[1])
 
     def p_atom_array_empty(self, p):
