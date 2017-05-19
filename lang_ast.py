@@ -337,6 +337,7 @@ class FuncDef(Node):
         "name": str,
         "params": [(str, VarDecl)],
         "body": [Node],
+        "returns": optional(LANG_TYPES)
     }
 
     def lines(self):
@@ -849,6 +850,9 @@ class BinOp(Node):
 
     def lines(self):
         yield "({} {} {})".format(self.left, self.op, self.right)
+
+    def c_lines(self):
+        yield "({} {} {})".format(self.left.c_code(), self.op, self.right.c_code())
 
 
 class Compare(BinOp):

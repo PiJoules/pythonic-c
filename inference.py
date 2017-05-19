@@ -278,6 +278,15 @@ class Inferer:
     def infer_Null(self, node):
         return NullType()
 
+    def infer_StructPointerDeref(self, node):
+        value = node.value
+        member = node.member
+        struct_t = self.infer(value).contents
+
+        if not isinstance(struct_t, StructType):
+            raise RuntimeError("Expected {} to be a struct. Found {}.".format(value, struct_t))
+
+        return struct_t.members[member]
 
     ######## Node checking ###########
 
@@ -338,9 +347,9 @@ class Inferer:
 
     def check_FuncDef(self, node):
         name = node.name
+        node_params = node.params
 
         # Check the function signiature
-        node_params = node.params
         returns = node.returns
         if name in self.variables():
             # Func was previously declared
@@ -370,11 +379,17 @@ class Inferer:
             expected_returns = expected_func_t.returns
             if node.returns:
                 assert node.returns == expected_returns
-            returns = expected_returns
+            returns = self.type_to_node(expected_returns)
         else:
             # First instance of function
             # Will need to perform type inference when calling function
             pass
+
+        # Add the params to the scope
+        # TODO: Spawn a new Inferer here
+        for param in node_params:
+            param_t = self.node_to_type(param.type)
+            self.bind(param.name, param_t)
 
         # Check the body
         body = self.check(node.body)
@@ -461,6 +476,32 @@ class Inferer:
 
     def check_VarDeclStmt(self, node):
         return VarDeclStmt(self.check(node.decl))
+
+    def check_While(self, node):
+        return While(
+            self.check(node.test),
+            self.check(node.body),
+            self.check(node.orelse),
+        )
+
+    def check_Compare(self, node):
+        return Compare(
+            self.check(node.left),
+            node.op,
+            self.check(node.right),
+        )
+
+    def check_StructPointerDeref(self, node):
+        return StructPointerDeref(
+            self.check(node.value),
+            node.member
+        )
+
+    def check_Name(self, node):
+        return node
+
+    def check_Null(self, node):
+        return node
 
     def check_list(self, seq):
         return [self.check(n) for n in seq]

@@ -6,7 +6,8 @@ struct Node {int value; Node *next;};
 typedef struct List List;
 struct List {Node *head; size_t length;};
 List* new_list();
+void del_list(List *l);
 void print_list(List *l);
-void list_append(List *l, int i);
+void list_prepend(List *l, int i);
 int list_pop(List *l);
 #endif
