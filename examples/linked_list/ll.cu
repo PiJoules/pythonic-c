@@ -1,4 +1,5 @@
 includel "ll.hcu"
+include "stdio.hcu"
 
 
 def new_list():
@@ -16,9 +17,24 @@ def del_list(l):
     free(l)
 
 
-#def list_prepend(l, i):
-#    node = (Node[])malloc(sizeof(Node))
-#    node->value = i 
-#    node->next = l->head 
-#    l->head = node
-#    l->length = l->length + 1
+def list_prepend(l, i):
+    node = (Node[])malloc(sizeof(Node))
+    node->value = i 
+    node->next = l->head 
+    l->head = node
+    l->length++
+
+
+def print_list(lst):
+    printf("[")
+
+    node = lst->head
+    if node:
+        printf("%d", node->value)
+        node = node->next 
+
+    while node:
+        printf(", %d", node->value)
+        node = node->next 
+
+    printf("]\n")

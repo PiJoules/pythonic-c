@@ -140,16 +140,20 @@ class Parser:
 
 
     def p_varargslist_one(self, p):
-        """varargslist : name_or_var_decl"""
+        """varargslist : varaglist_elem"""
         p[0] = [p[1]]
 
     def p_name_or_var_decl(self, p):
-        """name_or_var_decl : NAME
-                            | var_decl"""
+        """varaglist_elem : NAME
+                          | var_decl"""
         p[0] = p[1]
 
+    def p_ellipsis(self, p):
+        "varaglist_elem : ELLIPSIS"
+        p[0] = Ellipsis()
+
     def p_varargslist_many(self, p):
-        """varargslist : varargslist COMMA name_or_var_decl"""
+        """varargslist : varargslist COMMA varaglist_elem"""
         p[0] = p[1] + [p[3]]
 
 
@@ -505,7 +509,7 @@ class Parser:
         ("left", "PLUS", "MINUS"),
         ("left", "MULT", "DIV"),
         ("left", "NOT"),
-        ("left", "ARROW")
+        ("left", "ARROW", "POST_INC")
     )
 
 
@@ -560,6 +564,10 @@ class Parser:
     def p_comparison_usub(self, p):
         """expr : MINUS expr"""
         p[0] = UnaryOp(USub(), p[2])
+
+    def p_post_inc(self, p):
+        "expr : expr POST_INC"
+        p[0] = PostInc(p[1])
 
     def p_comparison_not(self, p):
         "expr : NOT expr"

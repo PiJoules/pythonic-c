@@ -38,10 +38,18 @@ class PointerType(LangType):
 
 
 class NumericTypeMixin:
-    pass
+    "Indicates this type represents a number."
 
 
-class NullType(LangType, NumericTypeMixin):
+class WholeNumberMixin(NumericTypeMixin):
+    "This type represents a whole number."
+
+
+class DecimalNumberMixin(NumericTypeMixin):
+    "This type respresents a decimal number."
+
+
+class NullType(LangType):
     def __init__(self, *args, **kwargs):
         super().__init__("NULL", *args, **kwargs)
 
@@ -52,7 +60,7 @@ class NullType(LangType, NumericTypeMixin):
         return hash(self.name)
 
 
-class IntType(LangType, NumericTypeMixin):
+class IntType(LangType, WholeNumberMixin):
     def __init__(self, *args, **kwargs):
         super().__init__("int", *args, **kwargs)
 
@@ -63,7 +71,7 @@ class IntType(LangType, NumericTypeMixin):
         return hash(self.name)
 
 
-class UIntType(LangType, NumericTypeMixin):
+class UIntType(LangType, WholeNumberMixin):
     def __init__(self, *args, **kwargs):
         super().__init__("uint", *args, **kwargs)
 
@@ -74,13 +82,52 @@ class UIntType(LangType, NumericTypeMixin):
         return hash(self.name)
 
 
+class FloatType(LangType, DecimalNumberMixin):
+    def __init__(self, *args, **kwargs):
+        super().__init__("float", *args, **kwargs)
+
+    def __eq__(self, other):
+        return isinstance(other, NumericTypeMixin)
+
+    def __hash__(self):
+        return hash(self.name)
+
+
+class VoidType(LangType):
+    def __init__(self, *args, **kwargs):
+        super().__init__("void", *args, **kwargs)
+
+    def __eq__(self, other):
+        return isinstance(other, NumericTypeMixin)
+
+    def __hash__(self):
+        return hash(self.name)
+
+
+class CharType(LangType, WholeNumberMixin):
+    def __init__(self, *args, **kwargs):
+        super().__init__("char", *args, **kwargs)
+
+    def __eq__(self, other):
+        return isinstance(other, NumericTypeMixin)
+
+    def __hash__(self):
+        return hash(self.name)
+
+
+class VarargType(LangType):
+    def __init__(self, *args, **kwargs):
+        super().__init__("vararg", *args, **kwargs)
+
+
 INIT_TYPES = {
     IntType(),
     UIntType(),
-    LangType("float"),
-    LangType("void"),
-    LangType("char"),
+    FloatType(),
+    VoidType(),
+    CharType(),
     NullType(),
+    VarargType(),
 }
 BUILTIN_TYPES = {t.name: t for t in INIT_TYPES}
 
@@ -122,6 +169,19 @@ class Inferer:
         self.__include_dirs = (include_dirs or set()) | {FAKE_LANG_HEADERS_DIR}
         self.__parent = parent
         self.__call_stack = call_stack or []
+
+    def child(self):
+        # Be sure to clone the containers so that the inner envs do not affect
+        # the outer ones
+        return Inferer(
+            init_variables=dict(self.variables()),
+            init_types=set(self.types()),
+            init_typedefs=dict(self.__typedefs),
+            source_dir=self.__source_dir,
+            include_dirs=self.__include_dirs,
+            parent=self,
+            call_stack=self.__call_stack,
+        )
 
     def variables(self):
         return self.__variables
@@ -221,7 +281,7 @@ class Inferer:
             return_node = node.returns
 
             return CallableType(
-                [self.node_to_type(p) for p in param_nodes],
+                [VarargType() if isinstance(p, Ellipsis) else self.node_to_type(p) for p in param_nodes],
                 self.node_to_type(return_node)
             )
         elif isinstance(node, str):
@@ -246,6 +306,10 @@ class Inferer:
             return Pointer(self.type_to_node(t.contents))
         elif isinstance(t, StructType):
             return t.name
+        elif isinstance(t, IntType):
+            return "int"
+        elif isinstance(t, VoidType):
+            return "void"
         elif type(t) == LangType:
             return t.name
         else:
@@ -287,6 +351,59 @@ class Inferer:
             raise RuntimeError("Expected {} to be a struct. Found {}.".format(value, struct_t))
 
         return struct_t.members[member]
+
+    def infer_BinOp(self, node):
+        left = node.left
+        right = node.right
+        op = node.op
+
+        left_t = self.infer(left)
+        right_t = self.infer(right)
+
+
+        def __pointer_offset(ptr_t, offset_t):
+            """Return the pointer type if a pointer and whole number are provided."""
+            if not isinstance(ptr_t, Pointer):
+                raise RuntimeError("Expected the pointer to be a PointerType")
+            if not isinstance(offset_t, WholeNumberMixin):
+                raise RuntimeError("Expected the offset to be a whole number.")
+            return ptr_t
+
+
+        def __anyinstance(vals, types):
+            return any(isinstance(v, types) for v in vals)
+
+
+        def __dominant_base_type(t1, t2):
+            """
+            Returns the dominant base type.
+
+            http://stackoverflow.com/a/5563131/2775471
+            """
+            types = (t1, t2)
+            if __anyinstance(types, VoidType):
+                raise RuntimeError("Cannot add to void type")
+            elif __anyinstance(types, FloatType):
+                return FloatType()
+            elif __anyinstance(types, UIntType):
+                return UIntType()
+            else:
+                return IntType
+
+
+        if op == "+":
+            if isinstance(left_t, Pointer):
+                return __pointer_offset(left_t, right_t)
+            elif isinstance(right_t, Pointer):
+                return __pointer_offset(right_t, left_t)
+            else:
+                return __dominant_base_type(left_t, right_t)
+        else:
+            raise RuntimeError("Unable to infer for binary operation '{}'".format(op))
+
+    def infer_PostInc(self, node):
+        return self.infer(node.value)
+
 
     ######## Node checking ###########
 
@@ -358,8 +475,21 @@ class Inferer:
 
             assert isinstance(expected_func_t, CallableType)
 
-            if len(node.params) != len(expected_func_t.args):
-                raise RuntimeError("Function definition and declaration of '{}' expected to have the same number of arguments".format(name))
+            if expected_func_t.args and isinstance(expected_func_t.args[-1], VarargType):
+                # Check to make sure there is only one varargtype at the end
+                # of the arguments list
+                if len(expected_func_t.args) == 1:
+                    raise RuntimeError("Expected 1 argument before Ellipsis")
+
+                for i in range(len(expected_func_t.args)-1, -1, -1):
+                    if isinstance(expected_func_t.args[i], VarargType):
+                        raise RuntimeError("Expected only 1 Ellipsis in function")
+
+                if len(node.params) < len(expected_func_t.args) - 1:
+                    raise RuntimeError("Function declaration requires at least {} arguments. {} provided.".format(len(expected_func_t.args) - 1, len(node.params)))
+
+            elif len(node.params) != len(expected_func_t.args):
+                    raise RuntimeError("Function definition and declaration of '{}' expected to have the same number of arguments".format(name))
 
             # Check and replace params
             new_node_params = []
@@ -386,13 +516,13 @@ class Inferer:
             pass
 
         # Add the params to the scope
-        # TODO: Spawn a new Inferer here
+        inferer = self.child()
         for param in node_params:
             param_t = self.node_to_type(param.type)
-            self.bind(param.name, param_t)
+            inferer.bind(param.name, param_t)
+        body = inferer.check(node.body)
 
         # Check the body
-        body = self.check(node.body)
         return FuncDef(
             name,
             node_params,
@@ -502,6 +632,13 @@ class Inferer:
 
     def check_Null(self, node):
         return node
+
+    def check_If(self, node):
+        return If(
+            self.check(node.test),
+            self.check(node.body),
+            self.check(node.orelse)
+        )
 
     def check_list(self, seq):
         return [self.check(n) for n in seq]

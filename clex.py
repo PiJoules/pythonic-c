@@ -82,6 +82,9 @@ class Lexer:
         # Binary ops
         'EQ', "NE",
 
+        # Unary ops
+        "POST_INC",
+
         'ASSIGN',
         "ARROW",
         'LT',
@@ -95,6 +98,7 @@ class Lexer:
         'COMMA',
         'INDENT',
         'DEDENT',
+        "ELLIPSIS",
     ) + tuple(RESERVED.values())
 
     t_COLON = r':'
@@ -111,6 +115,10 @@ class Lexer:
     t_ARROW = r"->"
 
     t_NULL = r"NULL"
+
+    t_POST_INC = r"\+\+"
+
+    t_ELLIPSIS = r"\.\.\."
 
 
     ########## Lexer interface #########

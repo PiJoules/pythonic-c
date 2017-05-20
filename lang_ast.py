@@ -273,7 +273,7 @@ class Module(Node):
             yield from node.c_lines()
 
 
-class VarDecl(Node, ValueMixin):
+class VarDecl(Node):
     __slots__ = ("name", "type", "init")
     __types__ = {
         "name": str,
@@ -293,6 +293,14 @@ class VarDecl(Node, ValueMixin):
         if self.init:
             line += " = {}".format(self.init.c_code())
         yield line
+
+
+class Ellipsis(Node):
+    def lines(self):
+        yield "..."
+
+    def c_lines(self):
+        yield "..."
 
 
 class VarDeclStmt(Node):
@@ -361,7 +369,7 @@ class FuncDecl(Node):
     __slots__ = ("name", "params", "returns")
     __types__ = {
         "name": str,
-        "params": [VarDecl],
+        "params": [(VarDecl, Ellipsis)],
         "returns": LANG_TYPES
     }
 
@@ -391,13 +399,13 @@ class FuncDecl(Node):
         )
 
     def type(self):
-        return FuncType([p.type for p in self.params], self.returns)
+        return FuncType([p if isinstance(p, Ellipsis) else p.type for p in self.params], self.returns)
 
 
 class FuncType(Node, TypeMixin):
     __slots__ = ("params", "returns")
     __types__ = {
-        "params": [LANG_TYPES],
+        "params": [(LANG_TYPES, Ellipsis)],
         "returns": LANG_TYPES
     }
 
@@ -695,6 +703,7 @@ while (1){
 class If(Node):
     __slots__ = ("test", "body", "orelse")
     __types__ = {
+        "test": ValueMixin,
         "body": [Node],
         "orelse": [Node],
     }
@@ -815,7 +824,7 @@ class Default(Node):
                 yield INDENT + line
 
 
-class BinOp(Node):
+class BinOp(Node, ValueMixin):
     __slots__ = ("left", "op", "right")
     __types__ = {
         "left": ValueMixin,
@@ -830,7 +839,7 @@ class BinOp(Node):
         yield "({} {} {})".format(self.left.c_code(), self.op, self.right.c_code())
 
 
-class Compare(BinOp):
+class Compare(BinOp, ValueMixin):
     pass
 
 
@@ -885,7 +894,7 @@ class Invert(Node):
         yield "~"
 
 
-class UnaryOp(Node):
+class UnaryOp(Node, ValueMixin):
     __slots__ = ("op", "value")
 
     def lines(self):
@@ -896,6 +905,17 @@ class UnaryOp(Node):
 
     def c_lines(self):
         yield "{}{}".format(self.op.c_code(), self.value.c_code())
+
+
+class PostInc(Node, ValueMixin):
+    __slots__ = ("value", )
+    __types__ = {"value": ValueMixin}
+
+    def lines(self):
+        yield "{}++".format(self.value)
+
+    def c_lines(self):
+        yield "{}++".format(self.value.c_code())
 
 
 class Call(Node, ValueMixin):
@@ -960,8 +980,13 @@ class Str(Node, ValueMixin):
             self.s.replace('"', r'\"').replace("\n", "\\n")
         )
 
+    def c_lines(self):
+        yield '"{}"'.format(
+            self.s.replace('"', r'\"').replace("\n", "\\n")
+        )
 
-class Tuple(Node):
+
+class Tuple(Node, ValueMixin):
     __slots__ = ("elts", )
 
     def lines(self):
