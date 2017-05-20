@@ -1,6 +1,7 @@
 from cparse import Parser
 from lang_ast import *
 from inference import Inferer
+from file_conversion import is_c_source, to_c_source
 
 import subprocess
 import os.path

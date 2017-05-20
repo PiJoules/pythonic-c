@@ -1,36 +1,11 @@
 from file_locs import FAKE_LANG_HEADERS_DIR
+from file_conversion import to_c_source
+
 import os
 import copy
 
 
 INDENT = "    "
-
-HEADER_END = ".hpy"
-SOURCE_END = ".cpy"
-
-
-def is_c_header(source):
-    return source.endswith(".h")
-
-
-def is_c_source(source):
-    return source.endswith(".c")
-
-
-def is_lang_source(source):
-    return source.endswith(SOURCE_END)
-
-
-def to_c_source(source):
-    if source.endswith(HEADER_END):
-        return source[:-len(HEADER_END)] + ".h"
-    elif source.endswith(SOURCE_END):
-        return source[:-len(SOURCE_END)] + ".c"
-    elif source.endswith(".h"):
-        # To enable using C headers
-        return source
-    else:
-        raise RuntimeError("Unknown file type '{}'".format(source))
 
 
 class TypeMixin:
