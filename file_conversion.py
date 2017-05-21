@@ -1,4 +1,4 @@
-LANG_HEADER_EXT = ".hcu"
+LANG_HEADER_EXT = ".hu"
 LANG_SOURCE_EXT = ".cu"
 
 
@@ -12,6 +12,10 @@ def is_c_source(source):
 
 def is_lang_source(source):
     return source.endswith(LANG_SOURCE_EXT)
+
+
+def is_lang_header(source):
+    return source.endswith(LANG_HEADER_EXT)
 
 
 def to_c_source(source):

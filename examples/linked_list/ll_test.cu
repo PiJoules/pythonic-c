@@ -1,6 +1,6 @@
-includel "ll.hcu" 
-include "assert.hcu"
-include "stdio.hcu"
+includel "ll.hu" 
+include "assert.hu"
+include "stdio.hu"
 
 
 def main():
