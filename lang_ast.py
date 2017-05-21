@@ -1,5 +1,5 @@
 from file_locs import FAKE_LANG_HEADERS_DIR
-from file_conversion import to_c_source
+from file_conversion import to_c_file
 
 import os
 import copy
@@ -1118,7 +1118,7 @@ class Include(Node):
         yield 'include {}'.format(self.path)
 
     def c_lines(self):
-        yield '#include <{}>'.format(to_c_source(self.path.s))
+        yield '#include <{}>'.format(to_c_file(self.path.s))
 
 
 class IncludeLocal(Node):
@@ -1128,7 +1128,7 @@ class IncludeLocal(Node):
         yield 'includel {}'.format(self.path)
 
     def c_lines(self):
-        yield '#include "{}"'.format(to_c_source(self.path.s))
+        yield '#include "{}"'.format(to_c_file(self.path.s))
 
 
 class Ifndef(Node):
