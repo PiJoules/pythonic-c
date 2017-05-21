@@ -43,6 +43,31 @@ def compile_asts(sources, asts, **kwargs):
     return compile_c_sources(c_sources, asts, **kwargs)
 
 
+def compile_lang_sources_to_asts(sources, **kwargs):
+    """
+    Args:
+        source (list[str]): Source strings
+
+    Returns:
+        dict[str, Node]: Mapping between the lang file and its type inferred ast
+    """
+    asts = [file_to_ast(f) for f in sources]
+
+    src_map = {}
+    for i, ast in enumerate(asts):
+        source = sources[i]
+
+        inferer = Inferer(source_file=source)
+        src_map[source] = inferer.check(ast)
+
+        # Add the includes found
+        for include, include_ast in inferer.includes().items():
+            if include not in src_map:
+                src_map[include] = include_ast
+
+    return src_map
+
+
 def compile_lang_sources(sources, **kwargs):
     """
     Takes a list of filenames, compiles them, and returns the executable.
@@ -53,31 +78,9 @@ def compile_lang_sources(sources, **kwargs):
     Returns:
         str: The final executable
     """
-    asts = [file_to_ast(f) for f in sources]
-
-    new_asts = []
-    src_names = []
-    for i, ast in enumerate(asts):
-        source = sources[i]
-        file_dir = os.path.dirname(source)
-
-        # Find includes
-        finder = IncludeFinder(file_dir)
-        finder.visit(ast)
-        includes = finder.includes()
-
-        # Perform inference
-        inferer = Inferer(source_file=source)
-        src_names.append(source)
-        new_asts.append(inferer.check(ast))
-
-        # Do same dor includes
-        for include in includes:
-            inferer = Inferer(source_file=include)
-            src_names.append(include)
-            new_asts.append(inferer.check(file_to_ast(include)))
-
-    return compile_asts(src_names, new_asts, **kwargs)
+    src_map = compile_lang_sources_to_asts(sources, **kwargs)
+    src_names, inferred_asts = zip(*src_map.items())
+    return compile_asts(src_names, inferred_asts, **kwargs)
 
 
 def file_to_ast(source):
@@ -97,6 +100,14 @@ def dump_c_code_from_file(source, *, dump_headers=True):
     dump_c_code_from_ast(file_to_ast(source))
 
 
+def dump_c_code_from_files(sources, dump_headers=True, **kwargs):
+    """Dump the C representation of the source files."""
+    src_map = compile_lang_sources_to_asts(sources, **kwargs)
+    for src, ast in src_map.items():
+        print("------- {} --------".format(src))
+        print(ast.c_code())
+
+
 def run_files(sources, *, exe_args=None, **kwargs):
     """
     Compile and execute the files.
@@ -108,8 +119,7 @@ def run_files(sources, *, exe_args=None, **kwargs):
 
     # Compile
     out = compile_lang_sources(sources, **kwargs)
-
-    cmd = [out] + (exe_args or [])
+    cmd = ["./" + out] + (exe_args or [])
 
     # Execute
     return subprocess.run(

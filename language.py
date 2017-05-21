@@ -39,43 +39,9 @@ def main():
             print("------- {} --------".format(args.files[i]))
             print(ast)
     elif args.print:
-        for i, ast in enumerate(asts):
-            source = args.files[i]
-            file_dir = os.path.dirname(source)
-
-            # Find includes
-            finder = IncludeFinder(file_dir)
-            finder.visit(ast)
-
-            for include in finder.includes():
-                dump_c_code_from_file(include)
-            print("------- {} --------".format(source))
-            dump_c_code_from_ast(ast)
+        dump_c_code_from_files(args.files)
     else:
         compile_lang_sources(args.files, output=args.output)
-        #new_asts = []
-        #sources = []
-        #for i, ast in enumerate(asts):
-        #    source = args.files[i]
-        #    file_dir = os.path.dirname(source)
-
-        #    # Find includes
-        #    finder = IncludeFinder(file_dir)
-        #    finder.visit(ast)
-        #    includes = finder.includes()
-
-        #    # Perform inference
-        #    inferer = Inferer(source_file=source)
-        #    sources.append(source)
-        #    new_asts.append(inferer.check(ast))
-
-        #    # Do same dor includes
-        #    for include in includes:
-        #        inferer = Inferer(source_file=include)
-        #        sources.append(include)
-        #        new_asts.append(inferer.check(file_to_ast(include)))
-
-        #compile_lang_sources(sources, new_asts, output=args.output)
 
 
 if __name__ == "__main__":

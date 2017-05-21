@@ -26,7 +26,7 @@ class Inferer:
     def __init__(self, *, init_variables=None, init_types=INIT_TYPES,
                  init_typedefs=None,
                  source_file=None, parent=None,
-                 include_dirs=None,
+                 include_dirs=None, included_files=None,
                  call_stack=None):
         self.__variables = init_variables or {}
         self.__types = init_types or set()
@@ -34,6 +34,7 @@ class Inferer:
         self.__include_dirs = (include_dirs or set()) | {FAKE_LANG_HEADERS_DIR}
         self.__parent = parent
         self.__call_stack = call_stack or []
+        self.__found_included_files = included_files or {}
 
         self.__init_src_file(source_file)
 
@@ -56,7 +57,12 @@ class Inferer:
             include_dirs=self.__include_dirs,
             parent=self,
             call_stack=self.__call_stack,
+            included_files=self.__found_included_files,
         )
+
+    def includes(self):
+        """Returns a dict mapping all includes found to their type infered asts."""
+        return self.__found_included_files
 
     def variables(self):
         return self.__variables
@@ -132,10 +138,18 @@ class Inferer:
             ))
 
     def __check_module_path(self, path):
-        parser = Parser()
+        """
+        Create the module ast, perform type inference on it, then keep track of
+        the ast for later use.
+        """
+        parser = Parser(source_file=path)
         with open(path, "r") as f:
             module_ast = parser.parse(f.read())
-            self.check(module_ast)
+            module_ast = self.check(module_ast)
+
+            included_files = self.__found_included_files
+            if path not in included_files:
+                included_files[path] = module_ast
 
     ####### Type handling ###########
 

@@ -1,9 +1,0 @@
-ifndef _STDLIB_H
-define _STDLIB_H
-
-typedef uint size_t 
-
-def malloc(size: size_t) -> void
-def free(ptr: void[]) -> void
-
-endif

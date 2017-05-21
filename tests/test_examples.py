@@ -2,7 +2,7 @@ import unittest
 
 from cparse import Parser
 from lang_ast import *
-from compiler import compile_lang_sources
+from compiler import *
 
 PARSER = Parser()
 
@@ -20,7 +20,7 @@ class TestExamples(unittest.TestCase):
 
     def test_linked_list(self):
         """Make sure the linked list example compiles and runs."""
-        compile_lang_sources(["examples/linked_list/ll.cu", "examples/linked_list/ll_test.cu"])
+        run_files(["examples/linked_list/ll.cu", "examples/linked_list/ll_test.cu"])
 
 
 if __name__ == "__main__":

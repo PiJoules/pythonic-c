@@ -1,6 +1,7 @@
 parsetab.py
 examples/*.c
 examples/*/*.c
+examples/*/*.h
 FakeLangHeaders/*.h
 *.cmm.c
 *_pp.c
