@@ -38,18 +38,18 @@ def compile_sources(sources, asts, compiler="gcc", std="c11", output=None):
     return output
 
 
-def ast_for_file(source, parser=None):
-    if parser is None:
-        parser = Parser()
+def file_to_ast(source):
+    parser = Parser(source_file=source)
     with open(source, "r") as f:
         return parser.parse(f.read())
 
 
-def dump_ast(source_dir, ast):
-    inferer = Inferer(source_dir=source_dir)
+def dump_c_code_from_ast(ast):
+    inferer = Inferer(source_file=ast.filename)
     new_ast = inferer.check(ast)
     print(new_ast.c_code())
 
-def dump_source(source):
+
+def dump_c_code_from_source(source):
     print("------- {} --------".format(source))
-    dump_ast(source, ast_for_file(source))
+    dump_c_code_from_ast(file_to_ast(source))

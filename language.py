@@ -28,7 +28,7 @@ def get_args():
 def main():
     args = get_args()
 
-    asts = [ast_for_file(f) for f in args.files]
+    asts = [file_to_ast(f) for f in args.files]
 
     if args.tree:
         for i, ast in enumerate(asts):
@@ -48,9 +48,9 @@ def main():
             finder.visit(ast)
 
             for include in finder.includes():
-                dump_source(include)
+                dump_c_code_from_source(include)
             print("------- {} --------".format(source))
-            dump_ast(file_dir, ast)
+            dump_c_code_from_ast(ast)
     else:
         new_asts = []
         sources = []
@@ -64,15 +64,15 @@ def main():
             includes = finder.includes()
 
             # Perform inference
-            inferer = Inferer(source_dir=file_dir)
+            inferer = Inferer(source_file=source)
             sources.append(source)
             new_asts.append(inferer.check(ast))
 
             # Do same dor includes
             for include in includes:
-                inferer = Inferer(source_dir=os.path.dirname(include))
+                inferer = Inferer(source_file=include)
                 sources.append(include)
-                new_asts.append(inferer.check(ast_for_file(include)))
+                new_asts.append(inferer.check(file_to_ast(include)))
 
         compile_sources(sources, new_asts, output=args.output)
 

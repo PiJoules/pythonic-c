@@ -159,16 +159,25 @@ class Inferer:
 
     def __init__(self, *, init_variables=None, init_types=INIT_TYPES,
                  init_typedefs=None,
-                 source_dir=None, parent=None,
+                 source_file=None, parent=None,
                  include_dirs=None,
                  call_stack=None):
         self.__variables = init_variables or {}
         self.__types = init_types or set()
         self.__typedefs = init_typedefs or {}
-        self.__source_dir = source_dir or os.getcwd()
         self.__include_dirs = (include_dirs or set()) | {FAKE_LANG_HEADERS_DIR}
         self.__parent = parent
         self.__call_stack = call_stack or []
+
+        self.__init_src_file(source_file)
+
+    def __init_src_file(self, source):
+        if source:
+            assert os.path.isfile(source)
+            self.__source = source
+            self.__source_dir = os.path.dirname(source)
+        else:
+            self.__source = self.__source_dir = None
 
     def child(self):
         # Be sure to clone the containers so that the inner envs do not affect
@@ -177,7 +186,7 @@ class Inferer:
             init_variables=dict(self.variables()),
             init_types=set(self.types()),
             init_typedefs=dict(self.__typedefs),
-            source_dir=self.__source_dir,
+            source_file=self.__source,
             include_dirs=self.__include_dirs,
             parent=self,
             call_stack=self.__call_stack,
@@ -647,4 +656,6 @@ class Inferer:
         return [self.check(n) for n in seq]
 
     def check_Module(self, node):
-        return Module(self.check(node.body))
+        if node.filename:
+            self.__init_src_file(node.filename)
+        return Module(self.check(node.body), node.filename)

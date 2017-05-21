@@ -262,7 +262,15 @@ def dump_tree(node, indent_size=4):
 
 
 class Module(Node):
-    __slots__ = ("body", )
+    __slots__ = ("body", "filename")
+    __types__ = {
+        "body": [Node],
+        "filename": optional(str),
+    }
+    __defaults__ = {
+        "body": [],
+        "filename": None
+    }
 
     def lines(self):
         for node in self.body:

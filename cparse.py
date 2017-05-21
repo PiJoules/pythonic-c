@@ -11,8 +11,9 @@ LOGGER.setLevel(logging.ERROR)
 class Parser:
     ########### Parser interface #############
 
-    def __init__(self, lexer=Lexer, infer_types=True, **kwargs):
-        self.infer_types = infer_types
+    def __init__(self, lexer=Lexer, infer_types=True, source_file=None, **kwargs):
+        self.__infer_types = infer_types
+        self.__source_file = source_file
 
         self.__lexer = lexer(**kwargs)
         self.tokens = self.__lexer.tokens
@@ -42,12 +43,11 @@ class Parser:
     # Module will be a list of statements
     def p_module(self, p):
         """module : stmt_list"""
-        p[0] = Module(p[1])
+        p[0] = Module(p[1], self.__source_file)
 
     def p_empty_module(self, p):
         "module : empty"
-        p[0] = Module([])
-
+        p[0] = Module(filename=self.__source_file)
 
     # Statements are separated by newlines
     def p_stmt_list_1(self, p):
@@ -121,7 +121,7 @@ class Parser:
         "funcdef : DEF NAME parameters COLON suite"
         funcdef = FuncDef(p[2], p[3], p[5], None)
 
-        if self.infer_types:
+        if self.__infer_types:
             if funcdef.name == "main":
                 funcdef = self._check_and_create_main(funcdef)
 
