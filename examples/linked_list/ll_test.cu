@@ -20,6 +20,12 @@ def main():
     print_list(lst)
     assert(lst->length == 1)
 
+    x = list_pop(lst)
+    printf("Popped from list: %d\n", x)
+    printf("list: ")
+    print_list(lst)
+    assert(not lst->length)
+
     del_list(lst)
 
     return 0

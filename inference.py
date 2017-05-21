@@ -49,7 +49,7 @@ class DecimalNumberMixin(NumericTypeMixin):
     "This type respresents a decimal number."
 
 
-class NullType(LangType):
+class NullType(LangType, NumericTypeMixin):
     def __init__(self, *args, **kwargs):
         super().__init__("NULL", *args, **kwargs)
 
@@ -402,6 +402,9 @@ class Inferer:
             raise RuntimeError("Unable to infer for binary operation '{}'".format(op))
 
     def infer_PostInc(self, node):
+        return self.infer(node.value)
+
+    def infer_PostDec(self, node):
         return self.infer(node.value)
 
 

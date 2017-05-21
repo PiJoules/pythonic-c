@@ -509,7 +509,7 @@ class Parser:
         ("left", "PLUS", "MINUS"),
         ("left", "MULT", "DIV"),
         ("left", "NOT"),
-        ("left", "ARROW", "POST_INC")
+        ("left", "ARROW", "INC", "DEC")
     )
 
 
@@ -566,8 +566,12 @@ class Parser:
         p[0] = UnaryOp(USub(), p[2])
 
     def p_post_inc(self, p):
-        "expr : expr POST_INC"
+        "expr : expr INC"
         p[0] = PostInc(p[1])
+
+    def p_post_dec(self, p):
+        "expr : expr DEC"
+        p[0] = PostDec(p[1])
 
     def p_comparison_not(self, p):
         "expr : NOT expr"

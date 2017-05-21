@@ -83,7 +83,7 @@ class Lexer:
         'EQ', "NE",
 
         # Unary ops
-        "POST_INC",
+        "INC", "DEC",
 
         'ASSIGN',
         "ARROW",
@@ -116,7 +116,8 @@ class Lexer:
 
     t_NULL = r"NULL"
 
-    t_POST_INC = r"\+\+"
+    t_INC = r"\+\+"
+    t_DEC = r"--"
 
     t_ELLIPSIS = r"\.\.\."
 

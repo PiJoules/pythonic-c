@@ -918,6 +918,17 @@ class PostInc(Node, ValueMixin):
         yield "{}++".format(self.value.c_code())
 
 
+class PostDec(Node, ValueMixin):
+    __slots__ = ("value", )
+    __types__ = {"value": ValueMixin}
+
+    def lines(self):
+        yield "{}--".format(self.value)
+
+    def c_lines(self):
+        yield "{}--".format(self.value.c_code())
+
+
 class Call(Node, ValueMixin):
     __slots__ = ("func", "args")
     __defaults__ = {"args": []}

@@ -38,3 +38,15 @@ def print_list(lst):
         node = node->next 
 
     printf("]\n")
+
+
+def list_pop(lst):
+    head = lst->head
+    x = head->value 
+    new_head = head->next 
+
+    lst->head = new_head
+    free(head)
+    lst->length--
+
+    return x
