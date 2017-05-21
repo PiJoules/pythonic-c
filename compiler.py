@@ -50,6 +50,6 @@ def dump_c_code_from_ast(ast):
     print(new_ast.c_code())
 
 
-def dump_c_code_from_source(source):
+def dump_c_code_from_file(source, *, dump_headers=True):
     print("------- {} --------".format(source))
     dump_c_code_from_ast(file_to_ast(source))

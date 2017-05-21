@@ -48,7 +48,7 @@ def main():
             finder.visit(ast)
 
             for include in finder.includes():
-                dump_c_code_from_source(include)
+                dump_c_code_from_file(include)
             print("------- {} --------".format(source))
             dump_c_code_from_ast(ast)
     else:
