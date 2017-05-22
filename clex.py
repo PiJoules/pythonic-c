@@ -87,7 +87,7 @@ class Lexer:
 
         'ASSIGN',
         "ARROW",
-        'LT',
+        'LT',  # also used for casting
         'GT',
         'PLUS',
         'MINUS',
