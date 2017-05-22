@@ -505,11 +505,12 @@ class Parser:
 
 
     precedence = (
+        # Expressions
         ("left", "EQ", "NE", "GT", "LT"),
         ("left", "PLUS", "MINUS"),
         ("left", "MULT", "DIV"),
         ("left", "NOT"),
-        ("left", "ARROW", "INC", "DEC")
+        ("left", "ARROW", "INC", "DEC"),
     )
 
 

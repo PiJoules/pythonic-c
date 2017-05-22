@@ -28,13 +28,10 @@ def get_args():
 def main():
     args = get_args()
 
-    asts = [file_to_ast(f) for f in args.files]
-
     if args.tree:
-        for i, ast in enumerate(asts):
-            print("------- {} --------".format(args.files[i]))
-            print(dump_tree(ast))
+        dump_ast_trees_from_files(args.files)
     elif args.dump:
+        asts = [file_to_ast(f) for f in args.files]
         for i, ast in enumerate(asts):
             print("------- {} --------".format(args.files[i]))
             print(ast)

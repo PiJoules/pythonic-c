@@ -84,6 +84,7 @@ def compile_lang_sources(sources, **kwargs):
 
 
 def file_to_ast(source):
+    assert is_lang_file(source)
     parser = Parser(source_file=source)
     with open(source, "r") as f:
         return parser.parse(f.read())
@@ -106,6 +107,16 @@ def dump_c_code_from_files(sources, dump_headers=True, **kwargs):
     for src, ast in src_map.items():
         print("------- {} --------".format(src))
         print(ast.c_code())
+
+
+def dump_ast_trees(asts):
+    for ast in asts:
+        print("------- {} --------".format(ast.filename))
+        print(dump_tree(ast))
+
+
+def dump_ast_trees_from_files(sources):
+    return dump_ast_trees(file_to_ast(s) for s in sources)
 
 
 def run_files(sources, *, exe_args=None, **kwargs):

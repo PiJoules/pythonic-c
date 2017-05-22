@@ -1,22 +1,14 @@
 import unittest
 
-from cparse import Parser
-from lang_ast import *
 from compiler import *
-
-PARSER = Parser()
 
 
 class TestExamples(unittest.TestCase):
-    def __create_ast(self, filename):
-        with open(filename, "r") as f:
-            return PARSER.parse(f.read())
-
     def test_examples(self):
-        ast = self.__create_ast("examples/examples.py")
+        file_to_ast("examples/examples.cu")
 
     def test_hello_world(self):
-        ast = self.__create_ast("examples/hello_world.py")
+        file_to_ast("examples/hello_world.cu")
 
     def test_linked_list(self):
         """Make sure the linked list example compiles and runs."""
