@@ -316,7 +316,7 @@ class VarDeclStmt(Node):
     __types__ = {"decl": VarDecl}
 
     def lines(self):
-        yield from self.decl
+        yield from self.decl.lines()
 
     def c_lines(self):
         yield self.decl.c_code() + ";"
@@ -560,7 +560,7 @@ class Cast(Node, ValueMixin):
     }
 
     def lines(self):
-        yield "({}){}".format(self.target_type, self.expr)
+        yield "<{}>{}".format(self.target_type, self.expr)
 
     def c_lines(self):
         yield "({}){}".format(

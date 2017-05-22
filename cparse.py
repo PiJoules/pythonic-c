@@ -551,7 +551,7 @@ class Parser:
         p[0] = p[2]
 
     def p_comparison_cast(self, p):
-        "expr : LPAR type_declaration RPAR expr"
+        "expr : LT type_declaration GT expr"
         p[0] = Cast(p[2], p[4])
 
     def p_comparison_deref(self, p):

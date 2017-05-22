@@ -91,9 +91,9 @@ arr: int[2][3] = [
 x = (2.0)
 
 # Casting
-x = (int)2.0
-x = (int)(float)(2)
-x = (int)((float)2)
+x = <int>2.0
+x = <int><float>(2)
+x = <int>(<float>2)
 
 # Switch
 switch x:
