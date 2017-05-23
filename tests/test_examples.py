@@ -1,4 +1,5 @@
 import unittest
+import subprocess
 
 from compiler import *
 
@@ -12,7 +13,10 @@ class TestExamples(unittest.TestCase):
 
     def test_linked_list(self):
         """Make sure the linked list example compiles and runs."""
-        run_files(["examples/linked_list/ll.cu", "examples/linked_list/ll_test.cu"])
+        run_files(
+            ["examples/linked_list/ll.cu", "examples/linked_list/ll_test.cu"],
+            stdout=subprocess.PIPE
+        )
 
 
 if __name__ == "__main__":

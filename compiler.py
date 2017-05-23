@@ -119,7 +119,7 @@ def dump_ast_trees_from_files(sources):
     return dump_ast_trees(file_to_ast(s) for s in sources)
 
 
-def run_files(sources, *, exe_args=None, **kwargs):
+def run_files(sources, *, exe_args=None, stdout=None, **kwargs):
     """
     Compile and execute the files.
 
@@ -135,5 +135,6 @@ def run_files(sources, *, exe_args=None, **kwargs):
     # Execute
     return subprocess.run(
         cmd,
-        check=True
+        check=True,
+        stdout=stdout,
     )
