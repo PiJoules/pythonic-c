@@ -733,6 +733,20 @@ not x->y
             """.strip()
         )
 
+    def test_array_index(self):
+        """Test indexing an array."""
+        code = """
+x[4]
+        """
+        #ast = self.__create_ast(code)
+        #self.assertEqual(
+        #    ast,
+        #    Module([
+        #        ExprStmt(
+        #        )
+        #    ])
+        #)
+
 
 if __name__ == "__main__":
     unittest.main()

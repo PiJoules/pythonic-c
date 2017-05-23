@@ -92,6 +92,7 @@ def iter_fields(node):
 
 def dump_tree(node, indent_size=4):
     indent = " " * indent_size
+
     def _lines(node, attr=None):
         if attr:
             start = attr + "="

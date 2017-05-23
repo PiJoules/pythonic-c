@@ -145,14 +145,17 @@ class Lexer:
         self.__lexer.input(s)
         self.__token_stream = self.__token_filters()
 
-    def base_lexer(self):
-        return self.__lexer
-
     def token(self):
         try:
             return next(self.__token_stream)
         except StopIteration:
             return None
+
+    def __iter__(self):
+        if self.__token_stream is not None:
+            yield from self.__token_stream
+        else:
+            raise StopIteration
 
     def __token_filters(self):
         """
@@ -386,15 +389,19 @@ class Lexer:
         self.__brace_count -= 1
         return t
 
-    def find_column(self, input, token):
-        last_cr = input.rfind('\n',0,token.lexpos)
-        if last_cr < 0:
-            last_cr = 0
-        column = (token.lexpos - last_cr) + 1
-        return column
-
-
     def t_error(self, t):
         raise SyntaxError("Unknown symbol '{}' at ({}, {})".format(
-            t.value[0], t.lineno, self.find_column(t.value, t)
+            t.value[0], t.lineno, find_column(t)
         ))
+
+
+def find_column(token):
+    if token.type == "NEWLINE":
+        offset = 0
+    else:
+        offset = 1
+    last_cr = token.lexer.lexdata.rfind('\n', 0, token.lexpos + offset)
+    if last_cr < 0:
+        last_cr = 0
+    column = token.lexpos - last_cr
+    return column
