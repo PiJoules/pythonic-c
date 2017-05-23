@@ -1,4 +1,4 @@
-from ply import lex
+import ply.lex as lex
 
 
 ##### Helper functions ##########
@@ -100,6 +100,16 @@ class Lexer:
         'DEDENT',
         "ELLIPSIS",
     ) + tuple(RESERVED.values())
+
+    # This line is necessary until the version of ply that comes out contains the
+    # change at:
+    # https://github.com/dabeaz/ply/commit/cbef61c58f8b1b3b5e2fc3c2414bcac4303538ce
+    # If this line is not included, the parsetab.py module will regenerate
+    # every time this is run b/c the signature/hash used to determine if one is
+    # generated is a string joining of these tokens, whose order can vary based
+    # on the random ordering of keys in the dictionary of reserved words.
+    # This line preserves that order.
+    tokens = sorted(tokens)
 
     t_COLON = r':'
     t_EQ = r'=='

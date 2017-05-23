@@ -1,11 +1,6 @@
-from ply import *
+import ply.yacc as yacc
 from clex import Lexer
 from lang_ast import *
-
-import logging
-
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.ERROR)
 
 
 class Parser:
@@ -19,7 +14,6 @@ class Parser:
         self.tokens = self.__lexer.tokens
         self.parser = yacc.yacc(
             module=self,
-            errorlog=LOGGER,
             **kwargs
         )
 
@@ -33,10 +27,7 @@ class Parser:
         # line will raise a syntax error although a file just containing
         # "func()" works fine. Don't know if this has to do with EOF.
         code += "\n"
-
-        self.__lexer.input(code)
-        result = self.parser.parse(lexer=self.__lexer)
-        return result
+        return self.parser.parse(code, lexer=self.__lexer)
 
     ##########   Parser (tokens -> AST) ######
 
