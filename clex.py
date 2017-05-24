@@ -331,6 +331,7 @@ class Lexer:
             t.value = s[3:-3]
         else:
             t.value = s[1:-1]
+        t.lexer.lineno += t.value.count("\n")
         return t
 
     def t_NAME(self, t):

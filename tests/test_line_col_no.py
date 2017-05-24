@@ -53,6 +53,7 @@ class TestLineColNo(unittest.TestCase):
         lexer = Lexer()
         lexer.input(code)
 
+        # First quote
         self.assert_tokens_equal(
             lexer.token(),
             TokenWrap("STRING", "double quote comment", 3, 1)
@@ -60,17 +61,78 @@ class TestLineColNo(unittest.TestCase):
 
         self.assert_tokens_equal(
             lexer.token(),
-            TokenWrap("NEWLINE", "\n\n", 3, 1)
+            TokenWrap("NEWLINE", "\n\n", 3, 23)
         )
 
-        #tok = lexer.token()
-        #print(TokenWrap.from_lex_token(tok, code))
-        #print(tok.lexpos)
+        # Multiline string
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("STRING", "\nmultiline\ndouble\nquotes\n", 5, 1)
+        )
+
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("NEWLINE", "\n\n\n", 9, 4)
+        )
+
+        # define 1
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("DEFINE", "define", 12, 1)
+        )
+
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("NAME", "CONSTANT", 12, 8)
+        )
+
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("NEWLINE", "\n", 12, 16)
+        )
+
+        # define 2
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("DEFINE", "define", 13, 1)
+        )
+
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("NAME", "DAYS_IN_A_YEAR", 13, 8)
+        )
+
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("INT", 365, 13, 23)
+        )
+
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("NEWLINE", "\n\n", 13, 26)
+        )
+
+        # Include
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("INCLUDE", "include", 15, 1)
+        )
+
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("STRING", "stdio.h", 15, 9)
+        )
+
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("NEWLINE", "\n", 15, 45)
+        )
+
+        # Include local
 
         #tok = lexer.token()
-        #print(tok)
-        #print(TokenWrap.from_lex_token(tok, code))
-        #raise RuntimeWarning
+        #print(tok, TokenWrap.from_lex_token(tok))
+        #raise RuntimeError
 
 
 if __name__ == "__main__":
