@@ -147,7 +147,11 @@ class Lexer:
 
     def token(self):
         try:
-            return next(self.__token_stream)
+            tok = next(self.__token_stream)
+
+            # Not all tokens for some reason have a reference to the lexer
+            tok.lexer = self.__lexer
+            return tok
         except StopIteration:
             return None
 

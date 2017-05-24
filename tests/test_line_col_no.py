@@ -12,6 +12,9 @@ class TokenWrap:
         self.colno = colno
 
     def __eq__(self, other):
+        if isinstance(other, NewlineWrap):
+            return other == self
+
         return (
             self.type == other.type and
             self.value == other.value and
@@ -37,8 +40,31 @@ class TokenWrap:
         )
 
 
+class NewlineWrap(TokenWrap):
+    def __init__(self, lineno):
+        super().__init__("NEWLINE", "\n", lineno, -1)
+
+    def __eq__(self, other):
+        return (
+            other.type == "NEWLINE" and
+            self.lineno == other.lineno
+        )
+
+
 class TestLineColNo(unittest.TestCase):
+    def skip(self, n=1):
+        """Skip first n tokens"""
+        for i in range(n):
+            self.lexer.token()
+
+    def skip_line(self, n=1):
+        """Skip n whole lines."""
+        for i in range(n):
+            while self.lexer.token().type != "NEWLINE":
+                pass
+
     def assert_tokens_equal(self, lex_token, token_wrap):
+        """Compare a LexToken to a TokenWrap"""
         assert isinstance(lex_token, lex.LexToken)
         assert isinstance(token_wrap, TokenWrap)
 
@@ -46,11 +72,23 @@ class TestLineColNo(unittest.TestCase):
 
         assert found == token_wrap, "Found {}. Expected {}.".format(found, token_wrap)
 
+    def assert_token_line(self, *token_wraps):
+        """Compare a line of tokens excluding the newline"""
+        lexer = self.lexer
+        last = None
+        for token_wrap in token_wraps:
+            last = token_wrap
+            self.assert_tokens_equal(lexer.token(), token_wrap)
+        self.assert_tokens_equal(lexer.token(), NewlineWrap(last.lineno))
+
+    def assert_newline(self, lineno):
+        self.assert_tokens_equal(self.lexer.token(), NewlineWrap(lineno))
+
     def test_alignment_example(self):
         with open("examples/alignment_test.cu", "r") as f:
             code = f.read()
 
-        lexer = Lexer()
+        self.lexer = lexer = Lexer()
         lexer.input(code)
 
         # First quote
@@ -61,7 +99,7 @@ class TestLineColNo(unittest.TestCase):
 
         self.assert_tokens_equal(
             lexer.token(),
-            TokenWrap("NEWLINE", "\n\n", 3, 23)
+            NewlineWrap(3)
         )
 
         # Multiline string
@@ -72,7 +110,7 @@ class TestLineColNo(unittest.TestCase):
 
         self.assert_tokens_equal(
             lexer.token(),
-            TokenWrap("NEWLINE", "\n\n\n", 9, 4)
+            NewlineWrap(9)
         )
 
         # define 1
@@ -88,7 +126,7 @@ class TestLineColNo(unittest.TestCase):
 
         self.assert_tokens_equal(
             lexer.token(),
-            TokenWrap("NEWLINE", "\n", 12, 16)
+            NewlineWrap(12)
         )
 
         # define 2
@@ -109,7 +147,7 @@ class TestLineColNo(unittest.TestCase):
 
         self.assert_tokens_equal(
             lexer.token(),
-            TokenWrap("NEWLINE", "\n\n", 13, 26)
+            NewlineWrap(13)
         )
 
         # Include
@@ -125,10 +163,55 @@ class TestLineColNo(unittest.TestCase):
 
         self.assert_tokens_equal(
             lexer.token(),
-            TokenWrap("NEWLINE", "\n", 15, 45)
+            NewlineWrap(15)
         )
 
         # Include local
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("INCLUDE_LOCAL", "includel", 16, 1)
+        )
+
+        self.assert_tokens_equal(
+            lexer.token(),
+            TokenWrap("STRING", "myheader.h", 16, 10)
+        )
+
+        self.assert_tokens_equal(
+            lexer.token(),
+            NewlineWrap(16)
+        )
+
+        # Variable decl
+        self.assert_token_line(
+            TokenWrap("NAME", "x", 20, 1), TokenWrap("COLON", ":", 20, 2),
+            TokenWrap("NAME", "int", 20, 4)
+        )
+
+        # Var decl array
+        self.assert_token_line(
+            TokenWrap("NAME", "x", 21, 1), TokenWrap("COLON", ":", 21, 2),
+            TokenWrap("NAME", "int", 21, 4), TokenWrap("LBRACKET", "[", 21, 7),
+            TokenWrap("INT", 3, 21, 8), TokenWrap("RBRACKET", "]", 21, 9)
+        )
+
+        self.skip_line(3)
+
+        # Var decl with multiple single line comments next to it
+        self.assert_token_line(
+            TokenWrap("NAME", "x", 25, 1), TokenWrap("COLON", ":", 25, 2),
+            TokenWrap("NAME", "int", 25, 4), TokenWrap("LBRACKET", "[", 25, 7),
+            TokenWrap("INT", 3, 25, 8), TokenWrap("RBRACKET", "]", 25, 9),
+            TokenWrap("LBRACKET", "[", 25, 10), TokenWrap("RBRACKET", "]", 25, 11),
+        )
+
+        # Next vardecl
+        self.assert_token_line(
+            TokenWrap("NAME", "x", 28, 1), TokenWrap("COLON", ":", 28, 2),
+            TokenWrap("NAME", "int", 28, 4),
+            TokenWrap("LBRACKET", "[", 28, 7), TokenWrap("RBRACKET", "]", 28, 8),
+            TokenWrap("LBRACKET", "[", 28, 9), TokenWrap("INT", 3, 28, 10), TokenWrap("RBRACKET", "]", 28, 11),
+        )
 
         #tok = lexer.token()
         #print(tok, TokenWrap.from_lex_token(tok))
