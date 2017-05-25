@@ -19,7 +19,15 @@ class ValueMixin:
 LANG_TYPES = (str, TypeMixin)
 
 
-class Node(SlottedClass):
+class NodeChecker(SlottedClassChecker):
+    def __init__(cls, *args):
+        super().__init__(*args)
+
+        #assert "lines" in cls.__dict__
+        #assert "c_lines" in cls.__dict__
+
+
+class Node(SlottedClass, metaclass=NodeChecker):
     def lines(self):
         """
         Yields strings representing each line in the textual representation
