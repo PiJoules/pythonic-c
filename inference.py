@@ -354,7 +354,56 @@ class Inferer:
 
         return node
 
+    def _check_and_create_main(self, funcdef):
+        """Check the main method and return it."""
+        name = funcdef.name
+        params = funcdef.params
+
+        if not (len(params) == 0 or len(params) == 2):
+            raise RuntimeError("Expected either no or 2 parameters for main function")
+
+        argc_t = "int"
+        argv_t = Pointer(Pointer("char"))
+
+        if not params:
+            argc = VarDecl("argc", argc_t, None)
+            argv = VarDecl("argv", argv_t, None)
+        else:
+            argc, argv = params
+
+            # Check argc
+            if not isinstance(argc, VarDecl):
+                argc = VarDecl(argc, argc_t, None)
+            else:
+                if argc.type != argc_t:
+                    raise RuntimeError("Expected type int for first argumenty of main function")
+                if argc.init is not None:
+                    raise RuntimeError("No initial type expected for first argument of main method")
+
+            # Check argv
+            if not isinstance(argv, VarDecl):
+                argv = VarDecl(argv, argv_t, None)
+            else:
+                if argv.type != argv_t:
+                    raise RuntimeError("Expected type char** for second argument of main function")
+                if argv.init is not None:
+                    raise RuntimeError("No initial type expected for second argument of main method")
+
+        returns = funcdef.returns
+        if returns is None:
+            returns = "int"
+        elif returns != "int":
+            raise RuntimeError("Expected int return type for main function")
+
+        funcdef.params = [argc, argv]
+        funcdef.returns = returns
+        return funcdef
+
     def check_FuncDef(self, node):
+        # Check for main function
+        if node.name == "main":
+            node = self._check_and_create_main(node)
+
         name = node.name
         node_params = node.params
 

@@ -60,64 +60,10 @@ class Parser:
         "stmt_list : stmt"
         p[0] = [p[1]]
 
-
-    def _check_and_create_main(self, funcdef):
-        """Check the main method and return it."""
-        name = funcdef.name
-        params = funcdef.params
-
-        if not (len(params) == 0 or len(params) == 2):
-            raise RuntimeError("Expected either no or 2 parameters for main function")
-
-        argc_t = "int"
-        argv_t = Pointer(Pointer("char"))
-
-        if not params:
-            argc = VarDecl("argc", argc_t, None)
-            argv = VarDecl("argv", argv_t, None)
-        else:
-            argc, argv = params
-
-            # Check argc
-            if not isinstance(argc, VarDecl):
-                argc = VarDecl(argc, argc_t, None)
-            else:
-                if argc.type != argc_t:
-                    raise RuntimeError("Expected type int for first argumenty of main function")
-                if argc.init is not None:
-                    raise RuntimeError("No initial type expected for first argument of main method")
-
-            # Check argv
-            if not isinstance(argv, VarDecl):
-                argv = VarDecl(argv, argv_t, None)
-            else:
-                if argv.type != argv_t:
-                    raise RuntimeError("Expected type char** for second argument of main function")
-                if argv.init is not None:
-                    raise RuntimeError("No initial type expected for second argument of main method")
-
-        returns = funcdef.returns
-        if returns is None:
-            returns = "int"
-        elif returns != "int":
-            raise RuntimeError("Expected int return type for main function")
-
-        funcdef.params = [argc, argv]
-        funcdef.returns = returns
-        return funcdef
-
-
     # FuncDef is the standard way of defining a python function
     def p_funcdef(self, p):
         "funcdef : DEF NAME parameters COLON suite"
-        funcdef = FuncDef(p[2], p[3], p[5], None)
-
-        if self.__infer_types:
-            if funcdef.name == "main":
-                funcdef = self._check_and_create_main(funcdef)
-
-        p[0] = funcdef
-
+        p[0] = FuncDef(p[2], p[3], p[5], None)
 
     # Empty parameters
     def p_parameters_empty(self, p):
@@ -646,7 +592,7 @@ class Parser:
 
     def p_testlist_multi(self, p):
         """testlist_multi : testlist_multi COMMA expr
-                        | expr"""
+                          | expr"""
         if len(p) == 2:
             # singleton
             p[0] = p[1]
@@ -658,8 +604,12 @@ class Parser:
                 p[0] = [p[1], p[3]]
 
 
-    # arglist: (argument ',')* (argument [',']| '*' expr [',' '**' expr] | '**' expr)
-    # XXX INCOMPLETE: this doesn't allow the trailing comma
+    """
+    Arguments when calling a function.
+
+    func(expr1, expr2, expr3)
+    """
+
     def p_arglist(self, p):
         "arglist : arglist COMMA argument"
         p[0] = p[1] + [p[3]]
@@ -667,8 +617,6 @@ class Parser:
     def p_arglist_one_arg(self, p):
         "arglist : argument"
         p[0] = [p[1]]
-
-    # argument: expr [gen_for] | expr '=' expr  # Really [keyword '='] expr
 
     def p_argument(self, p):
         "argument : expr"

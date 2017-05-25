@@ -246,8 +246,6 @@ class FuncDef(Node):
         yield "}"
 
 
-
-
 class FuncDecl(Node):
     __slots__ = ("name", "params", "returns")
     __types__ = {
