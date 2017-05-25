@@ -4,6 +4,15 @@ from lang_ast import *
 
 
 class Parser:
+    precedence = (
+        # Expressions
+        ("left", "EQ", "NE", "GT", "LT"),
+        ("left", "PLUS", "MINUS"),
+        ("left", "MULT", "DIV"),
+        ("left", "NOT"),
+        ("left", "ARROW", "INC", "DEC"),
+    )
+
     ########### Parser interface #############
 
     def __init__(self, lexer=Lexer, infer_types=True, source_file=None, **kwargs):
@@ -45,16 +54,13 @@ class Parser:
         "stmt_list : stmt_list NEWLINE"
         p[0] = p[1]
 
-
     def p_stmt_list_2(self, p):
         "stmt_list : stmt_list stmt"
         p[0] = p[1] + [p[2]]
 
-
     def p_stmt_list_3(self, p):
         "stmt_list : NEWLINE"
         p[0] = []
-
 
     def p_stmt_list_4(self, p):
         "stmt_list : stmt"
@@ -70,11 +76,9 @@ class Parser:
         """parameters : LPAR RPAR"""
         p[0] = []
 
-
     def p_parameters_exist(self, p):
         """parameters : LPAR varargslist RPAR"""
         p[0] = p[2]
-
 
     def p_varargslist_one(self, p):
         """varargslist : varaglist_elem"""
@@ -93,11 +97,14 @@ class Parser:
         """varargslist : varargslist COMMA varaglist_elem"""
         p[0] = p[1] + [p[3]]
 
-
     def p_stmt(self, p):
         """stmt : simple_stmt
                 | compound_stmt"""
         p[0] = p[1]
+
+    """
+    Simple statements always take up 1 line
+    """
 
     def p_simple_stmt(self, p):
         """simple_stmt : small_stmt NEWLINE"""
@@ -143,7 +150,6 @@ class Parser:
     def p_endif_stmt(self, p):
         "endif_stmt : ENDIF"
         p[0] = Endif()
-
 
     def p_pass(self, p):
         "pass : PASS"
@@ -428,48 +434,41 @@ class Parser:
         """stmts : stmts stmt"""
         p[0] = p[1] + [p[2]]
 
-    # No using Python's approach because Ply supports precedence
+    """
+    Expressions
+    """
 
-    # expr: expr (comp_op expr)*
-    # arith_expr: term (('+'|'-') term)*
-    # term: factor (('*'|'/'|'%'|'//') factor)*
-    # factor: ('+'|'-'|'~') factor | power
-    # comp_op: '<'|'>'|'=='|'>='|'<='|'<>'|'!='|'in'|'not' 'in'|'is'|'is' 'not'
+    def p_add_expr(self, p):
+        "expr : expr PLUS expr"
+        p[0] = BinOp(p[1], "+", p[3])
 
+    def p_sub_expr(self, p):
+        "expr : expr MINUS expr"
+        p[0] = BinOp(p[1], "-", p[3])
 
-    precedence = (
-        # Expressions
-        ("left", "EQ", "NE", "GT", "LT"),
-        ("left", "PLUS", "MINUS"),
-        ("left", "MULT", "DIV"),
-        ("left", "NOT"),
-        ("left", "ARROW", "INC", "DEC"),
-    )
+    def p_mult_expr(self, p):
+        "expr : expr MULT expr"
+        p[0] = BinOp(p[1], "*", p[3])
 
+    def p_div_expr(self, p):
+        "expr : expr DIV expr"
+        p[0] = BinOp(p[1], "/", p[3])
 
-    binary_ops = {
-        "+": make_add,
-        "-": make_sub,
-        "*": make_mult,
-        "/": make_div,
-        "<": make_lt_compare,
-        ">": make_gt_compare,
-        "==": make_eq_compare,
-    }
+    def p_eq_expr(self, p):
+        "expr : expr EQ expr"
+        p[0] = Compare(p[1], "==", p[3])
 
-    def p_comparison(self, p):
-        """expr : expr PLUS expr
-                | expr MINUS expr
-                | expr MULT expr
-                | expr DIV expr
-                | expr LT expr
-                | expr EQ expr
-                | expr GT expr
-                | power"""
-        if len(p) == 4:
-            p[0] = self.binary_ops[p[2]](p[1], p[3])
-        else:
-            p[0] = p[1]
+    def p_lt_expr(self, p):
+        "expr : expr LT expr"
+        p[0] = Compare(p[1], "<", p[3])
+
+    def p_gt_expr(self, p):
+        "expr : expr GT expr"
+        p[0] = Compare(p[1], ">", p[3])
+
+    def p_comparison_power(self, p):
+        "expr : power"
+        p[0] = p[1]
 
     def p_ne(self, p):
         "expr : expr NE expr"
@@ -559,9 +558,6 @@ class Parser:
         "array_contents : array_contents COMMA expr"
         p[0] = p[1] + [p[3]]
 
-
-    # trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
-
     def p_trailer(self, p):
         "trailer : LPAR arglist RPAR"
         p[0] = p[2]
@@ -569,40 +565,6 @@ class Parser:
     def p_trailer_empty(self, p):
         "trailer : LPAR RPAR"
         p[0] = []
-
-    # testlist: expr (',' expr)* [',']
-    # Contains shift/reduce error
-
-
-    def p_testlist(self, p):
-        """testlist : testlist_multi COMMA
-                    | testlist_multi """
-        if len(p) == 2:
-            p[0] = p[1]
-        else:
-            # May need to promote singleton to tuple
-            if isinstance(p[1], list):
-                p[0] = p[1]
-            else:
-                p[0] = [p[1]]
-        # Convert into a tuple?
-        if isinstance(p[0], list):
-            p[0] = Tuple(p[0])
-
-
-    def p_testlist_multi(self, p):
-        """testlist_multi : testlist_multi COMMA expr
-                          | expr"""
-        if len(p) == 2:
-            # singleton
-            p[0] = p[1]
-        else:
-            if isinstance(p[1], list):
-                p[0] = p[1] + [p[3]]
-            else:
-                # singleton -> tuple
-                p[0] = [p[1], p[3]]
-
 
     """
     Arguments when calling a function.

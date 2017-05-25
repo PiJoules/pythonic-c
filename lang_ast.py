@@ -724,34 +724,6 @@ class Compare(BinOp, ValueMixin):
     pass
 
 
-def make_lt_compare(left, right):
-    return Compare(left, '<', right)
-
-
-def make_gt_compare(left, right):
-    return Compare(left, '>', right)
-
-
-def make_eq_compare(left, right):
-    return Compare(left, '==', right)
-
-
-def make_add(l, r):
-    return BinOp(l, "+", r)
-
-
-def make_sub(l, r):
-    return BinOp(l, "-", r)
-
-
-def make_mult(l, r):
-    return BinOp(l, "*", r)
-
-
-def make_div(l, r):
-    return BinOp(l, "/", r)
-
-
 class UAdd(Node):
     def lines(self):
         yield "+"
