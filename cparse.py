@@ -311,7 +311,6 @@ class Parser:
 
     # Pointer type declarations
 
-
     def p_declaration_array(self, p):
         "type_declaration : type_declaration bracket_list"
         contents = p[1]
@@ -368,12 +367,9 @@ class Parser:
         "assign_stmt : expr ASSIGN expr"
         p[0] = Assign(p[1], p[3])
 
-
     def p_return_stmt(self, p):
         "return_stmt : RETURN expr"
         p[0] = Return(p[2])
-
-
 
     # compound_stmt is a multiline statement
 
@@ -665,12 +661,12 @@ class Parser:
     # arglist: (argument ',')* (argument [',']| '*' expr [',' '**' expr] | '**' expr)
     # XXX INCOMPLETE: this doesn't allow the trailing comma
     def p_arglist(self, p):
-        """arglist : arglist COMMA argument
-                | argument"""
-        if len(p) == 4:
-            p[0] = p[1] + [p[3]]
-        else:
-            p[0] = [p[1]]
+        "arglist : arglist COMMA argument"
+        p[0] = p[1] + [p[3]]
+
+    def p_arglist_one_arg(self, p):
+        "arglist : argument"
+        p[0] = [p[1]]
 
     # argument: expr [gen_for] | expr '=' expr  # Really [keyword '='] expr
 
@@ -680,8 +676,6 @@ class Parser:
 
     def p_empty(self, p):
         "empty : "
-        pass
-
 
     def p_error(self, p):
         raise SyntaxError(p)
