@@ -18,6 +18,9 @@ class TestExamples(unittest.TestCase):
             stdout=subprocess.PIPE
         )
 
+    def test_learn(self):
+        dump_c_code_from_files(["examples/learn.cu"])
+
 
 if __name__ == "__main__":
     unittest.main()

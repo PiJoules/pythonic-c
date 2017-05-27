@@ -23,6 +23,20 @@ class SlottedClassChecker(type):
     def __init__(cls, name, bases, namespace):
         super().__init__(name, bases, namespace)
 
+        # Combine the slotted class attrs of parent classes
+        cls.__slots__ = namespace.get("__slots__", tuple())
+        cls.__types__ = namespace.get("__types__", {})
+        cls.__defaults__ = namespace.get("__defaults__", {})
+        for base in bases:
+            slots = getattr(base, "__slots__", tuple())
+            cls.__slots__ = slots + cls.__slots__
+
+            types = getattr(base, "__types__", {})
+            cls.__types__.update(types)
+
+            defaults = getattr(base, "__defaults__", {})
+            cls.__defaults__.update(defaults)
+
         # Check slotted attributes
         for attr in cls.__types__:
             assert attr in cls.__slots__, "type '{}' not in __slots__ for {}".format(attr, cls)

@@ -15,10 +15,10 @@ class LangType(SlottedClass):
 
 
 class PointerType(LangType):
-    __slots__ = LangType.__slots__ + ("contents", )
-    __types__ = merge_dicts(LangType.__types__, {
+    __slots__ = ("contents", )
+    __types__ = {
         "contents": LangType,
-    })
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__("pointer", *args, **kwargs)
@@ -117,21 +117,24 @@ class VarargType(LangType):
 
 
 class StructType(LangType):
-    __slots__ = LangType.__slots__ + ("members", )
-    __types__ = merge_dicts(LangType.__types__, {
+    __slots__ = ("members", )
+    __types__ = {
         "members": {str: LangType}
-    })
+    }
     __defaults__ = {
         "members": {}
     }
 
 
 class CallableType(LangType):
-    __slots__ = LangType.__slots__ + ("args", "returns")
-    __types__ = merge_dicts(LangType.__types__, {
+    __slots__ = ("args", "returns")
+    __types__ = {
         "args": [LangType],
         "returns": LangType
-    })
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__("callable", *args, **kwargs)
+
+    def __hash__(self):
+        return hash((self.name, tuple(self.args), self.returns))

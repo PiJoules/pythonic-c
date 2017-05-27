@@ -528,7 +528,7 @@ class Parser:
 
     def p_atom_name(self, p):
         """atom : NAME"""
-        p[0] = Name(p[1], None)
+        p[0] = Name(p[1])
 
     def p_atom_int(self, p):
         """expr : INT"""

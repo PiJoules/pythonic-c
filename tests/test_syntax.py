@@ -168,7 +168,7 @@ if x:
             ast,
             Module([
                 If(
-                    Name("x", None),
+                    Name("x"),
                     [Pass()],
                     []
                 )

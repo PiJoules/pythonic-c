@@ -802,12 +802,10 @@ class Call(Node, ValueMixin):
 
 
 class Name(Node, ValueMixin):
-    __slots__ = ("id", "type")
+    __slots__ = ("id", )
     __types__ = {
         "id": str,
-        "type": optional(LANG_TYPES)
     }
-    __defaults__ = {"type": None}
 
     def lines(self):
         yield str(self.id)

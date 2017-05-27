@@ -95,16 +95,23 @@ class Inferer:
         else:
             return True
 
-    def assert_type_exists(self, t):
+    def type_exists(self, t):
         assert isinstance(t, LangType)
-
         if isinstance(t, PointerType):
-            self.assert_type_exists(t.contents)
-        elif t not in self.types():
+            return self.type_exists(t.contents)
+        return t in self.types()
+
+    def assert_type_exists(self, t):
+        if not self.type_exists(t):
             raise RuntimeError("Type '{}' not previously declared.".format(t))
+
+    def assert_type_not_exists(self, t):
+        if self.type_exists(t):
+            raise RuntimeError("Type '{}' already declared.".format(t))
 
     def add_type(self, t):
         assert isinstance(t, LangType)
+        #self.assert_type_not_exists(t)
         self.__types.add(t)
 
     def __dump_call_stack(self):
@@ -305,9 +312,8 @@ class Inferer:
     def check_Define(self, node):
         if node.value:
             expected_t = self.infer(node.value)
-            if node.type:
-                assert expected_t == node.type
-            self.bind(node.name, node.type)
+            self.bind(node.name, expected_t)
+
         return Define(
             node.name,
             node.value,
@@ -399,6 +405,13 @@ class Inferer:
         funcdef.returns = returns
         return funcdef
 
+    def _assert_args_as_vardecls(self, params):
+        """
+        Assert that all parameters in a function are variable declarations.
+        """
+        for param in params:
+            assert isinstance(param, VarDecl)
+
     def check_FuncDef(self, node):
         # Check for main function
         if node.name == "main":
@@ -453,8 +466,11 @@ class Inferer:
             returns = self.type_to_node(expected_returns)
         else:
             # First instance of function
-            # Will need to perform type inference when calling function
-            pass
+            # TODO: Will need to perform type inference when calling function
+            # For now, just make sure the function has variable declarations
+            # as its arguments and a return type.
+            self._assert_args_as_vardecls(node.params)
+            assert isinstance(node.returns, LANG_TYPES)
 
         # Add the params to the scope
         inferer = self.child()
@@ -582,7 +598,16 @@ class Inferer:
         )
 
     def check_list(self, seq):
-        return [self.check(n) for n in seq]
+        def __is_string_comment(node):
+            return isinstance(node, ExprStmt) and isinstance(node.value, Str)
+
+        return [self.check(n) for n in seq if not __is_string_comment(n)]
+
+    def check_EnumDecl(self, node):
+        # Create an enum type
+        enum_t = LangType(node.enum.name)
+        self.add_type(enum_t)
+        return node
 
     def check_Module(self, node):
         if node.filename:
