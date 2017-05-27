@@ -865,6 +865,10 @@ class Tuple(Node, ValueMixin):
 
 class Enum(Node):
     __slots__ = ("name", "members", )
+    __types__ = {
+        "name": str,
+        "members": [str]
+    }
 
     def lines(self):
         yield "enum {} {{{}}}".format(

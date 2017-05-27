@@ -71,7 +71,10 @@ class Inferer:
         return self.__types
 
     def bind(self, varname, type):
-        self.assert_type_exists(type)
+        assert isinstance(type, LangType)
+        if type.__class__ == LangType:
+            self.assert_type_exists(type)
+
         if varname in self.__variables:
             assert self.__variables[varname] == type
         else:
@@ -107,11 +110,12 @@ class Inferer:
 
     def assert_type_not_exists(self, t):
         if self.type_exists(t):
+            self.__dump_call_stack()
             raise RuntimeError("Type '{}' already declared.".format(t))
 
     def add_type(self, t):
         assert isinstance(t, LangType)
-        #self.assert_type_not_exists(t)
+        self.assert_type_not_exists(t)
         self.__types.add(t)
 
     def __dump_call_stack(self):
@@ -338,7 +342,7 @@ class Inferer:
         for param in func_t.args:
             self.assert_type_exists(param)
 
-        self.add_type(func_t)
+        #self.add_type(func_t)
         self.bind(node.name, func_t)
         return node
 
@@ -607,6 +611,10 @@ class Inferer:
         # Create an enum type
         enum_t = LangType(node.enum.name)
         self.add_type(enum_t)
+
+        for member in node.enum.members:
+            self.bind(member, enum_t)
+
         return node
 
     def check_Module(self, node):

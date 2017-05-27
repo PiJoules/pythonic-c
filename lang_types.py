@@ -32,6 +32,9 @@ class PointerType(LangType):
 
         return super().__eq__(other)
 
+    def __str__(self):
+        return "pointer[{}]".format(self.contents)
+
 
 class NumericTypeMixin:
     "Indicates this type represents a number."
@@ -138,3 +141,9 @@ class CallableType(LangType):
 
     def __hash__(self):
         return hash((self.name, tuple(self.args), self.returns))
+
+    def __str__(self):
+        return "callable({}) -> {}".format(
+            ", ".join(map(str, self.args)),
+            self.returns
+        )
