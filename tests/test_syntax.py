@@ -96,6 +96,7 @@ enum days {MON, TUE, WED, THU, FRI, SAT, SUN}
         self.assertEqual(
             ast.c_code(),
             """
+typedef enum days days;
 enum days {MON, TUE, WED, THU, FRI, SAT, SUN};
             """.strip()
         )

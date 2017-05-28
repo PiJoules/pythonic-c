@@ -1,1 +1,2 @@
 - Edit the ast nodes and parser to include line and column numbers when parsing to make debuging easier
+- Edit the ast nodes to assert the node is either single line or can be multiple lines

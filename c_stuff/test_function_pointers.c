@@ -12,11 +12,14 @@ int (*glob_var)(int, int) = func;
 
 typedef int t1(int, int);
 typedef int (*t2(int, int));
-typedef t3 (int (*)(int, int));
+//typedef t3 (int (*)(int, int));
 
 struct S {
     int (*a)(int, int);
 };
+
+typedef enum enum_t enum_t;
+enum enum_t {A, B, C};
 
 
 int main(){
@@ -27,7 +30,7 @@ int main(){
     printf("%zu\n", sizeof(int));
     printf("%zu\n", sizeof(int*));
     printf("%zu\n", sizeof(int (*)(int, int)));
-    printf("%zu\n", sizeof(t3));
+    //printf("%zu\n", sizeof(t3));
 
     struct S s;
     s.a = func;
@@ -68,4 +71,8 @@ int main(){
     printf("*a == func: %d\n", *a == func);
     printf("*a == &func: %d\n", *a == &func);
     printf("glob_var == func: %d\n", glob_var == func);
+
+    enum_t z = A;
+    printf("A: %d\n", z);
+    printf("B: %d\n", B);
 }

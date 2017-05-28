@@ -611,11 +611,32 @@ class Inferer:
         # Create an enum type
         enum_t = LangType(node.enum.name)
         self.add_type(enum_t)
+        self.bind_type(node.enum.name, enum_t)
 
         for member in node.enum.members:
             self.bind(member, enum_t)
 
         return node
+
+    def check_Switch(self, node):
+        return Switch(
+            self.check(node.test),
+            self.check(node.cases)
+        )
+
+    def check_Case(self, node):
+        return Case(
+            self.check(node.tests),
+            self.check(node.body)
+        )
+
+    def check_Break(self, node):
+        return node
+
+    def check_Default(self, node):
+        return Default(
+            self.check(node.body)
+        )
 
     def check_Module(self, node):
         if node.filename:

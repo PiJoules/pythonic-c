@@ -650,6 +650,7 @@ class If(Node):
 class Switch(Node):
     __slots__ = ("test", "cases")
     __types__ = {
+        "test": ValueMixin,
         "cases": [Node],
     }
 
@@ -891,6 +892,10 @@ class EnumDecl(Node):
         yield from self.enum.lines()
 
     def c_lines(self):
+        yield "typedef enum {} {};".format(
+            self.enum.name,
+            self.enum.name
+        )
         yield self.enum.c_code() + ";"
 
 
