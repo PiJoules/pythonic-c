@@ -1,4 +1,3 @@
-from file_locs import FAKE_LANG_HEADERS_DIR
 from file_conversion import to_c_file
 from lang_utils import *
 

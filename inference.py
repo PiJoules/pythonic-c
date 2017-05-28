@@ -385,7 +385,6 @@ class Inferer:
         for param in func_t.args:
             self.assert_type_exists(param)
 
-        #self.add_type(func_t)
         self.bind(node.name, func_t)
         return node
 
