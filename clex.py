@@ -55,7 +55,6 @@ class Lexer:
         # Macros
         "define": "DEFINE",
         "include": "INCLUDE",
-        "includel": "INCLUDE_LOCAL",
         "ifndef": "IFNDEF",
         "endif": "ENDIF",
 

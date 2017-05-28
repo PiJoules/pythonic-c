@@ -987,16 +987,6 @@ class Define(Node):
             yield "#define {}".format(self.name)
 
 
-class Include(Node):
-    __slots__ = ("path", )
-
-    def lines(self):
-        yield 'include {}'.format(self.path)
-
-    def c_lines(self):
-        yield '#include <{}>'.format(to_c_file(self.path.s))
-
-
 class CInclude(Node):
     __slots__ = ("path", )
 
@@ -1004,11 +994,11 @@ class CInclude(Node):
         yield '#include <{}>'.format(self.path.s)
 
 
-class IncludeLocal(Node):
+class Include(Node):
     __slots__ = ("path", )
 
     def lines(self):
-        yield 'includel {}'.format(self.path)
+        yield 'include {}'.format(self.path)
 
     def c_lines(self):
         yield '#include "{}"'.format(to_c_file(self.path.s))
@@ -1071,32 +1061,3 @@ class NodeVisitor:
 
     def visit_dict(self, d):
         return {k: self.visit(v) for k, v in d.items()}
-
-
-class IncludeFinder(NodeVisitor):
-    def __init__(self, source_dir, *, include_dirs=None,
-                 **kwargs):
-        super().__init__(**kwargs)
-        self.__includes = set()
-        self.__source_dir = os.path.abspath(source_dir)
-        self.__include_dirs = (include_dirs or set()) | {FAKE_LANG_HEADERS_DIR}
-
-    def visit_IncludeLocal(self, node):
-        path = node.path.s
-        if not os.path.isabs(path):
-            path = os.path.join(self.__source_dir, node.path.s)
-        self.__includes.add(path)
-
-    def visit_Include(self, node):
-        path = node.path.s
-        if os.path.isabs(path):
-            self.__includes.add(path)
-        else:
-            for include_dir in self.__include_dirs:
-                new_path = os.path.join(include_dir, path)
-                if os.path.isfile(new_path):
-                    self.__includes.add(new_path)
-                    return
-
-    def includes(self):
-        return self.__includes

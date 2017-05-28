@@ -151,35 +151,9 @@ class TestLineColNo(unittest.TestCase):
         )
 
         # Include
-        self.assert_tokens_equal(
-            lexer.token(),
-            TokenWrap("INCLUDE", "include", 15, 1)
-        )
-
-        self.assert_tokens_equal(
-            lexer.token(),
-            TokenWrap("STRING", "stdio.h", 15, 9)
-        )
-
-        self.assert_tokens_equal(
-            lexer.token(),
-            NewlineWrap(15)
-        )
-
-        # Include local
-        self.assert_tokens_equal(
-            lexer.token(),
-            TokenWrap("INCLUDE_LOCAL", "includel", 16, 1)
-        )
-
-        self.assert_tokens_equal(
-            lexer.token(),
-            TokenWrap("STRING", "myheader.h", 16, 10)
-        )
-
-        self.assert_tokens_equal(
-            lexer.token(),
-            NewlineWrap(16)
+        self.assert_token_line(
+            TokenWrap("INCLUDE", "include", 15, 1),
+            TokenWrap("STRING", "myheader.h", 15, 9)
         )
 
         # Variable decl

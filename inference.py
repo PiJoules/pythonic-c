@@ -389,23 +389,10 @@ class Inferer:
         self.bind(node.name, func_t)
         return node
 
-    def check_IncludeLocal(self, node):
+    def check_Include(self, node):
         path = os.path.join(self.__source_dir, node.path.s)
         self.__check_module_path(path)
         return node
-
-    #def check_Include(self, node):
-    #    path = node.path.s
-    #    possible_files = (os.path.join(h, path) for h in self.__include_dirs)
-
-    #    for f in possible_files:
-    #        if os.path.isfile(f):
-    #            self.__check_module_path(f)
-    #            break
-    #    else:
-    #        raise RuntimeError("File '{}' not found".format(path))
-
-    #    return node
 
     def _check_and_create_main(self, funcdef):
         """Check the main method and return it."""

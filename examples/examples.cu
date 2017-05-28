@@ -12,8 +12,7 @@ quotes
 define CONSTANT
 define DAYS_IN_A_YEAR 365
 
-include "stdio.h"  # standard header include
-includel "myheader.h"  # local header include
+include "myheader.h"  # local header include
 
 
 # Variable declaration

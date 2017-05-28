@@ -130,29 +130,16 @@ struct s {int x; char **y;};
             """.strip()
         )
 
-    def test_include_standard(self):
-        """Test standard systen include."""
-        code = """
-include "stdio.h"
-        """
-        ast = self.__create_ast(code)
-        self.assertEqual(
-            ast,
-            Module([
-                Include(Str("stdio.h"))
-            ])
-        )
-
     def test_include_local(self):
         """Test local header include."""
         code = """
-includel "myheader.h"
+include "myheader.h"
         """
         ast = self.__create_ast(code)
         self.assertEqual(
             ast,
             Module([
-                IncludeLocal(Str("myheader.h"))
+                Include(Str("myheader.h"))
             ])
         )
 

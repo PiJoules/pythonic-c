@@ -300,15 +300,9 @@ class Parser:
         "array : LBRACKET expr RBRACKET"
         p[0] = p[2]
 
-
     def p_include_standard(self, p):
         "include_stmt : INCLUDE STRING"
         p[0] = Include(Str(p[2]))
-
-    def p_include_local(self, p):
-        "include_stmt : INCLUDE_LOCAL STRING"
-        p[0] = IncludeLocal(Str(p[2]))
-
 
     def p_expr_stmt(self, p):
         """expr_stmt : expr"""
