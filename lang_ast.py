@@ -988,13 +988,15 @@ class Define(Node):
 
 class CInclude(Node):
     __slots__ = ("path", )
+    __types__ = {"path": str}
 
     def c_lines(self):
-        yield '#include <{}>'.format(self.path.s)
+        yield '#include <{}>'.format(self.path)
 
 
 class Include(Node):
     __slots__ = ("path", )
+    __types__ = {"path": Str}
 
     def lines(self):
         yield 'include {}'.format(self.path)

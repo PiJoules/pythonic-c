@@ -39,13 +39,12 @@ class Inferer:
 
     def __init__(self, *, init_variables=None, init_types=INIT_TYPES,
                  init_typedefs=None, extra_includes=None,
-                 source_file=None, parent=None,
-                 include_dirs=None, included_files=None,
+                 source_file=None,
+                 included_files=None,
                  call_stack=None):
         self.__variables = init_variables or {}
         self.__types = init_types or set()
         self.__typedefs = init_typedefs or {}
-        self.__parent = parent
         self.__call_stack = call_stack or []
         self.__found_included_files = included_files or {}
         self.__extra_includes = extra_includes or set()
@@ -112,8 +111,6 @@ class Inferer:
         type = self.__variables.get(varname, None)
         if type is not None:
             return type
-        elif self.__parent:
-            return self.__parent.lookup(varname)
 
         raise KeyError("Undeclared variable '{}'".format(varname))
 
@@ -676,7 +673,7 @@ class Inferer:
 
         # Add extra includes
         if is_base_module:
-            extra_includes = list(map(lambda x: CInclude(Str(x)), self.__extra_includes))
+            extra_includes = list(map(CInclude, self.__extra_includes))
             checked_body = extra_includes + checked_body
 
         return Module(checked_body, node.filename)
