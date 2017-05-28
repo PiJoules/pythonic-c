@@ -1,0 +1,8 @@
+# This is just a sample header.
+# Just like in C, it is recommended that all headers be wrapped in guards.
+# Includes behave just like local includes in C.
+ifndef _MYHEADER_H  # ifndef statement
+define _MYHEADER_H
+
+# endif statement
+endif

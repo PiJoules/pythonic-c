@@ -83,11 +83,19 @@ def compile_lang_sources(sources, **kwargs):
     return compile_asts(src_names, inferred_asts, **kwargs)
 
 
-def file_to_ast(source):
+def file_to_ast(source, **kwargs):
     assert is_lang_file(source)
-    parser = Parser(source_file=source)
     with open(source, "r") as f:
-        return parser.parse(f.read())
+        return code_to_ast(f.read(), **kwargs)
+
+
+def code_to_ast(code, *, infer=False, source_file=None):
+    parser = Parser(source_file=source_file)
+    ast = parser.parse(code)
+    if infer:
+        inferer = Inferer(source_file=source_file)
+        ast = inferer.check(ast)
+    return ast
 
 
 def dump_c_code_from_ast(ast):

@@ -21,7 +21,7 @@ class TestExamples(unittest.TestCase):
         )
 
     def test_learn(self):
-        dump_c_code_from_files(["examples/learn.cu"])
+        run_files(["examples/learn.cu"])
 
 
 if __name__ == "__main__":

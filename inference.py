@@ -401,10 +401,7 @@ class Inferer:
         argc_t = "int"
         argv_t = Pointer(Pointer("char"))
 
-        if not params:
-            argc = VarDecl("argc", argc_t, None)
-            argv = VarDecl("argv", argv_t, None)
-        else:
+        if params:
             argc, argv = params
 
             # Check argc
@@ -425,13 +422,15 @@ class Inferer:
                 if argv.init is not None:
                     raise RuntimeError("No initial type expected for second argument of main method")
 
+            params = [argc, argv]
+
         returns = funcdef.returns
         if returns is None:
             returns = "int"
         elif returns != "int":
             raise RuntimeError("Expected int return type for main function")
 
-        funcdef.params = [argc, argv]
+        funcdef.params = params
         funcdef.returns = returns
         return funcdef
 
@@ -658,6 +657,9 @@ class Inferer:
         )
 
     def check_Break(self, node):
+        return node
+
+    def check_Pass(self, node):
         return node
 
     def check_Default(self, node):

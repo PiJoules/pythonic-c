@@ -203,8 +203,7 @@ class Parser:
     # def func(a, b:int)
     def p_func_decl(self, p):
         "func_decl : DEF NAME parameters"
-        p[0] = FuncDecl(p[2], p[3], "void")
-
+        p[0] = FuncDecl(p[2], p[3], "int")
 
     # def func(a, b:int) -> ret
     def p_func_declwith_ret(self, p):
