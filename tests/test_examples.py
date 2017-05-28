@@ -9,7 +9,9 @@ class TestExamples(unittest.TestCase):
         file_to_ast("examples/examples.cu")
 
     def test_hello_world(self):
-        file_to_ast("examples/hello_world.cu")
+        out = run_files(["examples/hello_world.cu"], stdout=subprocess.PIPE)
+        self.assertEqual(out.returncode, 0)
+        self.assertEqual(out.stdout, b"Hello world\n")
 
     def test_linked_list(self):
         """Make sure the linked list example compiles and runs."""

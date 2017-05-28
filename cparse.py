@@ -141,7 +141,7 @@ class Parser:
 
     def p_define_stmt_empty(self, p):
         "define_stmt : DEFINE NAME"
-        p[0] = Define(p[2], None)
+        p[0] = Define(p[2])
 
     def p_ifndef_stmt(self, p):
         "ifndef_stmt : IFNDEF NAME"

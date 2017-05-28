@@ -3,6 +3,8 @@ from cparse import Parser
 from file_locs import FAKE_LANG_HEADERS_DIR
 from lang_types import *
 
+from stdio_module import STDIO_VARS
+
 import os
 
 
@@ -20,11 +22,15 @@ INIT_TYPES = {
 BUILTIN_TYPES = {t.name: t for t in INIT_TYPES}
 
 
+BUILTIN_VARS = {}
+BUILTIN_VARS.update(STDIO_VARS)
+
+
 class Inferer:
     ######### Interface ########
 
     def __init__(self, *, init_variables=None, init_types=INIT_TYPES,
-                 init_typedefs=None,
+                 init_typedefs=None, extra_includes=None,
                  source_file=None, parent=None,
                  include_dirs=None, included_files=None,
                  call_stack=None):
@@ -35,6 +41,10 @@ class Inferer:
         self.__parent = parent
         self.__call_stack = call_stack or []
         self.__found_included_files = included_files or {}
+        self.__extra_includes = extra_includes or set()
+
+        # The frame will change each time a new scope is entered
+        self.__frames = []
 
         self.__init_src_file(source_file)
 
@@ -46,19 +56,30 @@ class Inferer:
         else:
             self.__source = self.__source_dir = None
 
-    def child(self):
-        # Be sure to clone the containers so that the inner envs do not affect
-        # the outer ones
-        return Inferer(
-            init_variables=dict(self.variables()),
-            init_types=set(self.types()),
-            init_typedefs=dict(self.__typedefs),
-            source_file=self.__source,
-            include_dirs=self.__include_dirs,
-            parent=self,
-            call_stack=self.__call_stack,
-            included_files=self.__found_included_files,
-        )
+    def enter_scope(self):
+        """
+        Called to copy any attributes of the inferer that should not be changed
+        when exiting a scope, such as a new function.
+        """
+        self.__frames.append((
+            self.__variables,
+            self.__types,
+            self.__typedefs,
+        ))
+
+        self.__variables = dict(self.__variables)
+        self.__types = set(self.__types)
+        self.__typedefs = dict(self.__typedefs)
+
+    def exit_scope(self):
+        """
+        Called to reset the attributes that should bot be edited of the
+        previous scope y popping them from the frame.
+        """
+        frame_attrs = self.__frames.pop()
+        self.__variables = frame_attrs[0]
+        self.__types = frame_attrs[1]
+        self.__typedefs = frame_attrs[2]
 
     def includes(self):
         """Returns a dict mapping all includes found to their type infered asts."""
@@ -162,6 +183,10 @@ class Inferer:
             if path not in included_files:
                 included_files[path] = module_ast
 
+    def add_extra_c_header(self, header):
+        assert header not in self.__extra_includes
+        self.__extra_includes.add(header)
+
     ####### Type handling ###########
 
     def bind_type(self, typename, base_t):
@@ -227,6 +252,13 @@ class Inferer:
 
     def infer_Call(self, node):
         func = node.func
+
+        # Check builtin functions
+        # Perform if the function is a builtin one and not previously declared
+        if isinstance(func, Name) and func.id in BUILTIN_VARS and not self.knowsvar(func.id):
+            c_header, module = BUILTIN_VARS[func.id]
+            self.add_extra_c_header(c_header)
+            self.__check_module(module)
 
         if isinstance(func, Name):
             return self.lookup(func.id).returns
@@ -321,7 +353,6 @@ class Inferer:
         return Define(
             node.name,
             node.value,
-            node.type
         )
 
     def check_StructDecl(self, node):
@@ -477,11 +508,12 @@ class Inferer:
             assert isinstance(node.returns, LANG_TYPES)
 
         # Add the params to the scope
-        inferer = self.child()
+        self.enter_scope()
         for param in node_params:
             param_t = self.node_to_type(param.type)
-            inferer.bind(param.name, param_t)
-        body = inferer.check(node.body)
+            self.bind(param.name, param_t)
+        body = self.check(node.body)
+        self.exit_scope()
 
         # Check the body
         return FuncDef(
@@ -638,7 +670,18 @@ class Inferer:
             self.check(node.body)
         )
 
-    def check_Module(self, node):
-        if node.filename:
+    def __check_module(self, node, *, is_base_module=False):
+        if is_base_module and node.filename:
             self.__init_src_file(node.filename)
-        return Module(self.check(node.body), node.filename)
+
+        checked_body = self.check(node.body)
+
+        # Add extra includes
+        if is_base_module:
+            extra_includes = list(map(lambda x: CInclude(Str(x)), self.__extra_includes))
+            checked_body = extra_includes + checked_body
+
+        return Module(checked_body, node.filename)
+
+    def check_Module(self, node):
+        return self.__check_module(node, is_base_module=True)

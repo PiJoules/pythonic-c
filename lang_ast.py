@@ -793,6 +793,10 @@ class PostDec(Node, ValueMixin):
 
 class Call(Node, ValueMixin):
     __slots__ = ("func", "args")
+    __types__ = {
+        "func": ValueMixin,
+        "args": [ValueMixin]
+    }
     __defaults__ = {"args": []}
 
     def lines(self):
@@ -963,8 +967,12 @@ class StructDecl(Node):
 ##### Macros ######
 
 class Define(Node):
-    __slots__ = ("name", "value", "type")
-    __defaults__ = {"type": None}
+    __slots__ = ("name", "value")
+    __types__ = {
+        "name": str,
+        "value": optional(ValueMixin)
+    }
+    __defaults__ = {"value": None}
 
     def lines(self):
         if self.value:
@@ -987,6 +995,13 @@ class Include(Node):
 
     def c_lines(self):
         yield '#include <{}>'.format(to_c_file(self.path.s))
+
+
+class CInclude(Node):
+    __slots__ = ("path", )
+
+    def c_lines(self):
+        yield '#include <{}>'.format(self.path.s)
 
 
 class IncludeLocal(Node):
