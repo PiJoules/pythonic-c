@@ -71,7 +71,7 @@ class Lexer:
         'NAME',
 
         # Literals
-        'INT', "FLOAT", 'STRING',
+        'INT', "FLOAT", 'STRING', "CHAR",
 
         # ( ) [ ] { }
         'LPAR', 'RPAR', "LBRACKET", "RBRACKET", "LBRACE", "RBRACE",
@@ -335,6 +335,11 @@ class Lexer:
         else:
             t.value = s[1:-1]
         t.lexer.lineno += t.value.count("\n")
+        return t
+
+    def t_CHAR(self, t):
+        r"('[^\\]')|('\\[^\\]')"
+        t.value = t.value[1:-1]
         return t
 
     def t_NAME(self, t):

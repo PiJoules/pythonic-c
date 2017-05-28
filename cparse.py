@@ -535,6 +535,10 @@ class Parser:
         """expr : STRING"""
         p[0] = Str(p[1])
 
+    def p_atom_char(self, p):
+        "expr : CHAR"
+        p[0] = Char(p[1])
+
     def p_atom_array_empty(self, p):
         "atom : LBRACKET RBRACKET"
         p[0] = ArrayLiteral([])

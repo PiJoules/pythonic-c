@@ -848,6 +848,7 @@ class Float(Node, ValueMixin):
 
 class Str(Node, ValueMixin):
     __slots__ = ("s", )
+    __types__ = {"s": str}
 
     def lines(self):
         yield '"{}"'.format(
@@ -858,6 +859,17 @@ class Str(Node, ValueMixin):
         yield '"{}"'.format(
             self.s.replace('"', r'\"').replace("\n", "\\n")
         )
+
+
+class Char(Node, ValueMixin):
+    __slots__ = ("c", )
+    __types__ = {"c": str}
+
+    def lines(self):
+        yield "'{}'".format(self.c)
+
+    def c_lines(self):
+        yield "'{}'".format(self.c)
 
 
 class Tuple(Node, ValueMixin):

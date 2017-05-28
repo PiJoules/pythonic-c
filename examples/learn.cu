@@ -46,4 +46,30 @@ def main(argc: int, argv: char[][]):
     # Also could have been declared as:
     # def main()
     # def main(argc, argv)  # type inference fills in the types
-    pass
+
+    pass  # Just a regular no-op 
+
+    # printf() is the same as printf in c.
+    # stdio.h does not have to be included b/c all functions defined 
+    # in c standard headers are included as builtin functions.
+    printf("%d\n", 0)
+
+    """
+    Types
+    """
+
+    # Variables can initially be declared with or without the type 
+    x: int  # x declared as an int
+    y: int = 4  # y declared as an int defaulted to 4
+    z = 4  # First declaration of z, which is declared as the type of 
+           # the right hand side of the assignment 
+
+    # ints are Usually 4 bytes
+    x_int: int 
+
+    # shorts are usually 2 bytes 
+    x_short: short 
+
+    # chars are 1 byte 
+    x_char: char = 0
+    y_char = 'y'  # Char literals are quoted with single quotes

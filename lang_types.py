@@ -1,4 +1,5 @@
 from lang_ast import *
+from lang_utils import SlottedClass
 
 
 class LangType(SlottedClass):
@@ -106,6 +107,17 @@ class VoidType(LangType):
 class CharType(LangType, WholeNumberMixin):
     def __init__(self, *args, **kwargs):
         super().__init__("char", *args, **kwargs)
+
+    def __eq__(self, other):
+        return isinstance(other, NumericTypeMixin)
+
+    def __hash__(self):
+        return hash(self.name)
+
+
+class ShortType(LangType, WholeNumberMixin):
+    def __init__(self, *args, **kwargs):
+        super().__init__("short", *args, **kwargs)
 
     def __eq__(self, other):
         return isinstance(other, NumericTypeMixin)

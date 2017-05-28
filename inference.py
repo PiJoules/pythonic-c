@@ -15,6 +15,7 @@ INIT_TYPES = {
     FloatType(),
     VoidType(),
     CharType(),
+    ShortType(),
     NullType(),
     VarargType(),
 }
@@ -31,7 +32,6 @@ BUILTIN_VARS.update(ASSERT_VARS)
 
 MODULE_TYPES = {}
 MODULE_TYPES.update(STDLIB_TYPES)
-
 
 
 class Inferer:
@@ -244,6 +244,8 @@ class Inferer:
             return "int"
         elif isinstance(t, VoidType):
             return "void"
+        elif isinstance(t, CharType):
+            return "char"
         elif type(t) == LangType:
             return t.name
         else:
@@ -347,6 +349,9 @@ class Inferer:
 
     def infer_PostDec(self, node):
         return self.infer(node.value)
+
+    def infer_Char(self, node):
+        return CharType()
 
 
     ######## Node checking ###########
@@ -583,9 +588,10 @@ class Inferer:
             raise RuntimeError("Cannot declare variable '{}' again in same scope".format(name))
 
         # Check types
-        init_t = self.infer(init)
-        if init_t != node_t:
-            raise TypeError("Expected type {} for {}. Found {}.".format(node_t, name, init_t))
+        if init:
+            init_t = self.infer(init)
+            if init_t != node_t:
+                raise TypeError("Expected type {} for {}. Found {}.".format(node_t, name, init_t))
 
         # Add variable
         self.bind(name, node_t)
