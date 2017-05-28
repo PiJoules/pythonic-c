@@ -1,5 +1,4 @@
 includel "ll.hu"
-include "stdio.hu"
 
 
 def new_list():

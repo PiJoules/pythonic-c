@@ -1,6 +1,4 @@
 includel "ll.hu" 
-include "assert.hu"
-include "stdio.hu"
 
 
 def main():

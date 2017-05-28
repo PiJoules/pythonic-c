@@ -1,5 +1,3 @@
-include "stdio.hu"
-
 enum day {MON, TUE, WED, THU,
           FRI, SAT, SUN}
 

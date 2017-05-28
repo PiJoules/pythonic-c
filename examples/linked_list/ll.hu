@@ -1,8 +1,6 @@
 ifndef _LINKED_LIST_H
 define _LINKED_LIST_H
 
-include "stdlib.hu"
-
 struct Node {
     value: int, 
     next: Node[],

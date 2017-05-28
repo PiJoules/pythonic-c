@@ -1,9 +1,10 @@
 from lang_ast import *
 from cparse import Parser
-from file_locs import FAKE_LANG_HEADERS_DIR
 from lang_types import *
 
 from stdio_module import STDIO_VARS
+from stdlib_module import STDLIB_VARS, STDLIB_TYPES
+from assert_module import ASSERT_VARS
 
 import os
 
@@ -24,6 +25,13 @@ BUILTIN_TYPES = {t.name: t for t in INIT_TYPES}
 
 BUILTIN_VARS = {}
 BUILTIN_VARS.update(STDIO_VARS)
+BUILTIN_VARS.update(STDLIB_VARS)
+BUILTIN_VARS.update(ASSERT_VARS)
+
+
+MODULE_TYPES = {}
+MODULE_TYPES.update(STDLIB_TYPES)
+
 
 
 class Inferer:
@@ -37,7 +45,6 @@ class Inferer:
         self.__variables = init_variables or {}
         self.__types = init_types or set()
         self.__typedefs = init_typedefs or {}
-        self.__include_dirs = (include_dirs or set()) | {FAKE_LANG_HEADERS_DIR}
         self.__parent = parent
         self.__call_stack = call_stack or []
         self.__found_included_files = included_files or {}
@@ -215,6 +222,11 @@ class Inferer:
                 return self.__typedefs[node]
             elif node in BUILTIN_TYPES:
                 return BUILTIN_TYPES[node]
+            elif node in MODULE_TYPES and node not in self.__typedefs:
+                c_header, module = MODULE_TYPES[node]
+                self.add_extra_c_header(c_header)
+                self.__check_module(module)
+                return self.__typedefs[node]
             else:
                 raise RuntimeError("type for name '{}' not previously declared".format(node))
         elif isinstance(node, Pointer):
@@ -382,18 +394,18 @@ class Inferer:
         self.__check_module_path(path)
         return node
 
-    def check_Include(self, node):
-        path = node.path.s
-        possible_files = (os.path.join(h, path) for h in self.__include_dirs)
+    #def check_Include(self, node):
+    #    path = node.path.s
+    #    possible_files = (os.path.join(h, path) for h in self.__include_dirs)
 
-        for f in possible_files:
-            if os.path.isfile(f):
-                self.__check_module_path(f)
-                break
-        else:
-            raise RuntimeError("File '{}' not found".format(path))
+    #    for f in possible_files:
+    #        if os.path.isfile(f):
+    #            self.__check_module_path(f)
+    #            break
+    #    else:
+    #        raise RuntimeError("File '{}' not found".format(path))
 
-        return node
+    #    return node
 
     def _check_and_create_main(self, funcdef):
         """Check the main method and return it."""
