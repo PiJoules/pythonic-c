@@ -82,9 +82,31 @@ class UIntType(LangType, WholeNumberMixin):
         return hash(self.name)
 
 
+class LongType(LangType, WholeNumberMixin):
+    def __init__(self, *args, **kwargs):
+        super().__init__("long", *args, **kwargs)
+
+    def __eq__(self, other):
+        return isinstance(other, NumericTypeMixin)
+
+    def __hash__(self):
+        return hash(self.name)
+
+
 class FloatType(LangType, DecimalNumberMixin):
     def __init__(self, *args, **kwargs):
         super().__init__("float", *args, **kwargs)
+
+    def __eq__(self, other):
+        return isinstance(other, NumericTypeMixin)
+
+    def __hash__(self):
+        return hash(self.name)
+
+
+class DoubleType(LangType, DecimalNumberMixin):
+    def __init__(self, *args, **kwargs):
+        super().__init__("double", *args, **kwargs)
 
     def __eq__(self, other):
         return isinstance(other, NumericTypeMixin)

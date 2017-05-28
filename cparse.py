@@ -264,8 +264,6 @@ class Parser:
 
     def p_declaration_array(self, p):
         "type_declaration : type_declaration bracket_list"
-        contents = p[1]
-
         def _distribute(sizes):
             # Wraps p[1] in either an array or pointer by distributing the bracket
             # sizes

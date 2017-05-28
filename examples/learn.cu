@@ -64,12 +64,21 @@ def main(argc: int, argv: char[][]):
     z = 4  # First declaration of z, which is declared as the type of 
            # the right hand side of the assignment 
 
-    # ints are Usually 4 bytes
-    x_int: int 
+    # chars are 1 byte 
+    x_char: char = 0
+    y_char = 'y'  # Char literals are quoted with single quotes
 
     # shorts are usually 2 bytes 
     x_short: short 
 
-    # chars are 1 byte 
-    x_char: char = 0
-    y_char = 'y'  # Char literals are quoted with single quotes
+    # ints are usually 4 bytes
+    x_int: int 
+
+    # longs are compiled to long longs in C and usually about 64 bits 
+    x_long: long
+
+    # floats are usually 32-bit floating point numbers
+    x_float: float = 0.0
+
+    # doubles are usually 64-bit floating point numbers
+    x_double: double = 0.0

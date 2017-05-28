@@ -11,8 +11,10 @@ import os
 
 INIT_TYPES = {
     IntType(),
+    LongType(),
     UIntType(),
     FloatType(),
+    DoubleType(),
     VoidType(),
     CharType(),
     ShortType(),
@@ -278,6 +280,9 @@ class Inferer:
 
     def infer_Int(self, node):
         return IntType()
+
+    def infer_Float(self, node):
+        return FloatType()
 
     def infer_Name(self, node):
         return self.lookup(node.id)
