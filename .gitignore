@@ -1,4 +1,5 @@
 examples/*.c
+examples/*.h
 examples/*/*.c
 examples/*/*.h
 FakeLangHeaders/*.h
