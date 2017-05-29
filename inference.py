@@ -26,6 +26,7 @@ INIT_TYPES = {
     NULL_TYPE,
     VOID_TYPE,
     VARARG_TYPE,
+    FILE_TYPE,
 }
 
 
@@ -622,6 +623,20 @@ class Inferer:
             self.__check_assignable(expected_t, right_t, right,
                                     "member {} of struct {}".format(member, value_t.contents.name))
 
+            return node
+        elif isinstance(left, Index):
+            # Get the array and check the contents
+            value = left.value
+            index = left.index
+
+            value_t = self.infer(value)
+            expected_t = self.__exhaust_typedef_chain(value_t.contents)
+
+            # See if can assign
+            self.__check_assignable(
+                expected_t, right_t, right,
+                "contents of pointer/array {}".format(value)
+            )
             return node
         else:
             raise NotImplementedError("Unable to assign to {}".format(type(left)))

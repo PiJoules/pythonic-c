@@ -103,6 +103,7 @@ SIZE_TYPE = LangType("size_t")
 NULL_TYPE = LangType("NULL")
 VOID_TYPE = LangType("void")
 VARARG_TYPE = LangType("vararg")
+FILE_TYPE = LangType("FILE")
 
 
 def can_implicit_assign(target_t, value_t):

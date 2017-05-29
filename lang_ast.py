@@ -857,6 +857,17 @@ class Index(Node, ValueMixin):
         yield "{}[{}]".format(self.value.c_code(), self.index.c_code())
 
 
+class AddressOf(Node, ValueMixin):
+    __slots__ = ("value", )
+    __types__ = {"value": ValueMixin}
+
+    def lines(self):
+        yield "&({})".format(self.value)
+
+    def c_lines(self):
+        yield "&({})".format(self.value.c_code())
+
+
 class Name(Node, ValueMixin):
     __slots__ = ("id", )
     __types__ = {

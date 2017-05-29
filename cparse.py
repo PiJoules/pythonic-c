@@ -4,12 +4,13 @@ from lang_ast import *
 
 
 class Parser:
+    # TODO: Fix the order of this later
     precedence = (
-        # Expressions
         ("left", "EQ", "NE", "GT", "LT"),
         ("left", "PLUS", "MINUS"),
         ("left", "MULT", "DIV"),
         ("left", "NOT"),
+        ("right", "AMP"),
         ("left", "ARROW", "INC", "DEC"),
     )
 
@@ -518,9 +519,15 @@ class Parser:
 
     # Indexing
 
-    def p_power_index(self, p):
+    def p_index(self, p):
         "expr : expr LBRACKET expr RBRACKET"
         p[0] = Index(p[1], p[3])
+
+    # Address of
+
+    def p_address_of(self, p):
+        "expr : AMP expr"
+        p[0] = AddressOf(p[2])
 
     def p_atom_name(self, p):
         """atom : NAME"""

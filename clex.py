@@ -73,6 +73,7 @@ class Lexer:
         # Literals
         'INT', "FLOAT", 'STRING', "CHAR",
 
+        # Container chars
         # ( ) [ ] { }
         'LPAR', 'RPAR', "LBRACKET", "RBRACKET", "LBRACE", "RBRACE",
 
@@ -82,7 +83,8 @@ class Lexer:
         'EQ', "NE",
 
         # Unary ops
-        "INC", "DEC",
+        # ++ -- &
+        "INC", "DEC", "AMP",
 
         'ASSIGN',
         "ARROW",
@@ -127,6 +129,7 @@ class Lexer:
 
     t_INC = r"\+\+"
     t_DEC = r"--"
+    t_AMP = r"\&"
 
     t_ELLIPSIS = r"\.\.\."
 

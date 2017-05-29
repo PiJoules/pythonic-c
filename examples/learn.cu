@@ -114,3 +114,15 @@ def main(argc: int, argv: char[][]):
 
     # Index an array just like any language 
     my_array[0]
+
+    # Arrays are mutable 
+    my_array[1] = 2 
+    printf("%d\n", my_array[1])
+
+    # Array sizes do not need to be declared at compile time. 
+    # These are variable-lenght arrays.
+    printf("Enter the array size: ")
+    array_size: int 
+    fscanf(stdin, "%d", &array_size)
+    var_length_array: int[array_size]
+    printf("sizeof(var_length_array) in bytes: %zu\n", sizeof(var_length_array))
