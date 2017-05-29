@@ -361,9 +361,6 @@ class Inferer:
                 raise RuntimeError("Expected the offset to be a whole number.")
             return ptr_t
 
-        def __anyinstance(vals, types):
-            return any(isinstance(v, types) for v in vals)
-
         def __dominant_base_type(t1, t2):
             """
             Returns the dominant base type.

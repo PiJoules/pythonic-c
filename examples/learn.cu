@@ -75,10 +75,21 @@ def main(argc: int, argv: char[][]):
     x_int: int 
 
     # longs are compiled to long longs in C and usually about 64 bits 
-    x_long: long
+    x_long: long 
+
+    # The previous types are all signed.
+    # Unsigned versions of the previously mentioned types start with a 'u'
+    x_uint: uint 
 
     # floats are usually 32-bit floating point numbers
     x_float: float = 0.0
 
     # doubles are usually 64-bit floating point numbers
     x_double: double = 0.0
+
+    # The sizeof function will give you the the size of a variable or type
+    # in bytes 
+    int_size = sizeof(int)
+    large_num_size = sizeof(9223372036854775807)  # 2^63
+    printf("sizeof(int): %zu\n", int_size)
+    printf("sizeof(10): %zu\n", large_num_size)
