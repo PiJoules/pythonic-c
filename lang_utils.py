@@ -109,7 +109,7 @@ class SlottedClass(metaclass=SlottedClassChecker):
         Equals method to account for circular references where an attribute
         could refer back to itself.
         """
-        # Same tyoes
+        # Same types
         if not isinstance(other, type(self)):
             return False
 

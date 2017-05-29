@@ -53,99 +53,11 @@ class NullType(LangType, NumericTypeMixin):
     def __init__(self, *args, **kwargs):
         super().__init__("NULL", *args, **kwargs)
 
-    def __eq__(self, other):
-        return isinstance(other, (PointerType, NullType))
+    #def __eq__(self, other):
+    #    return isinstance(other, (PointerType, NullType))
 
-    def __hash__(self):
-        return hash(self.name)
-
-
-class IntType(LangType, WholeNumberMixin):
-    def __init__(self, *args, **kwargs):
-        super().__init__("int", *args, **kwargs)
-
-    def __eq__(self, other):
-        return isinstance(other, NumericTypeMixin)
-
-    def __hash__(self):
-        return hash(self.name)
-
-
-class UIntType(LangType, WholeNumberMixin):
-    def __init__(self, *args, **kwargs):
-        super().__init__("uint", *args, **kwargs)
-
-    def __eq__(self, other):
-        return isinstance(other, NumericTypeMixin)
-
-    def __hash__(self):
-        return hash(self.name)
-
-
-class LongType(LangType, WholeNumberMixin):
-    def __init__(self, *args, **kwargs):
-        super().__init__("long", *args, **kwargs)
-
-    def __eq__(self, other):
-        return isinstance(other, NumericTypeMixin)
-
-    def __hash__(self):
-        return hash(self.name)
-
-
-class FloatType(LangType, DecimalNumberMixin):
-    def __init__(self, *args, **kwargs):
-        super().__init__("float", *args, **kwargs)
-
-    def __eq__(self, other):
-        return isinstance(other, NumericTypeMixin)
-
-    def __hash__(self):
-        return hash(self.name)
-
-
-class DoubleType(LangType, DecimalNumberMixin):
-    def __init__(self, *args, **kwargs):
-        super().__init__("double", *args, **kwargs)
-
-    def __eq__(self, other):
-        return isinstance(other, NumericTypeMixin)
-
-    def __hash__(self):
-        return hash(self.name)
-
-
-class VoidType(LangType):
-    def __init__(self, *args, **kwargs):
-        super().__init__("void", *args, **kwargs)
-
-    def __eq__(self, other):
-        return isinstance(other, NumericTypeMixin)
-
-    def __hash__(self):
-        return hash(self.name)
-
-
-class CharType(LangType, WholeNumberMixin):
-    def __init__(self, *args, **kwargs):
-        super().__init__("char", *args, **kwargs)
-
-    def __eq__(self, other):
-        return isinstance(other, NumericTypeMixin)
-
-    def __hash__(self):
-        return hash(self.name)
-
-
-class ShortType(LangType, WholeNumberMixin):
-    def __init__(self, *args, **kwargs):
-        super().__init__("short", *args, **kwargs)
-
-    def __eq__(self, other):
-        return isinstance(other, NumericTypeMixin)
-
-    def __hash__(self):
-        return hash(self.name)
+    #def __hash__(self):
+    #    return hash(self.name)
 
 
 class VarargType(LangType):
@@ -161,6 +73,12 @@ class StructType(LangType):
     __defaults__ = {
         "members": {}
     }
+
+    #def __hash__(self):
+    #    return hash((
+    #        self.name,
+    #        tuple(map(hash, self.members))
+    #    ))
 
 
 class CallableType(LangType):
