@@ -397,6 +397,10 @@ def _format_container(node, sizes=None):
 
 class Array(Node, TypeMixin):
     __slots__ = ("contents", "size")
+    __types__ = {
+        "contents": TypeMixin,
+        "size": ValueMixin,
+    }
 
     def lines(self):
         yield _format_container(self)
@@ -458,9 +462,13 @@ class StructPointerDeref(Node, ValueMixin):
 
 class ArrayLiteral(Node, ValueMixin):
     __slots__ = ("contents", )
+    __types__ = {"contents": [ValueMixin]}
 
     def lines(self):
         yield "[{}]".format(", ".join(map(str, self.contents)))
+
+    def c_lines(self):
+        yield "{{{}}}".format(", ".join(c.c_code() for c in self.contents))
 
 
 class Cast(Node, ValueMixin):
@@ -835,6 +843,20 @@ class Call(Node, ValueMixin):
         yield "{}({})".format(self.func.c_code(), ", ".join(a.c_code() for a in self.args))
 
 
+class Index(Node, ValueMixin):
+    __slots__ = ("value", "index")
+    __types__ = {
+        "value": ValueMixin,
+        "index": ValueMixin,
+    }
+
+    def lines(self):
+        yield "{}[{}]".format(self.value, self.index)
+
+    def c_lines(self):
+        yield "{}[{}]".format(self.value.c_code(), self.index.c_code())
+
+
 class Name(Node, ValueMixin):
     __slots__ = ("id", )
     __types__ = {
@@ -858,6 +880,7 @@ class Null(Node, ValueMixin):
 
 class Int(Node, ValueMixin):
     __slots__ = ("n", )
+    __types__ = {"n": int}
 
     def lines(self):
         yield str(self.n)

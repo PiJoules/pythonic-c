@@ -1,5 +1,5 @@
 import ply.yacc as yacc
-from clex import Lexer
+from clex import Lexer, find_column
 from lang_ast import *
 
 
@@ -500,10 +500,6 @@ class Parser:
         "expr : NOT expr"
         p[0] = UnaryOp(Not(), p[2])
 
-    # power: atom trailer* ['**' factor]
-    # trailers enables function calls.  I only allow one level of calls
-    # so this is 'trailer'
-
     def p_null(self, p):
         "expr : NULL"
         p[0] = Null()
@@ -513,8 +509,18 @@ class Parser:
         p[0] = p[1]
 
     def p_power_2(self, p):
-        """power : atom trailer"""
-        p[0] = Call(p[1], p[2])
+        "power : atom LPAR RPAR"
+        p[0] = Call(p[1])
+
+    def p_power_call_args(self, p):
+        "power : atom LPAR arglist RPAR"
+        p[0] = Call(p[1], p[3])
+
+    # Indexing
+
+    def p_power_index(self, p):
+        "expr : expr LBRACKET expr RBRACKET"
+        p[0] = Index(p[1], p[3])
 
     def p_atom_name(self, p):
         """atom : NAME"""
@@ -552,14 +558,6 @@ class Parser:
         "array_contents : array_contents COMMA expr"
         p[0] = p[1] + [p[3]]
 
-    def p_trailer(self, p):
-        "trailer : LPAR arglist RPAR"
-        p[0] = p[2]
-
-    def p_trailer_empty(self, p):
-        "trailer : LPAR RPAR"
-        p[0] = []
-
     """
     Arguments when calling a function.
 
@@ -582,6 +580,6 @@ class Parser:
         "empty : "
 
     def p_error(self, p):
-        raise SyntaxError(p)
-
-
+        raise SyntaxError("Unexpected symbol '{}' at ({}, {})".format(
+            p.value[0], p.lineno, find_column(p)
+        ))

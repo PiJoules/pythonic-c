@@ -88,8 +88,29 @@ def main(argc: int, argv: char[][]):
     x_double: double = 0.0
 
     # The sizeof function will give you the the size of a variable or type
-    # in bytes 
+    # in bytes. Only the function is available, not the sizeof statement.
     int_size = sizeof(int)
     large_num_size = sizeof(9223372036854775807)  # 2^63
     printf("sizeof(int): %zu\n", int_size)
     printf("sizeof(2^63): %zu\n", large_num_size)
+
+    # Just like in C, if the sizeof function is called on an expression,
+    # that expression is not evaluated.
+    a = 1 
+    printf("original value of a: %d\n", a)
+    size = sizeof(a++)
+    printf("sizeof(a++) = %zu where new value of a = %d\n", size, a)
+
+    # Arrays must be initialized using a concrete size 
+    my_char_array: char[20]  # This array occupies 20 bytes
+    my_int_array: int[20]  # This array occupies 80 bytes
+
+    # You can initialize an array to all zeros thusly
+    my_array: char[20] = [0]
+
+    # If the type is not specified for an array literal,
+    # it defaults to an int array of the literal's size
+    my_array_default = [1, 2, 3]  # int array of size 3
+
+    # Index an array just like any language 
+    my_array[0]

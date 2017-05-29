@@ -75,4 +75,7 @@ int main(){
     enum_t z = A;
     printf("A: %d\n", z);
     printf("B: %d\n", B);
+
+    int arr[10] = {1, 2, 3};
+    int arrc[10][10] = {1,2,3};
 }

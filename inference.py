@@ -9,22 +9,6 @@ from assert_module import ASSERT_VARS
 import os
 
 
-CHAR_TYPE = LangType("char")
-SHORT_TYPE = LangType("short")
-INT_TYPE = LangType("int")
-LONG_TYPE = LangType("long")
-
-UINT_TYPE = LangType("uint")
-
-FLOAT_TYPE = LangType("float")
-DOUBLE_TYPE = LangType("double")
-
-SIZE_TYPE = LangType("size_t")
-NULL_TYPE = LangType("NULL")
-VOID_TYPE = LangType("void")
-VARARG_TYPE = LangType("vararg")
-
-
 INIT_TYPES = {
     CHAR_TYPE,
     SHORT_TYPE,
@@ -149,7 +133,7 @@ class Inferer:
 
     def type_exists(self, t):
         assert isinstance(t, LangType)
-        if isinstance(t, PointerType):
+        if isinstance(t, (ArrayType, PointerType)):
             return self.type_exists(t.contents)
         return t in self.__types
 
@@ -282,7 +266,6 @@ class Inferer:
             t = LangType(node.id)
             if t in self.__types:
                 # Exhaust any typedef chains
-                #result = self.__exhaust_typedef_chain(t)
                 return t
             elif node.id in MODULE_TYPES:
                 result = self.__builtin_type_check(t)
@@ -291,6 +274,13 @@ class Inferer:
             return result
         elif isinstance(node, Pointer):
             return PointerType(self.typemixin_to_langtype(node.contents))
+        elif isinstance(node, Array):
+            # Infer size b/c it is an expression
+            size_t = self.infer(node.size)
+            if self.__can_implicit_cast(SIZE_TYPE, size_t):
+                return ArrayType(self.typemixin_to_langtype(node.contents), node.size)
+            else:
+                raise RuntimeError("Cannot use type '{}' for array size ({}).".format(size_t, node.size))
         elif isinstance(node, Ellipsis):
             return VARARG_TYPE
         else:
@@ -301,6 +291,8 @@ class Inferer:
 
         if isinstance(t, PointerType):
             return Pointer(self.langtype_to_typemixin(t.contents))
+        elif isinstance(t, ArrayType):
+            return Array(self.langtype_to_typemixin(t.contents), t.size)
         else:
             return NameType(t.name)
 
@@ -404,6 +396,31 @@ class Inferer:
 
     def infer_Char(self, node):
         return CHAR_TYPE
+
+    def infer_ArrayLiteral(self, node):
+        contents = node.contents
+        content_ts = [self.infer(c) for c in contents]
+
+        # Assert all are same contents
+        base_t = content_ts[0]
+        for content_t in content_ts:
+            assert content_t == base_t
+
+        return ArrayType(base_t, Int(len(content_ts)))
+
+    def infer_Index(self, node):
+        value = node.value
+        index = node.index
+
+        value_t = self.infer(value)
+        if not isinstance(value_t, (ArrayType, PointerType)):
+            raise TypeError("Could not index {} b/c it is not an array or pointer. Found {}.".format(value, value_t))
+
+        index_t = self.infer(index)
+        if not self.__can_implicit_cast(SIZE_TYPE, index_t):
+            raise TypeError("Cannot index with type '{}'".format(index_t))
+
+        return value_t.contents
 
 
     ######## Node checking ###########
@@ -600,8 +617,10 @@ class Inferer:
             value_t = self.infer(value)
             value_contents_t = self.__exhaust_typedef_chain(value_t.contents)
             expected_t = value_contents_t.members[member]
-            if expected_t != right_t and not self.__can_implicit_assign(expected_t, right_t):
-                raise TypeError("Expected type {} for member {} of struct {}. Could not implicitely cast {} to {}.".format(expected_t, member, value_t.contents.name, right_t, expected_t))
+
+            # See if can assign
+            self.__check_assignable(expected_t, right_t, right,
+                                    "member {} of struct {}".format(member, value_t.contents.name))
 
             return node
         else:
@@ -627,27 +646,23 @@ class Inferer:
         self.infer(node.value)
         return node
 
-    def __can_implicit_assign(self, target_t, value_t):
+    def __check_assignable(self, expected_t, value_t, value_node, varname):
+        # Array literals to arrays of anything
+        if isinstance(value_node, ArrayLiteral):
+            return isinstance(expected_t, ArrayType)
+
+        if expected_t != value_t and not self.__can_implicit_cast(expected_t, value_t):
+            raise TypeError("Expected type {} for {}. Could not implicitely assign {} to {}.".format(expected_t, varname, value_t, expected_t))
+
+    def __can_implicit_cast(self, target_t, value_t):
         """Check if the value type can be implicitely converted to the target
         type."""
+        # For when sizeof is called but the size_t type has not been
+        # explicitely typedef'd
+        # TODO: Make size_t a builtin type to avoid having to do this check
         if target_t == SIZE_TYPE or value_t == SIZE_TYPE:
             self.__builtin_type_check(SIZE_TYPE)
-        return (target_t, value_t) in {
-            # To char
-            (CHAR_TYPE, INT_TYPE),
-
-            # To int
-            (INT_TYPE, CHAR_TYPE),
-
-            # To uint
-            (UINT_TYPE, INT_TYPE),
-
-            # To double
-            (DOUBLE_TYPE, FLOAT_TYPE),
-
-            # To size_t
-            (SIZE_TYPE, INT_TYPE),
-        }
+        return can_implicit_assign(target_t, value_t)
 
     def check_VarDecl(self, node):
         node_t = self.typemixin_to_langtype(node.type)
@@ -663,8 +678,7 @@ class Inferer:
         # Check types
         if init:
             init_t = self.infer(init)
-            if init_t != node_t and not self.__can_implicit_assign(node_t, init_t):
-                raise TypeError("Expected type {} for {}. Found {}.".format(node_t, name, init_t))
+            self.__check_assignable(node_t, init_t, init, name)
 
         # Add variable
         self.bind(name, node_t)
