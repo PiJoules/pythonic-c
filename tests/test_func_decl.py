@@ -12,7 +12,7 @@ class TestFunctionDeclaration(unittest.TestCase):
 def func()
         """.strip()
         ast = code_to_ast(code, infer=True)
-        self.assertEqual(ast.body[0].returns, "int")
+        self.assertEqual(ast.body[0].returns, NameType("int"))
 
 
 if __name__ == "__main__":

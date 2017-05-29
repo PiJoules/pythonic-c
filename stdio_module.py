@@ -8,10 +8,10 @@ STDIO_MODULE = Module([
     FuncDecl(
         "printf",
         [
-            VarDecl("format", Pointer("char")),
+            VarDecl("format", Pointer(NameType("char"))),
             Ellipsis(),
         ],
-        "void"
+        NameType("void")
     ),
 
     Endif(),

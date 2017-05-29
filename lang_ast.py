@@ -15,9 +15,6 @@ class ValueMixin:
     """Mixin to indicate this node represents a value."""
 
 
-LANG_TYPES = (str, TypeMixin)
-
-
 class NodeChecker(SlottedClassChecker):
     def __init__(cls, *args):
         super().__init__(*args)
@@ -163,11 +160,38 @@ class Module(Node):
             yield from node.c_lines()
 
 
+class NameType(Node, TypeMixin):
+    __slots__ = ("id", )
+    __types__ = {"id": str}
+
+    def lines(self):
+        yield self.id
+
+    def c_lines(self):
+        yield self.id
+
+
+class CharTypeNode(NameType):
+    def __init__(self):
+        super().__init__("char")
+
+
+class ShortTypeNode(NameType):
+    def __init__(self):
+        super().__init__("short")
+
+
+TYPE_NODES = {
+    "char": CharTypeNode,
+    "short": ShortTypeNode,
+}
+
+
 class VarDecl(Node):
     __slots__ = ("name", "type", "init")
     __types__ = {
         "name": str,
-        "type": LANG_TYPES,
+        "type": TypeMixin,
         "init": optional(ValueMixin),
     }
     __defaults__ = {"init": None}
@@ -210,7 +234,7 @@ class FuncDef(Node):
         "name": str,
         "params": [(str, VarDecl)],
         "body": [Node],
-        "returns": optional(LANG_TYPES)
+        "returns": optional(TypeMixin)
     }
 
     def lines(self):
@@ -258,7 +282,7 @@ class FuncDecl(Node):
     __types__ = {
         "name": str,
         "params": [(VarDecl, Ellipsis)],
-        "returns": LANG_TYPES
+        "returns": TypeMixin
     }
 
     def lines(self):
@@ -293,8 +317,8 @@ class FuncDecl(Node):
 class FuncType(Node, TypeMixin):
     __slots__ = ("params", "returns")
     __types__ = {
-        "params": [(LANG_TYPES, Ellipsis)],
-        "returns": LANG_TYPES
+        "params": [(TypeMixin, Ellipsis)],
+        "returns": TypeMixin
     }
 
     def lines(self):
@@ -318,7 +342,7 @@ def _format_c_decl(name, t):
         name (str): Name of the variable
         t (Node): The type of the variable
     """
-    assert isinstance(t, LANG_TYPES)
+    assert isinstance(t, TypeMixin)
     assert isinstance(name, str)
 
     if isinstance(t, Pointer):
@@ -331,8 +355,8 @@ def _format_c_decl(name, t):
             name + "[{}]".format(t.size),
             t.contents
         )
-    elif isinstance(t, str):
-        return "{} {}".format(t, name)
+    elif isinstance(t, NameType):
+        return "{} {}".format(t.id, name)
     else:
         params = t.params
         returns = t.returns
@@ -387,7 +411,7 @@ class Array(Node, TypeMixin):
 
 class Pointer(Node, TypeMixin):
     __slots__ = ("contents", )
-    __types__ = {"contents": LANG_TYPES}
+    __types__ = {"contents": TypeMixin}
 
     def lines(self):
         yield _format_container(self)
@@ -436,7 +460,7 @@ class ArrayLiteral(Node, ValueMixin):
 class Cast(Node, ValueMixin):
     __slots__ = ("target_type", "expr")
     __types__ = {
-        "target_type": LANG_TYPES,
+        "target_type": TypeMixin,
     }
 
     def lines(self):
@@ -917,7 +941,7 @@ class EnumDecl(Node):
 class TypeDefStmt(Node):
     __slots__ = ("type", "name")
     __types__ = {
-        "type": LANG_TYPES,
+        "type": TypeMixin,
         "name": str
     }
 
@@ -931,6 +955,8 @@ class TypeDefStmt(Node):
             yield "typedef {} {};".format(self.type, self.name)
 
 
+# TODO: Remove the typemixin from struct since it shouldn't
+# appear anywhere except in a struct decl
 class Struct(Node, TypeMixin):
     __slots__ = ("name", "decls", "_members")
     __types__ = {

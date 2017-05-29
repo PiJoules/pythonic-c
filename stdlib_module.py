@@ -5,22 +5,22 @@ STDLIB_MODULE = Module([
     Ifndef("_STDLIB_H"),
     Define("_STDLIB_H"),
 
-    TypeDefStmt("uint", "size_t"),
+    TypeDefStmt(NameType("uint"), "size_t"),
 
     FuncDecl(
         "malloc",
         [
-            VarDecl("size", "size_t"),
+            VarDecl("size", NameType("size_t")),
         ],
-        "void"
+        NameType("void")
     ),
 
     FuncDecl(
         "free",
         [
-            VarDecl("ptr", Pointer("void")),
+            VarDecl("ptr", Pointer(NameType("void"))),
         ],
-        "void"
+        NameType("void")
     ),
 
     Endif(),

@@ -112,8 +112,8 @@ struct s {x: int, y: char[][]}
             Module([
                 StructDecl(
                     Struct("s", [
-                        VarDecl("x", "int"),
-                        VarDecl("y", Pointer(Pointer("char")))
+                        VarDecl("x", NameType("int")),
+                        VarDecl("y", Pointer(Pointer(NameType("char"))))
                     ])
                 )
             ])

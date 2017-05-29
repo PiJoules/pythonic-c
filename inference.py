@@ -205,7 +205,7 @@ class Inferer:
             self.__typedefs[typename] = base_t
 
     def node_to_type(self, node):
-        assert isinstance(node, LANG_TYPES)
+        assert isinstance(node, TypeMixin)
 
         if isinstance(node, FuncType):
             param_nodes = node.params
@@ -215,7 +215,8 @@ class Inferer:
                 [VarargType() if isinstance(p, Ellipsis) else self.node_to_type(p) for p in param_nodes],
                 self.node_to_type(return_node)
             )
-        elif isinstance(node, str):
+        elif isinstance(node, NameType):
+            node = node.id
             # Account for typedefs
             if node in self.__typedefs:
                 return self.__typedefs[node]
@@ -241,21 +242,22 @@ class Inferer:
         if isinstance(t, PointerType):
             return Pointer(self.type_to_node(t.contents))
         elif isinstance(t, StructType):
-            return t.name
+            return NameType(t.name)
         elif isinstance(t, IntType):
-            return "int"
+            return NameType("int")
         elif isinstance(t, VoidType):
-            return "void"
+            return NameType("void")
         elif isinstance(t, CharType):
-            return "char"
+            return NameType("char")
         elif type(t) == LangType:
-            return t.name
+            return NameType(t.name)
         else:
             raise RuntimeError("Logic for converting type {} to Node not implemented".format(type(t)))
 
     ######## Type inference ###########
 
     def infer(self, node):
+        assert isinstance(node, ValueMixin)
         return self.__call_node_method(node, "infer", expected=LangType)
 
     def infer_Cast(self, node):
@@ -308,7 +310,6 @@ class Inferer:
         left_t = self.infer(left)
         right_t = self.infer(right)
 
-
         def __pointer_offset(ptr_t, offset_t):
             """Return the pointer type if a pointer and whole number are provided."""
             if not isinstance(ptr_t, Pointer):
@@ -317,10 +318,8 @@ class Inferer:
                 raise RuntimeError("Expected the offset to be a whole number.")
             return ptr_t
 
-
         def __anyinstance(vals, types):
             return any(isinstance(v, types) for v in vals)
-
 
         def __dominant_base_type(t1, t2):
             """
@@ -336,8 +335,7 @@ class Inferer:
             elif __anyinstance(types, UIntType):
                 return UIntType()
             else:
-                return IntType
-
+                return IntType()
 
         if op == "+":
             if isinstance(left_t, Pointer):
@@ -408,15 +406,15 @@ class Inferer:
         if not (len(params) == 0 or len(params) == 2):
             raise RuntimeError("Expected either no or 2 parameters for main function")
 
-        argc_t = "int"
-        argv_t = Pointer(Pointer("char"))
+        argc_t = NameType("int")
+        argv_t = Pointer(Pointer(NameType("char")))
 
         if params:
             argc, argv = params
 
             # Check argc
             if not isinstance(argc, VarDecl):
-                argc = VarDecl(argc, argc_t, None)
+                argc = VarDecl(argc, argc_t)
             else:
                 if argc.type != argc_t:
                     raise RuntimeError("Expected type int for first argumenty of main function")
@@ -436,13 +434,11 @@ class Inferer:
 
         returns = funcdef.returns
         if returns is None:
-            returns = "int"
-        elif returns != "int":
+            returns = NameType("int")
+        elif returns != NameType("int"):
             raise RuntimeError("Expected int return type for main function")
 
-        funcdef.params = params
-        funcdef.returns = returns
-        return funcdef
+        return FuncDef("main", params, funcdef.body, returns)
 
     def _assert_args_as_vardecls(self, params):
         """
@@ -509,7 +505,7 @@ class Inferer:
             # For now, just make sure the function has variable declarations
             # as its arguments and a return type.
             self._assert_args_as_vardecls(node.params)
-            assert isinstance(node.returns, LANG_TYPES)
+            assert isinstance(returns, TypeMixin)
 
         # Add the params to the scope
         self.enter_scope()

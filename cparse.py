@@ -203,7 +203,7 @@ class Parser:
     # def func(a, b:int)
     def p_func_decl(self, p):
         "func_decl : DEF NAME parameters"
-        p[0] = FuncDecl(p[2], p[3], "int")
+        p[0] = FuncDecl(p[2], p[3], NameType("int"))
 
     # def func(a, b:int) -> ret
     def p_func_declwith_ret(self, p):
@@ -217,17 +217,16 @@ class Parser:
     # x: int
     def p_vardecl(self, p):
         "var_decl : NAME COLON type_declaration"
-        p[0] = VarDecl(p[1], p[3], None)
+        p[0] = VarDecl(p[1], p[3])
 
     # x: int = 2
     def p_vardecl_assign(self, p):
         "var_decl : NAME COLON type_declaration ASSIGN expr"
         p[0] = VarDecl(p[1], p[3], p[5])
 
-
     def p_declaration_name(self, p):
         "type_declaration : NAME"
-        p[0] = p[1]
+        p[0] = NameType(p[1])
 
     def p_type_declaration_scoped(self, p):
         "type_declaration : LBRACE type_declaration RBRACE"

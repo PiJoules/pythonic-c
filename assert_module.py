@@ -8,9 +8,9 @@ ASSERT_MODULE = Module([
     FuncDecl(
         "assert",
         [
-            VarDecl("expr", "int"),
+            VarDecl("expr", NameType("int")),
         ],
-        "void"
+        NameType("void")
     ),
 
     Endif(),
