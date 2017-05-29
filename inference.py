@@ -19,6 +19,7 @@ UINT_TYPE = LangType("uint")
 FLOAT_TYPE = LangType("float")
 DOUBLE_TYPE = LangType("double")
 
+SIZE_TYPE = LangType("size_t")
 NULL_TYPE = LangType("NULL")
 VOID_TYPE = LangType("void")
 VARARG_TYPE = LangType("vararg")
@@ -248,6 +249,14 @@ class Inferer:
             actual_t = self.__types[typedef_t]
         return typedef_t
 
+    def __builtin_type_check(self, t):
+        """Check if the type is a builtin one and import the proper module."""
+        if t not in self.__types:
+            c_header, module = MODULE_TYPES[t.name]
+            self.add_extra_c_header(c_header)
+            self.__check_module(module)
+        return t
+
     def typemixin_to_langtype(self, node):
         """Needs to handle
         - TypeMixin nodes
@@ -273,12 +282,10 @@ class Inferer:
             t = LangType(node.id)
             if t in self.__types:
                 # Exhaust any typedef chains
-                result = self.__exhaust_typedef_chain(t)
-            elif node.id in MODULE_TYPES and t not in self.__types:
-                c_header, module = MODULE_TYPES[node.id]
-                self.add_extra_c_header(c_header)
-                self.__check_module(module)
-                result = self.__exhaust_typedef_chain(t)
+                #result = self.__exhaust_typedef_chain(t)
+                return t
+            elif node.id in MODULE_TYPES:
+                result = self.__builtin_type_check(t)
             else:
                 raise RuntimeError("type for name '{}' not previously declared".format(node))
             return result
@@ -319,7 +326,12 @@ class Inferer:
             self.__check_module(module)
 
         if isinstance(func, Name):
-            return self.lookup(func.id).returns
+            if func.id == "sizeof":
+                # Make sure size_t exists first
+                size_t = LangType("size_t")
+                return self.__builtin_type_check(size_t)
+            else:
+                return self.lookup(func.id).returns
         else:
             raise NotImplementedError("No logic yet implemented for inferring type for node {}".format(type(func)))
 
@@ -338,11 +350,8 @@ class Inferer:
     def infer_StructPointerDeref(self, node):
         value = node.value
         member = node.member
-        struct_t = self.infer(value).contents
-
-        if not isinstance(struct_t, StructType):
-            raise RuntimeError("Expected {} to be a struct. Found {}.".format(value, struct_t))
-
+        struct_t = self.__exhaust_typedef_chain(self.infer(value).contents)
+        assert isinstance(struct_t, StructType)
         return struct_t.members[member]
 
     def infer_BinOp(self, node):
@@ -589,9 +598,10 @@ class Inferer:
             member = left.member
 
             value_t = self.infer(value)
-            expected_t = value_t.contents.members[member]
+            value_contents_t = self.__exhaust_typedef_chain(value_t.contents)
+            expected_t = value_contents_t.members[member]
             if expected_t != right_t and not self.__can_implicit_assign(expected_t, right_t):
-                raise TypeError("Expected type {} for member {} of struct {}. Found {}.".format(expected_t, member, value_t.contents.name, right_t))
+                raise TypeError("Expected type {} for member {} of struct {}. Could not implicitely cast {} to {}.".format(expected_t, member, value_t.contents.name, right_t, expected_t))
 
             return node
         else:
@@ -620,6 +630,8 @@ class Inferer:
     def __can_implicit_assign(self, target_t, value_t):
         """Check if the value type can be implicitely converted to the target
         type."""
+        if target_t == SIZE_TYPE or value_t == SIZE_TYPE:
+            self.__builtin_type_check(SIZE_TYPE)
         return (target_t, value_t) in {
             # To char
             (CHAR_TYPE, INT_TYPE),
@@ -632,6 +644,9 @@ class Inferer:
 
             # To double
             (DOUBLE_TYPE, FLOAT_TYPE),
+
+            # To size_t
+            (SIZE_TYPE, INT_TYPE),
         }
 
     def check_VarDecl(self, node):

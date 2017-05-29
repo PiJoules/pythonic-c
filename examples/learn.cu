@@ -92,4 +92,4 @@ def main(argc: int, argv: char[][]):
     int_size = sizeof(int)
     large_num_size = sizeof(9223372036854775807)  # 2^63
     printf("sizeof(int): %zu\n", int_size)
-    printf("sizeof(10): %zu\n", large_num_size)
+    printf("sizeof(2^63): %zu\n", large_num_size)
