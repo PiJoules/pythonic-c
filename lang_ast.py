@@ -164,11 +164,17 @@ class NameType(Node, TypeMixin):
     __slots__ = ("id", )
     __types__ = {"id": str}
 
+    TYPE_NAME_CONVERSIONS = {
+        "long": "long long",
+        "uint": "unsigned int",
+    }
+
     def lines(self):
         yield self.id
 
     def c_lines(self):
-        yield self.id
+        """Different base types will be converted to other types."""
+        yield self.TYPE_NAME_CONVERSIONS.get(self.id, self.id)
 
 
 class CharTypeNode(NameType):
@@ -209,7 +215,7 @@ class VarDecl(Node):
         yield line
 
 
-class Ellipsis(Node):
+class Ellipsis(Node, TypeMixin):
     def lines(self):
         yield "..."
 
@@ -356,7 +362,7 @@ def _format_c_decl(name, t):
             t.contents
         )
     elif isinstance(t, NameType):
-        return "{} {}".format(t.id, name)
+        return "{} {}".format(t.c_code(), name)
     else:
         params = t.params
         returns = t.returns
@@ -955,9 +961,7 @@ class TypeDefStmt(Node):
             yield "typedef {} {};".format(self.type, self.name)
 
 
-# TODO: Remove the typemixin from struct since it shouldn't
-# appear anywhere except in a struct decl
-class Struct(Node, TypeMixin):
+class Struct(Node):
     __slots__ = ("name", "decls", "_members")
     __types__ = {
         "name": str,

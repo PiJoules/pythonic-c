@@ -28,41 +28,13 @@ class PointerType(LangType):
         return hash(self.name)
 
     def __eq__(self, other):
-        if isinstance(other, NullType):
+        if other.name == "NULL":
             return True
 
         return super().__eq__(other)
 
     def __str__(self):
         return "pointer[{}]".format(self.contents)
-
-
-class NumericTypeMixin:
-    "Indicates this type represents a number."
-
-
-class WholeNumberMixin(NumericTypeMixin):
-    "This type represents a whole number."
-
-
-class DecimalNumberMixin(NumericTypeMixin):
-    "This type respresents a decimal number."
-
-
-class NullType(LangType, NumericTypeMixin):
-    def __init__(self, *args, **kwargs):
-        super().__init__("NULL", *args, **kwargs)
-
-    #def __eq__(self, other):
-    #    return isinstance(other, (PointerType, NullType))
-
-    #def __hash__(self):
-    #    return hash(self.name)
-
-
-class VarargType(LangType):
-    def __init__(self, *args, **kwargs):
-        super().__init__("vararg", *args, **kwargs)
 
 
 class StructType(LangType):
@@ -73,12 +45,6 @@ class StructType(LangType):
     __defaults__ = {
         "members": {}
     }
-
-    #def __hash__(self):
-    #    return hash((
-    #        self.name,
-    #        tuple(map(hash, self.members))
-    #    ))
 
 
 class CallableType(LangType):

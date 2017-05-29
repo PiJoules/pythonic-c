@@ -9,23 +9,38 @@ from assert_module import ASSERT_VARS
 import os
 
 
+CHAR_TYPE = LangType("char")
+SHORT_TYPE = LangType("short")
+INT_TYPE = LangType("int")
+LONG_TYPE = LangType("long")
+
+UINT_TYPE = LangType("uint")
+
+FLOAT_TYPE = LangType("float")
+DOUBLE_TYPE = LangType("double")
+
+NULL_TYPE = LangType("NULL")
+VOID_TYPE = LangType("void")
+VARARG_TYPE = LangType("vararg")
+
+
 INIT_TYPES = {
-    LangType("char"),
-    LangType("short"),
-    LangType("int"),
-    LangType("long"),
+    CHAR_TYPE,
+    SHORT_TYPE,
+    INT_TYPE,
+    LONG_TYPE,
 
     # Unsigned
-    LangType("uint"),
+    UINT_TYPE,
 
     # Floating point
-    LangType("float"),
-    LangType("double"),
+    FLOAT_TYPE,
+    DOUBLE_TYPE,
 
     # Misc
-    NullType(),
-    LangType("void"),
-    VarargType(),
+    NULL_TYPE,
+    VOID_TYPE,
+    VARARG_TYPE,
 }
 
 
@@ -96,27 +111,33 @@ class Inferer:
         """Returns a dict mapping all includes found to their type infered asts."""
         return self.__found_included_files
 
-    def variables(self):
-        return self.__variables
+    def bind(self, varname, t):
+        """Bind a type to a variable name."""
+        assert isinstance(t, LangType)
 
-    def bind(self, varname, type):
-        assert isinstance(type, LangType)
-        if type.__class__ == LangType:
-            self.assert_type_exists(type)
+        if type(t) == LangType:
+            self.assert_type_exists(t)
 
         if varname in self.__variables:
-            assert self.__variables[varname] == type
+            assert self.__variables[varname] == t
         else:
-            self.__variables[varname] = type
+            self.__variables[varname] = t
 
     def lookup(self, varname):
-        type = self.__variables.get(varname, None)
-        if type is not None:
-            return type
+        """Get the type of a variable.
 
+        Args:
+            varname (str)
+
+        Returns:
+            LangType
+        """
+        t = self.__variables.get(varname, None)
+        if t is not None:
+            return t
         raise KeyError("Undeclared variable '{}'".format(varname))
 
-    def knowsvar(self, varname):
+    def var_exists(self, varname):
         """Checks if this environment knows of the variable provided."""
         try:
             self.lookup(varname)
@@ -137,7 +158,6 @@ class Inferer:
 
     def assert_type_not_exists(self, t):
         if self.type_exists(t):
-            self.__dump_call_stack()
             raise RuntimeError("Type '{}' already declared.".format(t))
 
     def __dump_call_stack(self):
@@ -185,6 +205,7 @@ class Inferer:
                 included_files[path] = module_ast
 
     def add_extra_c_header(self, header):
+        """Mark a C standard header that should be included."""
         assert header not in self.__extra_includes
         self.__extra_includes.add(header)
 
@@ -193,7 +214,7 @@ class Inferer:
     def add_type(self, new_type):
         """
         Add a new base type. This is primarily meant for newly declared
-        structs and enums.
+        structs.
         """
         assert isinstance(new_type, LangType)
         if new_type in self.__types:
@@ -201,6 +222,8 @@ class Inferer:
         self.__types[new_type] = None
 
     def bind_typedef(self, typename, base_t):
+        """Bind a LangType to another LangType to indicate the one type was
+        typedef'd to another."""
         self.assert_type_exists(base_t)
         assert isinstance(typename, LangType)
 
@@ -225,7 +248,7 @@ class Inferer:
             actual_t = self.__types[typedef_t]
         return typedef_t
 
-    def node_to_type(self, node):
+    def typemixin_to_langtype(self, node):
         """Needs to handle
         - TypeMixin nodes
           - NameType
@@ -235,7 +258,6 @@ class Inferer:
           - Function will receieve a NameType
           - Do not keep nodes in a dict since they aren't meant to be hashable
         """
-
         assert isinstance(node, TypeMixin)
 
         if isinstance(node, FuncType):
@@ -243,8 +265,8 @@ class Inferer:
             return_node = node.returns
 
             return CallableType(
-                [VarargType() if isinstance(p, Ellipsis) else self.node_to_type(p) for p in param_nodes],
-                self.node_to_type(return_node)
+                [self.typemixin_to_langtype(p) for p in param_nodes],
+                self.typemixin_to_langtype(return_node)
             )
         elif isinstance(node, NameType):
             # Account for typedefs
@@ -261,23 +283,19 @@ class Inferer:
                 raise RuntimeError("type for name '{}' not previously declared".format(node))
             return result
         elif isinstance(node, Pointer):
-            return PointerType(self.node_to_type(node.contents))
-        #elif isinstance(node, Struct):
-        #    return StructType(node.name)
+            return PointerType(self.typemixin_to_langtype(node.contents))
+        elif isinstance(node, Ellipsis):
+            return VARARG_TYPE
         else:
             raise RuntimeError("Logic for converting node {} to LangType not implemented".format(type(node)))
 
-    def type_to_node(self, t):
+    def langtype_to_typemixin(self, t):
         assert isinstance(t, LangType)
 
         if isinstance(t, PointerType):
-            return Pointer(self.type_to_node(t.contents))
-        elif isinstance(t, StructType):
-            return NameType(t.name)
-        elif type(t) == LangType:
-            return NameType(t.name)
+            return Pointer(self.langtype_to_typemixin(t.contents))
         else:
-            raise RuntimeError("Logic for converting type {} to Node not implemented".format(type(t)))
+            return NameType(t.name)
 
     ######## Type inference ###########
 
@@ -286,7 +304,7 @@ class Inferer:
         return self.__call_node_method(node, "infer", expected=LangType)
 
     def infer_Cast(self, node):
-        t = self.node_to_type(node.target_type)
+        t = self.typemixin_to_langtype(node.target_type)
         self.assert_type_exists(t)
         return t
 
@@ -295,7 +313,7 @@ class Inferer:
 
         # Check builtin functions
         # Perform if the function is a builtin one and not previously declared
-        if isinstance(func, Name) and func.id in BUILTIN_VARS and not self.knowsvar(func.id):
+        if isinstance(func, Name) and func.id in BUILTIN_VARS and not self.var_exists(func.id):
             c_header, module = BUILTIN_VARS[func.id]
             self.add_extra_c_header(c_header)
             self.__check_module(module)
@@ -306,16 +324,16 @@ class Inferer:
             raise NotImplementedError("No logic yet implemented for inferring type for node {}".format(type(func)))
 
     def infer_Int(self, node):
-        return LangType("int")
+        return INT_TYPE
 
     def infer_Float(self, node):
-        return LangType("float")
+        return FLOAT_TYPE
 
     def infer_Name(self, node):
         return self.lookup(node.id)
 
     def infer_Null(self, node):
-        return NullType()
+        return NULL_TYPE
 
     def infer_StructPointerDeref(self, node):
         value = node.value
@@ -356,11 +374,11 @@ class Inferer:
             if t1.name == "void" or t2.name == "void":
                 raise RuntimeError("Cannot add to void type")
             elif t1.name == "float" or t2.name == "float":
-                return LangType("float")
+                return FLOAT_TYPE
             elif t1.name == "uint" or t2.name == "uint":
-                return LangType("uint")
+                return UINT_TYPE
             else:
-                return LangType("int")
+                return INT_TYPE
 
         if op == "+":
             if isinstance(left_t, Pointer):
@@ -379,7 +397,7 @@ class Inferer:
         return self.infer(node.value)
 
     def infer_Char(self, node):
-        return LangType("char")
+        return CHAR_TYPE
 
 
     ######## Node checking ###########
@@ -403,14 +421,14 @@ class Inferer:
 
         self.add_type(struct_t)
         self.bind_typedef(LangType(node.struct.name), struct_t)
-        struct_t.members = {d.name: self.node_to_type(d.type) for d in node.struct.decls}
+        struct_t.members = {d.name: self.typemixin_to_langtype(d.type) for d in node.struct.decls}
 
         for t in struct_t.members.values():
             self.assert_type_exists(t)
         return node
 
     def check_FuncDecl(self, node):
-        func_t = self.node_to_type(node.type())
+        func_t = self.typemixin_to_langtype(node.type())
         self.assert_type_exists(func_t.returns)
         for param in func_t.args:
             self.assert_type_exists(param)
@@ -482,21 +500,21 @@ class Inferer:
 
         # Check the function signiature
         returns = node.returns
-        if name in self.variables():
+        if name in self.__variables:
             # Func was previously declared
             # Check and match parameters and types
             expected_func_t = self.lookup(name)
 
             assert isinstance(expected_func_t, CallableType)
 
-            if expected_func_t.args and isinstance(expected_func_t.args[-1], VarargType):
+            if expected_func_t.args and expected_func_t.args[-1].name == "vararg":
                 # Check to make sure there is only one varargtype at the end
                 # of the arguments list
                 if len(expected_func_t.args) == 1:
                     raise RuntimeError("Expected 1 argument before Ellipsis")
 
                 for i in range(len(expected_func_t.args)-1, -1, -1):
-                    if isinstance(expected_func_t.args[i], VarargType):
+                    if expected_func_t.args[i].name == "vararg":
                         raise RuntimeError("Expected only 1 Ellipsis in function")
 
                 if len(node.params) < len(expected_func_t.args) - 1:
@@ -511,7 +529,7 @@ class Inferer:
                 expected_param_t = expected_func_t.args[i]
                 if isinstance(param, str):
                     new_node_params.append(
-                        VarDecl(param, self.type_to_node(expected_param_t))
+                        VarDecl(param, self.langtype_to_typemixin(expected_param_t))
                     )
                 elif param.type != expected_func_t.params[i]:
                     raise RuntimeError("Expected {} to be of type {} from previous declaration".format(param.name))
@@ -523,7 +541,7 @@ class Inferer:
             expected_returns = expected_func_t.returns
             if node.returns:
                 assert node.returns == expected_returns
-            returns = self.type_to_node(expected_returns)
+            returns = self.langtype_to_typemixin(expected_returns)
         else:
             # First instance of function
             # TODO: Will need to perform type inference when calling function
@@ -535,7 +553,7 @@ class Inferer:
         # Add the params to the scope
         self.enter_scope()
         for param in node_params:
-            param_t = self.node_to_type(param.type)
+            param_t = self.typemixin_to_langtype(param.type)
             self.bind(param.name, param_t)
         body = self.check(node.body)
         self.exit_scope()
@@ -555,7 +573,7 @@ class Inferer:
 
         if isinstance(left, Name):
             name = left.id
-            if self.knowsvar(name):
+            if self.var_exists(name):
                 expected_t = self.lookup(name)
                 if expected_t != right_t:
                     raise TypeError("Expected type {} for {}. Found {}.".format(expected_t, name, right_t))
@@ -565,7 +583,7 @@ class Inferer:
                 # Change to a VarDecl
                 return self.check(VarDeclStmt(VarDecl(
                     name,
-                    self.type_to_node(right_t),
+                    self.langtype_to_typemixin(right_t),
                     right
                 )))
         elif isinstance(left, StructPointerDeref):
@@ -593,7 +611,7 @@ class Inferer:
         return node
 
     def check_TypeDefStmt(self, node):
-        base_t = self.node_to_type(node.type)
+        base_t = self.typemixin_to_langtype(node.type)
         self.assert_type_exists(base_t)
         self.bind_typedef(LangType(node.name), base_t)
         return node
@@ -607,20 +625,20 @@ class Inferer:
         type."""
         return (target_t, value_t) in {
             # To char
-            (LangType("char"), LangType("int")),
+            (CHAR_TYPE, INT_TYPE),
 
             # To int
-            (LangType("int"), LangType("char")),
+            (INT_TYPE, CHAR_TYPE),
 
             # To uint
-            (LangType("uint"), LangType("int")),
+            (UINT_TYPE, INT_TYPE),
 
             # To double
-            (LangType("double"), LangType("float")),
+            (DOUBLE_TYPE, FLOAT_TYPE),
         }
 
     def check_VarDecl(self, node):
-        node_t = self.node_to_type(node.type)
+        node_t = self.typemixin_to_langtype(node.type)
 
         self.assert_type_exists(node_t)
         name = node.name
