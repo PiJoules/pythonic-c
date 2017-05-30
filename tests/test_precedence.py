@@ -63,6 +63,70 @@ class TestPrecedence(unittest.TestCase):
             ])
         )
 
+    def test_array_index(self):
+        """Test indexing an array takes highest precedence."""
+        code = "1 == 2 + 3"
+        ast = code_to_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                ExprStmt(
+                    Compare(
+                        Int(1),
+                        "==",
+                        BinOp(Int(2), "+", Int(3)),
+                    )
+                )
+            ])
+        )
+
+        code = "x[1] == x+1"
+        ast = code_to_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                ExprStmt(
+                    Compare(
+                        Index(Name("x"), Int(1)),
+                        "==",
+                        BinOp(Name("x"), "+", Int(1)),
+                    )
+                )
+            ])
+        )
+
+        code = "x[1] == x"
+        ast = code_to_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                ExprStmt(
+                    Compare(
+                        Index(Name("x"), Int(1)),
+                        "==",
+                        Name("x"),
+                    )
+                )
+            ])
+        )
+
+
+    def test_array_index2(self):
+        code = "x+x[1]"
+        ast = code_to_ast(code)
+        self.assertEqual(
+            ast,
+            Module([
+                ExprStmt(
+                    BinOp(
+                        Name("x"),
+                        "+",
+                        Index(Name("x"), Int(1)),
+                    )
+                )
+            ])
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

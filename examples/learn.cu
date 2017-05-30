@@ -316,3 +316,6 @@ def main(argc: int, argv: char[][]):
     otherarr = "somestring"
     ptr = otherarr 
     printf("%s, %s\n", otherarr, ptr)
+
+    # Pointers are incremented based on their type 
+    assert(*(ptr + 1) == ptr[1])

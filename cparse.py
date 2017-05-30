@@ -17,8 +17,18 @@ class Parser:
         ("left", "PLUS", "MINUS"),  # 4
         ("left", "MULT", "DIV", "MOD"),  # 3
         ("right", "ADDROF", "NOT", "CAST", "PREINC", "PREDEC", "INV",
-                  "DEREF"),  # 2
-        ("left", "ARROW", "POSTINC", "POSTDEC"),  # 1
+                  "DEREF", "USUB", "UADD"),  # 2
+        ("left", "ARROW", "POSTINC", "POSTDEC",
+                 "LBRACKET"),  # 1
+
+        # The LBRACKET with highest associativity represents indexing an array.
+        # For some reason, adding a fictitious token INDEX, assigning it there,
+        # and giving the rule for indexing this INDEX precedence does not
+        # actually force the parser to shift the LBRACKET. It instead reduces
+        # to another expression.
+        # Example:
+        # x + x[1] would translate to Index(BinOp(x, +, x), 1) if we used INDEX
+        # precedence instead of LBRACKET.
     )
 
     ########### Parser interface #############
@@ -532,11 +542,11 @@ class Parser:
         p[0] = Deref(p[2])
 
     def p_comparison_uadd(self, p):
-        "expr : PLUS expr"
+        "expr : PLUS expr %prec UADD"
         p[0] = UnaryOp(UAdd(), p[2])
 
     def p_comparison_usub(self, p):
-        "expr : MINUS expr"
+        "expr : MINUS expr %prec USUB"
         p[0] = UnaryOp(USub(), p[2])
 
     # Post inc/decrement

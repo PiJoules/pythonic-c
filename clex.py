@@ -97,7 +97,7 @@ class Lexer:
 
         # Fictitious tokens
         "CAST", "PREINC", "PREDEC", "POSTINC", "POSTDEC", "ADDROF",
-        "BITAND", "BITOR", "XOR", "DEREF",
+        "BITAND", "BITOR", "XOR", "DEREF", "UADD", "USUB",
 
         'ASSIGN',
         "ARROW",

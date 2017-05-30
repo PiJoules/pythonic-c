@@ -492,6 +492,7 @@ class Cast(Node, ValueMixin):
 
 class ExprStmt(Node):
     __slots__ = ("value", )
+    __types__ = {"value": ValueMixin}
 
     def lines(self):
         yield from self.value.lines()
@@ -777,7 +778,7 @@ class BinOp(Node, ValueMixin):
         yield "({} {} {})".format(self.left.c_code(), op, self.right.c_code())
 
 
-class Compare(BinOp, ValueMixin):
+class Compare(BinOp):
     pass
 
 

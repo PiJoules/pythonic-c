@@ -373,10 +373,8 @@ class Inferer:
 
         def __pointer_offset(ptr_t, offset_t):
             """Return the pointer type if a pointer and whole number are provided."""
-            if not isinstance(ptr_t, Pointer):
+            if not isinstance(ptr_t, (PointerType, ArrayType)):
                 raise RuntimeError("Expected the pointer to be a PointerType")
-            if not isinstance(offset_t, WholeNumberMixin):
-                raise RuntimeError("Expected the offset to be a whole number.")
             return ptr_t
 
         def __dominant_base_type(t1, t2):
@@ -398,9 +396,9 @@ class Inferer:
                 return INT_TYPE
 
         if op == "+" or op == "-":
-            if isinstance(left_t, Pointer):
+            if isinstance(left_t, (PointerType, ArrayType)):
                 return __pointer_offset(left_t, right_t)
-            elif isinstance(right_t, Pointer):
+            elif isinstance(right_t, (PointerType, ArrayType)):
                 return __pointer_offset(right_t, left_t)
             else:
                 return __dominant_base_type(left_t, right_t)
@@ -497,7 +495,7 @@ class Inferer:
         final_value_t = self.__exhaust_typedef_chain(value_t)
 
         if not isinstance(final_value_t, PointerType):
-            raise TypeError("Attempting to dereference {} which is of type {} and not a pointer.".forma(value, final_value_t))
+            raise TypeError("Attempting to dereference {} which is of type {} and not a pointer.".format(value, final_value_t))
 
         contents_t = final_value_t.contents
         final_contents_t = self.__exhaust_typedef_chain(contents_t)
