@@ -542,21 +542,20 @@ class Break(Node):
         yield "break;"
 
 
+# TODO: Maybe add orelse to DoWhile???
 class DoWhile(Node):
     __slots__ = ("test", "body")
     __types__ = {
-        "test": Node,
+        "test": ValueMixin,
         "body": [Node],
     }
 
     def lines(self):
-        yield "do:"
+        yield "dowhile {}:".format(self.test)
 
         for node in self.body:
             for line in node.lines():
                 yield INDENT + line
-
-        yield "while {}".format(self.test)
 
     def c_lines(self):
         yield "do {"
@@ -715,7 +714,7 @@ class Case(Node):
     """
     __slots__ = ("tests", "body")
     __types__ = {
-        "tests": [Node],
+        "tests": [ValueMixin],
         "body": [Node],
     }
 
@@ -737,6 +736,7 @@ class Case(Node):
 
 class Default(Node):
     __slots__ = ("body", )
+    __types__ = {"body": [Node]}
 
     def lines(self):
         yield "else:"

@@ -23,6 +23,14 @@ STDLIB_MODULE = Module([
         NameType("void")
     ),
 
+    FuncDecl(
+        "exit",
+        [
+            VarDecl("status", NameType("void")),
+        ],
+        NameType("void")
+    ),
+
     Endif(),
 ])
 
@@ -31,6 +39,7 @@ STDLIB_VARS = dict.fromkeys(
     {
         "malloc",
         "free",
+        "exit",
     },
     ("stdlib.h", STDLIB_MODULE)
 )

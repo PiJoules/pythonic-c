@@ -334,9 +334,10 @@ class Parser:
     ###### Control flow ##########
 
     # Do while stmt
+    # I do it this way b/c it was simple
     def p_dowhile(self, p):
-        "dowhile_stmt : DO COLON suite WHILE expr"
-        p[0] = DoWhile(p[5], p[3])
+        "dowhile_stmt : DOWHILE expr COLON suite"
+        p[0] = DoWhile(p[2], p[4])
 
     # While stmt
     def p_while_stmt(self, p):

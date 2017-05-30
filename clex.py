@@ -18,6 +18,7 @@ def _new_token(type, lineno):
     tok.type = type
     tok.value = None
     tok.lineno = lineno
+    tok.lexpos = -1
     return tok
 
 
@@ -43,7 +44,7 @@ class Lexer:
         "else": "ELSE",
         "elif": "ELIF",
         "while": "WHILE",
-        "do": "DO",
+        "dowhile": "DOWHILE",
         "switch": "SWITCH",
         "case": "CASE",
         "return": "RETURN",

@@ -766,10 +766,18 @@ class Inferer:
         return VarDeclStmt(self.check(node.decl))
 
     def check_While(self, node):
+        self.infer(node.test)
         return While(
-            self.check(node.test),
+            node.test,
             self.check(node.body),
             self.check(node.orelse),
+        )
+
+    def check_DoWhile(self, node):
+        self.infer(node.test)
+        return DoWhile(
+            node.test,
+            self.check(node.body)
         )
 
     def check_Compare(self, node):
@@ -792,8 +800,9 @@ class Inferer:
         return node
 
     def check_If(self, node):
+        self.infer(node.test)
         return If(
-            self.check(node.test),
+            node.test,
             self.check(node.body),
             self.check(node.orelse)
         )
@@ -815,14 +824,17 @@ class Inferer:
         return node
 
     def check_Switch(self, node):
+        self.infer(node.test)
         return Switch(
-            self.check(node.test),
+            node.test,
             self.check(node.cases)
         )
 
     def check_Case(self, node):
+        for test in node.tests:
+            self.infer(test)
         return Case(
-            self.check(node.tests),
+            node.tests,
             self.check(node.body)
         )
 

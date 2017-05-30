@@ -213,4 +213,45 @@ def main(argc: int, argv: char[][]):
     assert((2 | 3) == 3)  # Bitwise or
     assert((2 ^ 3) == 1)  # Bitwise xor 
     assert(1 << 1 == 2)  # Bitwise left shift 1
-    assert(4 >> 1 == 2)  # Bitwise right shift 1
+    assert(4 >> 1 == 2)  # Bitwise right shift 1 
+
+    """
+    Control flow
+    """
+
+    # If-elif-else ladder
+    if 0:
+        printf("I will never run\n")
+    elif 0:
+        printf("I will also never run\n")
+    else:
+        printf("This prints\n")
+
+    # While loop
+    ii = 0 
+    while ii < 10:
+        printf("%d, ", ii++)
+    printf("\n")
+
+    # Do-while loop 
+    kk = 0 
+    dowhile ++kk < 10:  # This gets executed after 1 cycle
+        printf("%d, ", kk)
+    printf("\n")
+
+    # Switch statement 
+    a = 3
+    switch a:
+        case 0:
+            printf("a == 0\n")
+            break 
+        case 1:
+            printf("a == 1\n")
+            break 
+        case 3, 4:
+            printf("a is 3 or 4\n")
+            break 
+        else:
+            fputs("Error\n", stderr)
+            exit(-1)
+            break

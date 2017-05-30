@@ -404,9 +404,8 @@ while (1) {
     def test_do_while(self):
         """Test a do whike statement."""
         code = """
-do:
+dowhile x:
     func()
-while x
         """
         ast = self.__create_ast(code)
         self.assertEqual(

@@ -8,6 +8,7 @@ STDIO_MODULE = Module([
     # Variables
 
     VarDeclStmt(VarDecl("stdin", Pointer(NameType("FILE")))),
+    VarDeclStmt(VarDecl("stderr", Pointer(NameType("FILE")))),
 
     # Functions
 
@@ -31,6 +32,16 @@ STDIO_MODULE = Module([
         NameType("void")
     ),
 
+    # 33
+    FuncDecl(
+        "fputs",
+        [
+            VarDecl("char", Pointer(NameType("char"))),
+            VarDecl("stream", Pointer(NameType("FILE"))),
+        ],
+        NameType("int")
+    ),
+
     Endif(),
 ])
 
@@ -39,10 +50,12 @@ STDIO_VARS = dict.fromkeys(
     {
         # Variables
         "stdin",
+        "stderr",
 
         # Funcs
         "printf",
         "fscanf",
+        "fputs",
     },
     ("stdio.h", STDIO_MODULE)
 )
