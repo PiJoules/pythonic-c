@@ -167,6 +167,7 @@ class NameType(Node, TypeMixin):
     TYPE_NAME_CONVERSIONS = {
         "long": "long long",
         "uint": "unsigned int",
+        "uchar": "unsigned char",
     }
 
     def lines(self):
@@ -478,10 +479,10 @@ class Cast(Node, ValueMixin):
     }
 
     def lines(self):
-        yield "<{}>{}".format(self.target_type, self.expr)
+        yield "(<{}>{})".format(self.target_type, self.expr)
 
     def c_lines(self):
-        yield "({}){}".format(
+        yield "(({}){})".format(
             self.target_type.c_code(),
             self.expr.c_code()
         )

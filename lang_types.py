@@ -94,6 +94,7 @@ SHORT_TYPE = LangType("short")
 INT_TYPE = LangType("int")
 LONG_TYPE = LangType("long")
 
+UCHAR_TYPE = LangType("uchar")
 UINT_TYPE = LangType("uint")
 
 FLOAT_TYPE = LangType("float")

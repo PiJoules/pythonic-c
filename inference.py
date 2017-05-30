@@ -16,6 +16,7 @@ INIT_TYPES = frozenset((
     LONG_TYPE,
 
     # Unsigned
+    UCHAR_TYPE,
     UINT_TYPE,
 
     # Floating point

@@ -254,4 +254,23 @@ def main(argc: int, argv: char[][]):
         else:
             fputs("Error\n", stderr)
             exit(-1)
-            break
+            break 
+
+    """
+    Typecasting
+    """
+
+    # Cast to another type using < > (in C this is done with parenthesis)
+    x_val = 1
+    printf("%d\n", x_val)
+    printf("%d\n", <short> x_val)
+    printf("%d\n", <char> x_val)
+
+    # Types will overflow without warning
+    # char max == 255 if char is 8 bits long
+    assert(<uchar> 257 == 1)
+
+    # Integral types can be cast to floating point types and vice-versa
+    printf("%f\n", <float>100)  # %f formats a float
+    printf("%lf\n", <double>100)  # %lf formats a double
+    printf("%d\n", <char>100.0)

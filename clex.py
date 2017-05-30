@@ -349,7 +349,7 @@ class Lexer:
     ########### Token handlers ############
 
     def t_INT(self, t):
-        r'\d+(?!\.)'
+        r'\d+(?!\d*\.)'
         t.value = int(t.value)
         return t
 
