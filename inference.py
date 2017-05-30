@@ -686,19 +686,23 @@ class Inferer:
                     raise TypeError("Expected type {} for {}. Found {}.".format(expected_t, name, right_t))
                 return node
             else:
-                # If the right_t is an array, initialize this as a pointer
-                # unless it is an array literal
-                if isinstance(right_t, ArrayType):
-                    if right_t.contents == CHAR_TYPE:
-                        pass
-                    elif not isinstance(right, ArrayLiteral):
-                        right_t = PointerType(right_t.contents)
+                # The default type for the vardecl will be the type of the RHS
+                # Apply any necessary changes
+                assign_t = right_t
+
+                print(right_t, right)
+                if (isinstance(right_t, ArrayType) and
+                    not isinstance(right, ArrayLiteral) and
+                    not isinstance(right, Str)):
+                    # RHS is array type, but not an array literal -> assign as
+                    # pointer
+                    assign_t = PointerType(right_t.contents)
 
                 # First instance of this variable
                 # Change to a VarDecl
                 return self.check(VarDeclStmt(VarDecl(
                     name,
-                    self.langtype_to_typemixin(right_t),
+                    self.langtype_to_typemixin(assign_t),
                     right
                 )))
         elif isinstance(left, StructPointerDeref):

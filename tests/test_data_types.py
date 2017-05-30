@@ -20,19 +20,9 @@ long long x;
         char array."""
         code = "x = \"somestring\""
         ast = code_to_ast(code, infer=True)
-        dump_ast_trees([ast])
         self.assertEqual(
-            ast,
-            Module([
-                CInclude("stdlib.h"),
-                VarDeclStmt(
-                    VarDecl(
-                        "x",
-                        Array(NameType("char"), Int(11)),
-                        Str("somestring")
-                    )
-                )
-            ])
+            ast.c_code(),
+            "#include <stdlib.h>\nchar x[11] = \"somestring\";"
         )
 
 

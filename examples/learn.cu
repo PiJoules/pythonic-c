@@ -314,3 +314,5 @@ def main(argc: int, argv: char[][]):
 
     # Assign string 
     otherarr = "somestring"
+    ptr = otherarr 
+    printf("%s, %s\n", otherarr, ptr)
