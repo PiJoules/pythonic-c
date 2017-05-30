@@ -5,6 +5,12 @@ STDIO_MODULE = Module([
     Ifndef("_STDIO_H"),
     Define("_STDIO_H"),
 
+    # Variables
+
+    VarDeclStmt(VarDecl("stdin", Pointer(NameType("FILE")))),
+
+    # Functions
+
     # 22
     FuncDecl(
         "printf",
@@ -31,6 +37,10 @@ STDIO_MODULE = Module([
 
 STDIO_VARS = dict.fromkeys(
     {
+        # Variables
+        "stdin",
+
+        # Funcs
         "printf",
         "fscanf",
     },

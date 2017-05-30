@@ -86,6 +86,9 @@ class Lexer:
         # ++ -- &
         "INC", "DEC", "AMP",
 
+        # Fictitious tokens
+        "CAST",
+
         'ASSIGN',
         "ARROW",
         'LT',  # also used for casting

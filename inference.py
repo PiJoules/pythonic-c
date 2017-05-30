@@ -9,7 +9,7 @@ from assert_module import ASSERT_VARS
 import os
 
 
-INIT_TYPES = {
+INIT_TYPES = frozenset((
     CHAR_TYPE,
     SHORT_TYPE,
     INT_TYPE,
@@ -27,7 +27,10 @@ INIT_TYPES = {
     VOID_TYPE,
     VARARG_TYPE,
     FILE_TYPE,
-}
+))
+
+
+FLOATING_POINT_TYPES = frozenset((FLOAT_TYPE, DOUBLE_TYPE))
 
 
 BUILTIN_TYPES = {t.name: t for t in INIT_TYPES}
@@ -321,12 +324,19 @@ class Inferer:
         if isinstance(func, Name):
             if func.id == "sizeof":
                 # Make sure size_t exists first
+                # The arguments of sizeof are not evaluated
                 size_t = LangType("size_t")
                 return self.__builtin_type_check(size_t)
             else:
-                return self.lookup(func.id).returns
+                result = self.lookup(func.id).returns
         else:
             raise NotImplementedError("No logic yet implemented for inferring type for node {}".format(type(func)))
+
+        # Evaluate the args
+        for arg in node.args:
+            self.infer(arg)
+
+        return result
 
     def infer_Int(self, node):
         return INT_TYPE
@@ -372,6 +382,8 @@ class Inferer:
             types = (t1, t2)
             if t1.name == "void" or t2.name == "void":
                 raise RuntimeError("Cannot add to void type")
+            elif t1.name == "double" or t2.name == "double":
+                return DOUBLE_TYPE
             elif t1.name == "float" or t2.name == "float":
                 return FLOAT_TYPE
             elif t1.name == "uint" or t2.name == "uint":
@@ -386,6 +398,8 @@ class Inferer:
                 return __pointer_offset(right_t, left_t)
             else:
                 return __dominant_base_type(left_t, right_t)
+        elif op == "/":
+            return __dominant_base_type(left_t, right_t)
         else:
             raise RuntimeError("Unable to infer for binary operation '{}'".format(op))
 
@@ -423,6 +437,31 @@ class Inferer:
 
         return value_t.contents
 
+    def infer_Str(self, node):
+        if isinstance(node, Str):
+            return ArrayType(CHAR_TYPE, Int(len(node.s) + 1))  # +1 for the null char
+        else:
+            return PointerType(CHAR_TYPE)
+
+    def infer_AddressOf(self, node):
+        return PointerType(VOID_TYPE)
+
+    def infer_Compare(self, node):
+        return INT_TYPE
+
+    def infer_UnaryOp(self, node):
+        op = node.op
+        if isinstance(op, (UAdd, USub)):
+            return self.infer(node.value)
+        elif isinstance(op, Not):
+            return INT_TYPE
+        elif isinstance(op, Invert):
+            value_t = self.infer(node.value)
+            if not can_implicit_assign(INT_TYPE, self.__exhaust_typedef_chain(value_t)):
+                raise TypeError("Invert operation cannot be performed on '{}' since it is of type '{}' and inversion expects an int type.".format(node.value, value_t))
+            return INIT_TYPE
+        else:
+            raise RuntimeError("Unknown UnaryOperator '{}'".format(op))
 
     ######## Node checking ###########
 
@@ -537,6 +576,7 @@ class Inferer:
                 if len(expected_func_t.args) == 1:
                     raise RuntimeError("Expected 1 argument before Ellipsis")
 
+                # Check for only 1 vararg
                 for i in range(len(expected_func_t.args)-1, -1, -1):
                     if expected_func_t.args[i].name == "vararg":
                         raise RuntimeError("Expected only 1 Ellipsis in function")

@@ -6,12 +6,12 @@ from lang_ast import *
 class Parser:
     # TODO: Fix the order of this later
     precedence = (
-        ("left", "EQ", "NE", "GT", "LT"),
-        ("left", "PLUS", "MINUS"),
-        ("left", "MULT", "DIV"),
-        ("left", "NOT"),
-        ("right", "AMP"),
-        ("left", "ARROW", "INC", "DEC"),
+        ("left", "EQ", "NE"),  # 7
+        ("left", "GT", "LT"),  # 6
+        ("left", "PLUS", "MINUS"),  # 4
+        ("left", "MULT", "DIV"),  # 3
+        ("right", "AMP", "NOT", "CAST"),  # 2
+        ("left", "ARROW", "INC", "DEC"),  # 1
     )
 
     ########### Parser interface #############
@@ -474,7 +474,7 @@ class Parser:
         p[0] = p[2]
 
     def p_comparison_cast(self, p):
-        "expr : LT type_declaration GT expr"
+        "expr : LT type_declaration GT expr %prec CAST"
         p[0] = Cast(p[2], p[4])
 
     def p_comparison_deref(self, p):
@@ -482,11 +482,11 @@ class Parser:
         p[0] = Deref(p[2])
 
     def p_comparison_uadd(self, p):
-        """expr : PLUS expr"""
+        "expr : PLUS expr"
         p[0] = UnaryOp(UAdd(), p[2])
 
     def p_comparison_usub(self, p):
-        """expr : MINUS expr"""
+        "expr : MINUS expr"
         p[0] = UnaryOp(USub(), p[2])
 
     def p_post_inc(self, p):
@@ -502,11 +502,11 @@ class Parser:
         p[0] = UnaryOp(Not(), p[2])
 
     def p_null(self, p):
-        "expr : NULL"
+        "atom : NULL"
         p[0] = Null()
 
     def p_power_1(self, p):
-        """power : atom"""
+        "power : atom"
         p[0] = p[1]
 
     def p_power_2(self, p):
@@ -530,23 +530,23 @@ class Parser:
         p[0] = AddressOf(p[2])
 
     def p_atom_name(self, p):
-        """atom : NAME"""
+        "atom : NAME"
         p[0] = Name(p[1])
 
     def p_atom_int(self, p):
-        """expr : INT"""
+        "atom : INT"
         p[0] = Int(p[1])
 
     def p_atom_float(self, p):
-        """expr : FLOAT"""
+        "atom : FLOAT"
         p[0] = Float(p[1])
 
     def p_atom_str(self, p):
-        """expr : STRING"""
+        "atom : STRING"
         p[0] = Str(p[1])
 
     def p_atom_char(self, p):
-        "expr : CHAR"
+        "atom : CHAR"
         p[0] = Char(p[1])
 
     def p_atom_array_empty(self, p):
@@ -588,5 +588,6 @@ class Parser:
 
     def p_error(self, p):
         raise SyntaxError("Unexpected symbol '{}' at ({}, {})".format(
-            p.value[0], p.lineno, find_column(p)
+            p.value[0] if isinstance(p.value, str) else p.value,
+            p.lineno, find_column(p)
         ))

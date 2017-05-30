@@ -770,17 +770,27 @@ class Compare(BinOp, ValueMixin):
     pass
 
 
-class UAdd(Node):
+class UnaryOperator(Node):
+    pass
+
+
+class UAdd(UnaryOperator):
     def lines(self):
         yield "+"
 
+    def ic_lines(self):
+        yield "+"
 
-class USub(Node):
+
+class USub(UnaryOperator):
     def lines(self):
         yield "-"
 
+    def c_lines(self):
+        yield "-"
 
-class Not(Node):
+
+class Not(UnaryOperator):
     def lines(self):
         yield "not"
 
@@ -788,13 +798,20 @@ class Not(Node):
         yield "!"
 
 
-class Invert(Node):
+class Invert(UnaryOperator):
     def lines(self):
+        yield "~"
+
+    def c_lines(self):
         yield "~"
 
 
 class UnaryOp(Node, ValueMixin):
     __slots__ = ("op", "value")
+    __types__ = {
+        "value": ValueMixin,
+        "op": UnaryOperator,
+    }
 
     def lines(self):
         if isinstance(self.op, Not):

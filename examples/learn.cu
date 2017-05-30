@@ -126,3 +126,42 @@ def main(argc: int, argv: char[][]):
     fscanf(stdin, "%d", &array_size)
     var_length_array: int[array_size]
     printf("sizeof(var_length_array) in bytes: %zu\n", sizeof(var_length_array))
+
+    # Strings are arrays of chars terminated by a NULL character (0x00)
+    # String literals already include the null character bu default.
+    a_string = "This is a string"
+    printf("%s\n", a_string)
+    printf("%d\n", a_string[16])
+
+    # Multidimensional arrays 
+    multi_array = [
+        [1, 2, 3, 4, 5],
+        [6, 7, 8, 9, 10]
+    ]
+
+    # Access elements 
+    array_int = multi_array[0][2]
+    printf("%d\n", array_int)  # 3 
+
+    """
+    Operators
+    """
+
+    # Arithmetic is straightforward
+    # Testing using the assert function
+    i1 = 1 
+    i2 = 2 
+    f1 = 1.0 
+    f2 = 2.0 
+
+    assert(i1 + i2 == 3)
+    assert(i2 - i1 == 1)
+    assert(i2 * i1 == 2)
+    assert(i1 / i2 == 0)  # Floor/integer division 
+
+    # You need to cast at least one integer to get a floating point result 
+    # Casting is done with < and >
+    x_cast1 = <float> i1 / i2
+    printf("Should be 0.5: %f\n", x_cast1)  # 0.5
+    printf("Should also be 0.5: %f\n", i1 / <double> i2)
+    printf("Should also be 0.5: %f\n", f1 / f2)

@@ -27,6 +27,12 @@ class SlottedClassChecker(type):
         cls.__slots__ = namespace.get("__slots__", tuple())
         cls.__types__ = namespace.get("__types__", {})
         cls.__defaults__ = namespace.get("__defaults__", {})
+
+        # Check types
+        assert isinstance(cls.__slots__, tuple)
+        assert isinstance(cls.__types__, dict)
+        assert isinstance(cls.__defaults__, dict)
+
         for base in bases:
             slots = getattr(base, "__slots__", tuple())
             cls.__slots__ = slots + cls.__slots__
