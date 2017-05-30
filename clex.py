@@ -63,6 +63,10 @@ class Lexer:
         "struct": "STRUCT",
         "typedef": "TYPEDEF",
 
+        # Operators
+        "and": "AND",
+        "or": "OR",
+
         # Constants
         "NULL": "NULL",
     }
@@ -77,22 +81,23 @@ class Lexer:
         # ( ) [ ] { }
         'LPAR', 'RPAR', "LBRACKET", "RBRACKET", "LBRACE", "RBRACE",
 
-        'COLON',
-
         # Binary ops
-        'EQ', "NE",
+        "MOD",
+
+        # Comparison bin ops
+        # LT and GT are also used for casts
+        # == != < >
+        "EQ", "NE", "LT", "GT", "LE", "GE",
 
         # Unary ops
         # ++ -- &
         "INC", "DEC", "AMP",
 
         # Fictitious tokens
-        "CAST",
+        "CAST", "PREINC", "PREDEC", "POSTINC", "POSTDEC",
 
         'ASSIGN',
         "ARROW",
-        'LT',  # also used for casting
-        'GT',
         'PLUS',
         'MINUS',
         'MULT',
@@ -103,6 +108,9 @@ class Lexer:
         'INDENT',
         'DEDENT',
         "ELLIPSIS",
+
+        # Misc
+        'COLON',
     ) + tuple(RESERVED.values())
 
     # This line is necessary until the version of ply that comes out contains the
@@ -114,6 +122,15 @@ class Lexer:
     # on the random ordering of keys in the dictionary of reserved words.
     # This line preserves that order.
     tokens = sorted(tokens)
+
+    # Bin ops
+    t_MOD = r"\%"
+    t_AND = r"and"
+    t_OR = r"or"
+
+    # Comparison ops
+    t_LE = r"<="
+    t_GE = r">="
 
     t_COLON = r':'
     t_EQ = r'=='

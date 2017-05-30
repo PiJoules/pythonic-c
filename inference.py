@@ -391,15 +391,28 @@ class Inferer:
             else:
                 return INT_TYPE
 
-        if op == "+":
+        if op == "+" or op == "-":
             if isinstance(left_t, Pointer):
                 return __pointer_offset(left_t, right_t)
             elif isinstance(right_t, Pointer):
                 return __pointer_offset(right_t, left_t)
             else:
                 return __dominant_base_type(left_t, right_t)
-        elif op == "/":
+        elif op == "/" or op == "*":
             return __dominant_base_type(left_t, right_t)
+        elif op == "%":
+            # Both operands must be int like types
+            final_left_t = self.__exhaust_typedef_chain(left_t)
+            if not can_implicit_assign(INT_TYPE, final_left_t):
+                raise TypeError("Int like types are required for modulo. Found {} for LHS of {}.".format(left_t, node))
+
+            final_right_t = self.__exhaust_typedef_chain(right_t)
+            if not can_implicit_assign(INT_TYPE, final_right_t):
+                raise TypeError("Int like types are required for modulo. Found {} for RHS of {}.".format(right_t, node))
+
+            return INT_TYPE
+        elif op == "and" or op == "or":
+            return INT_TYPE
         else:
             raise RuntimeError("Unable to infer for binary operation '{}'".format(op))
 
@@ -407,6 +420,12 @@ class Inferer:
         return self.infer(node.value)
 
     def infer_PostDec(self, node):
+        return self.infer(node.value)
+
+    def infer_PreInc(self, node):
+        return self.infer(node.value)
+
+    def infer_PreDec(self, node):
         return self.infer(node.value)
 
     def infer_Char(self, node):
@@ -447,6 +466,8 @@ class Inferer:
         return PointerType(VOID_TYPE)
 
     def infer_Compare(self, node):
+        self.infer(node.left)
+        self.infer(node.right)
         return INT_TYPE
 
     def infer_UnaryOp(self, node):

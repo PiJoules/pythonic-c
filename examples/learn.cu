@@ -165,3 +165,42 @@ def main(argc: int, argv: char[][]):
     printf("Should be 0.5: %f\n", x_cast1)  # 0.5
     printf("Should also be 0.5: %f\n", i1 / <double> i2)
     printf("Should also be 0.5: %f\n", f1 / f2)
+
+    # Modulo exists as well
+    assert(11 % 3 == 2)
+
+    # Comparison operators return ints where 0 is trated as False 
+    # and anything else is True
+    assert((3 == 2) == 0)
+    assert((3 != 2) == 1)
+    assert(3 > 2)
+    assert(not (3 < 2))
+    assert(2 <= 2)
+    assert(2 >= 2)
+
+    # This is also not Python (yet...) - comparisons don't chain 
+    # The line below evaluates to is treated as (7 > 6) > 5 
+    # which simplifies to 1 > 5 which is False 
+    a = 6 
+    between_7_and_5 = 7 > a > 5
+    assert(not between_7_and_5)
+
+    # Instead chain using 'and'
+    between_7_and_5 = 7 > a and a > 5
+    assert(between_7_and_5)
+
+    # Logic works on ints 
+    assert(not 3 == 0)
+    assert(not 0 == 1)
+    assert(1 and 1)
+    assert(not (0 and 1))
+    assert(0 or 1)
+    assert(not (0 or 0))
+
+    # Increment and decrement operators
+    j = 0 
+    s = j++  # Return j THEN increase j
+    assert(s == 0)
+    assert(j == 1)
+
+    s = --j  # Decrement j THEN return j 

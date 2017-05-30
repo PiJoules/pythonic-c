@@ -4,14 +4,16 @@ from lang_ast import *
 
 
 class Parser:
-    # TODO: Fix the order of this later
+    # Note: High precedence last, low precedence first
     precedence = (
+        ("left", "OR"),  # 12
+        ("left", "AND"),  # 11
         ("left", "EQ", "NE"),  # 7
-        ("left", "GT", "LT"),  # 6
+        ("left", "GT", "LT", "LE", "GE"),  # 6
         ("left", "PLUS", "MINUS"),  # 4
-        ("left", "MULT", "DIV"),  # 3
-        ("right", "AMP", "NOT", "CAST"),  # 2
-        ("left", "ARROW", "INC", "DEC"),  # 1
+        ("left", "MULT", "DIV", "MOD"),  # 3
+        ("right", "AMP", "NOT", "CAST", "PREINC", "PREDEC"),  # 2
+        ("left", "ARROW", "POSTINC", "POSTDEC"),  # 1
     )
 
     ########### Parser interface #############
@@ -441,6 +443,10 @@ class Parser:
         "expr : expr MULT expr"
         p[0] = BinOp(p[1], "*", p[3])
 
+    def p_mod_expr(self, p):
+        "expr : expr MOD expr"
+        p[0] = BinOp(p[1], "%", p[3])
+
     def p_div_expr(self, p):
         "expr : expr DIV expr"
         p[0] = BinOp(p[1], "/", p[3])
@@ -456,6 +462,22 @@ class Parser:
     def p_gt_expr(self, p):
         "expr : expr GT expr"
         p[0] = Compare(p[1], ">", p[3])
+
+    def p_le_expr(self, p):
+        "expr : expr LE expr"
+        p[0] = Compare(p[1], "<=", p[3])
+
+    def p_ge_expr(self, p):
+        "expr : expr GE expr"
+        p[0] = Compare(p[1], ">=", p[3])
+
+    def p_and_expr(self, p):
+        "expr : expr AND expr"
+        p[0] = BinOp(p[1], "and", p[3])
+
+    def p_or_expr(self, p):
+        "expr : expr OR expr"
+        p[0] = BinOp(p[1], "or", p[3])
 
     def p_comparison_power(self, p):
         "expr : power"
@@ -489,13 +511,25 @@ class Parser:
         "expr : MINUS expr"
         p[0] = UnaryOp(USub(), p[2])
 
+    # Post inc/decrement
+
     def p_post_inc(self, p):
-        "expr : expr INC"
+        "expr : expr INC %prec POSTINC"
         p[0] = PostInc(p[1])
 
     def p_post_dec(self, p):
-        "expr : expr DEC"
+        "expr : expr DEC %prec POSTDEC"
         p[0] = PostDec(p[1])
+
+    # Pre inc/decrement
+
+    def p_pre_inc(self, p):
+        "expr : INC expr %prec PREINC"
+        p[0] = PreInc(p[2])
+
+    def p_pre_dec(self, p):
+        "expr : DEC expr %prec PREDEC"
+        p[0] = PreDec(p[2])
 
     def p_comparison_not(self, p):
         "expr : NOT expr"
@@ -588,6 +622,6 @@ class Parser:
 
     def p_error(self, p):
         raise SyntaxError("Unexpected symbol '{}' at ({}, {})".format(
-            p.value[0] if isinstance(p.value, str) else p.value,
+            p.value,
             p.lineno, find_column(p)
         ))

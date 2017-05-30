@@ -751,6 +751,7 @@ class Default(Node):
                 yield INDENT + line
 
 
+# TODO: Make the operators Nodes instead of strings
 class BinOp(Node, ValueMixin):
     __slots__ = ("left", "op", "right")
     __types__ = {
@@ -763,7 +764,14 @@ class BinOp(Node, ValueMixin):
         yield "({} {} {})".format(self.left, self.op, self.right)
 
     def c_lines(self):
-        yield "({} {} {})".format(self.left.c_code(), self.op, self.right.c_code())
+        op = self.op
+
+        if op == "and":
+            op = "&&"
+        elif op == "or":
+            op = "||"
+
+        yield "({} {} {})".format(self.left.c_code(), op, self.right.c_code())
 
 
 class Compare(BinOp, ValueMixin):
@@ -843,6 +851,28 @@ class PostDec(Node, ValueMixin):
 
     def c_lines(self):
         yield "{}--".format(self.value.c_code())
+
+
+class PreInc(Node, ValueMixin):
+    __slots__ = ("value", )
+    __types__ = {"value": ValueMixin}
+
+    def lines(self):
+        yield "++{}".format(self.value)
+
+    def c_lines(self):
+        yield "++{}".format(self.value.c_code())
+
+
+class PreDec(Node, ValueMixin):
+    __slots__ = ("value", )
+    __types__ = {"value": ValueMixin}
+
+    def lines(self):
+        yield "--{}".format(self.value)
+
+    def c_lines(self):
+        yield "--{}".format(self.value.c_code())
 
 
 class Call(Node, ValueMixin):
