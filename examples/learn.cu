@@ -142,6 +142,7 @@ def main(argc: int, argv: char[][]):
     # Access elements 
     array_int = multi_array[0][2]
     printf("%d\n", array_int)  # 3 
+    assert(9 == multi_array[1][2] + 1)
 
     """
     Operators
@@ -319,3 +320,31 @@ def main(argc: int, argv: char[][]):
 
     # Pointers are incremented based on their type 
     assert(*(ptr + 1) == ptr[1])
+
+    # You can dynamically allocate memory with malloc, which takes one 
+    # argument of size_t representing the number of bytes to allocate.
+    my_ptr = <int[]> malloc(sizeof(int) * 3)
+
+    # Because malloc returns a void pointer, not specifying the type 
+    # during initial assignment will cause my_ptr to be inferred as a 
+    # void pointer. Casting it as an int pointer, or specifying the 
+    # variable type creates a pointer of that type.
+    # my_ptr: int[] = malloc(sizeof(int) * 3)  works also
+
+    # Assign to malloc'd space
+    my_ptr[0] = 1 
+    my_ptr[1] = 2 
+    my_ptr[2] = 3 
+    assert(my_ptr[0] + my_ptr[1] == my_ptr[2])
+
+    # Always remember to free malloc'd memory 
+    free(my_ptr)
+
+    # Call a function
+    #function_1()
+
+    # End of main function 
+
+
+def add_two_ints(x1, x2):
+    return x1 + x2

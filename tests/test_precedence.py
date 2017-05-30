@@ -63,8 +63,8 @@ class TestPrecedence(unittest.TestCase):
             ])
         )
 
-    def test_array_index(self):
-        """Test indexing an array takes highest precedence."""
+    def test_equality_precedence(self):
+        """Test addition takes higher equality over equality."""
         code = "1 == 2 + 3"
         ast = code_to_ast(code)
         self.assertEqual(
@@ -80,6 +80,8 @@ class TestPrecedence(unittest.TestCase):
             ])
         )
 
+    def test_array_index2(self):
+        """Test indexing an array takes highest precedence."""
         code = "x[1] == x+1"
         ast = code_to_ast(code)
         self.assertEqual(
@@ -110,8 +112,6 @@ class TestPrecedence(unittest.TestCase):
             ])
         )
 
-
-    def test_array_index2(self):
         code = "x+x[1]"
         ast = code_to_ast(code)
         self.assertEqual(
@@ -125,6 +125,35 @@ class TestPrecedence(unittest.TestCase):
                     )
                 )
             ])
+        )
+
+    def test_multi_dimensional_array(self):
+        """Test the precedence for accessing multiple dimenional array."""
+        code = """
+x = [
+    [1, 2, 3],
+    [4, 5, 6]
+]
+6 == x[1][1] + 1
+        """.strip()
+        ast = code_to_ast(code, infer=True)
+        dump_ast_trees([ast])
+        self.assertEqual(
+            ast.body[-1],
+            ExprStmt(
+                Compare(
+                    Int(6),
+                    "==",
+                    BinOp(
+                        Index(
+                            Index(Name("x"), Int(1)),
+                            Int(1)
+                        ),
+                        "+",
+                        Int(1)
+                    )
+                )
+            )
         )
 
 

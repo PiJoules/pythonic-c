@@ -641,6 +641,10 @@ class Parser:
         "array_contents : array_contents COMMA expr"
         p[0] = p[1] + [p[3]]
 
+    def p_array_litral_contents_3(self, p):
+        "array_contents : array_contents COMMA"
+        p[0] = p[1]
+
     """
     Arguments when calling a function.
 

@@ -12,7 +12,7 @@ STDLIB_MODULE = Module([
         [
             VarDecl("size", NameType("size_t")),
         ],
-        NameType("void")
+        Pointer(NameType("void"))
     ),
 
     FuncDecl(

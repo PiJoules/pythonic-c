@@ -688,7 +688,6 @@ class Inferer:
                 # Apply any necessary changes
                 assign_t = right_t
 
-                print(right_t, right)
                 if (isinstance(right_t, ArrayType) and
                     not isinstance(right, ArrayLiteral) and
                     not isinstance(right, Str)):
