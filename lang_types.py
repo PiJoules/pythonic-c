@@ -109,7 +109,7 @@ FILE_TYPE = LangType("FILE")
 
 def can_implicit_assign(target_t, value_t):
     """Check if the value type can be implicitely assigned to the target
-    type.
+    type. This is primarily for the base types and not pointers.
 
     Example:
     x: int = 'y'
@@ -118,10 +118,6 @@ def can_implicit_assign(target_t, value_t):
     int type
     """
     if target_t == value_t:
-        return True
-
-    # Null to pointer
-    if isinstance(target_t, PointerType) and value_t == NULL_TYPE:
         return True
 
     return (target_t, value_t) in {

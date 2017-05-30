@@ -660,12 +660,12 @@ switch (x){
         )
         self.assertEqual(
             str(ast),
-            code.strip()
+            "(*x)"
         )
         self.assertEqual(
             ast.c_code(),
             """
-*x;
+(*x);
             """.strip()
         )
 

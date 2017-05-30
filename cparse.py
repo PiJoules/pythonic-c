@@ -16,7 +16,8 @@ class Parser:
         ("left", "LSHIFT", "RSHIFT"),  # 5
         ("left", "PLUS", "MINUS"),  # 4
         ("left", "MULT", "DIV", "MOD"),  # 3
-        ("right", "ADDROF", "NOT", "CAST", "PREINC", "PREDEC", "INV"),  # 2
+        ("right", "ADDROF", "NOT", "CAST", "PREINC", "PREDEC", "INV",
+                  "DEREF"),  # 2
         ("left", "ARROW", "POSTINC", "POSTDEC"),  # 1
     )
 
@@ -527,7 +528,7 @@ class Parser:
         p[0] = Cast(p[2], p[4])
 
     def p_comparison_deref(self, p):
-        "expr : MULT expr"
+        "expr : MULT expr %prec DEREF"
         p[0] = Deref(p[2])
 
     def p_comparison_uadd(self, p):

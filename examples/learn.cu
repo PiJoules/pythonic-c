@@ -274,3 +274,43 @@ def main(argc: int, argv: char[][]):
     printf("%f\n", <float>100)  # %f formats a float
     printf("%lf\n", <double>100)  # %lf formats a double
     printf("%d\n", <char>100.0)
+
+    """
+    Pointers
+    """
+
+    # A pointer is a variable declared to store a memory address. Its declaration will
+    # also tell you the type of data it points to. You can retrieve the memory address
+    # of your variables, then mess with them.
+
+    x = 5
+    printf("%p\n", <void[]>&x)  # Use & to retrieve the address of a variable 
+
+    # Pointers are declared with empty brackets ([]),
+    # similar to an array declaration, but without a size 
+    px: int[] = &x
+    not_a_pointer: int 
+    printf("%p\n", <void[]> px)  # Print some address in memory
+    printf("pointer size: %zu, int size: %zu\n", sizeof(px), sizeof(not_a_pointer))
+
+    # To retrive the value at the address a pointer points to,
+    # dereference it using '*'
+    assert(*px == 5)
+
+    # The pointer value can be changed 
+    px_cpy = px
+    (*px)++
+    assert(*px == 6)
+    assert(px == px_cpy)
+
+    # Arrays allocate a continuous block of memory 
+    x_array = [1, 2, 3, 4, 5]
+    
+    # Declare a pointer an initialize it to x_array 
+    x_ptr = x_array 
+
+    # x_ptr now points to the first element of x_array (1)
+    assert(*x_ptr == 1)
+
+    # Assign string 
+    otherarr = "somestring"

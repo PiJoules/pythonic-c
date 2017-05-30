@@ -231,6 +231,9 @@ class Inferer:
         Given a LangType, traverse the known types until we hit a value of None,
         indicating the type used as a key is a base type.
         """
+        if isinstance(typedef_t, (PointerType, ArrayType)):
+            return typedef_t
+
         actual_t = self.__types[typedef_t]
         while actual_t is not None:
             # Actual is another typedef
@@ -308,6 +311,7 @@ class Inferer:
         return self.__call_node_method(node, "infer", expected=LangType)
 
     def infer_Cast(self, node):
+        self.infer(node.expr)
         t = self.typemixin_to_langtype(node.target_type)
         self.assert_type_exists(t)
         return t
@@ -486,6 +490,21 @@ class Inferer:
             return INT_TYPE
         else:
             raise RuntimeError("Unknown UnaryOperator '{}'".format(op))
+
+    def infer_Deref(self, node):
+        value = node.value
+        value_t = self.infer(value)
+        final_value_t = self.__exhaust_typedef_chain(value_t)
+
+        if not isinstance(final_value_t, PointerType):
+            raise TypeError("Attempting to dereference {} which is of type {} and not a pointer.".forma(value, final_value_t))
+
+        contents_t = final_value_t.contents
+        final_contents_t = self.__exhaust_typedef_chain(contents_t)
+        if contents_t == VOID_TYPE:
+            raise TypeError("Cannot derefernce a void pointer ({})".format(value))
+
+        return contents_t
 
     ######## Node checking ###########
 
@@ -667,6 +686,14 @@ class Inferer:
                     raise TypeError("Expected type {} for {}. Found {}.".format(expected_t, name, right_t))
                 return node
             else:
+                # If the right_t is an array, initialize this as a pointer
+                # unless it is an array literal
+                if isinstance(right_t, ArrayType):
+                    if right_t.contents == CHAR_TYPE:
+                        pass
+                    elif not isinstance(right, ArrayLiteral):
+                        right_t = PointerType(right_t.contents)
+
                 # First instance of this variable
                 # Change to a VarDecl
                 return self.check(VarDeclStmt(VarDecl(
@@ -729,6 +756,17 @@ class Inferer:
         # Array literals to arrays of anything
         if isinstance(value_node, ArrayLiteral):
             return isinstance(expected_t, ArrayType)
+
+        if isinstance(value_t, ArrayType):
+            return isinstance(expected_t, PointerType)
+
+        # Null to pointer
+        if isinstance(expected_t, PointerType) and value_t == NULL_TYPE:
+            return True
+
+        # Void pointer to any pointer
+        if isinstance(expected_t, PointerType) and value_t == PointerType(VOID_TYPE):
+            return True
 
         if expected_t != value_t and not self.__can_implicit_cast(expected_t, value_t):
             raise TypeError("Expected type {} for {}. Could not implicitely assign {} to {}.".format(expected_t, varname, value_t, expected_t))

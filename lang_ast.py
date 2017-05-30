@@ -439,12 +439,13 @@ class Pointer(Node, TypeMixin):
 
 class Deref(Node, ValueMixin):
     __slots__ = ("value", )
+    __types__ = {"value": ValueMixin}
 
     def lines(self):
-        yield "*{}".format(self.value)
+        yield "(*{})".format(self.value)
 
     def c_lines(self):
-        yield "*{}".format(self.value.c_code())
+        yield "(*{})".format(self.value.c_code())
 
 
 class StructPointerDeref(Node, ValueMixin):
@@ -476,6 +477,7 @@ class Cast(Node, ValueMixin):
     __slots__ = ("target_type", "expr")
     __types__ = {
         "target_type": TypeMixin,
+        "expr": ValueMixin,
     }
 
     def lines(self):
