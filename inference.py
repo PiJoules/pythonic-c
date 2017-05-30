@@ -357,6 +357,7 @@ class Inferer:
         assert isinstance(struct_t, StructType)
         return struct_t.members[member]
 
+    # TODO: Clean this up and also take into account typedef chains
     def infer_BinOp(self, node):
         left = node.left
         right = node.right
@@ -400,7 +401,8 @@ class Inferer:
                 return __dominant_base_type(left_t, right_t)
         elif op == "/" or op == "*":
             return __dominant_base_type(left_t, right_t)
-        elif op == "%":
+        elif (op == "%" or op == "&" or op == "|" or op == "^" or op == "<<" or
+              op == ">>"):
             # Both operands must be int like types
             final_left_t = self.__exhaust_typedef_chain(left_t)
             if not can_implicit_assign(INT_TYPE, final_left_t):
@@ -480,7 +482,7 @@ class Inferer:
             value_t = self.infer(node.value)
             if not can_implicit_assign(INT_TYPE, self.__exhaust_typedef_chain(value_t)):
                 raise TypeError("Invert operation cannot be performed on '{}' since it is of type '{}' and inversion expects an int type.".format(node.value, value_t))
-            return INIT_TYPE
+            return INT_TYPE
         else:
             raise RuntimeError("Unknown UnaryOperator '{}'".format(op))
 

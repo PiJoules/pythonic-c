@@ -82,7 +82,8 @@ class Lexer:
         'LPAR', 'RPAR', "LBRACKET", "RBRACKET", "LBRACE", "RBRACE",
 
         # Binary ops
-        "MOD",
+        # % << >>
+        "MOD", "LSHIFT", "RSHIFT",
 
         # Comparison bin ops
         # LT and GT are also used for casts
@@ -90,11 +91,12 @@ class Lexer:
         "EQ", "NE", "LT", "GT", "LE", "GE",
 
         # Unary ops
-        # ++ -- &
-        "INC", "DEC", "AMP",
+        # ++ -- & ~
+        "INC", "DEC", "AMP", "INV",
 
         # Fictitious tokens
-        "CAST", "PREINC", "PREDEC", "POSTINC", "POSTDEC",
+        "CAST", "PREINC", "PREDEC", "POSTINC", "POSTDEC", "ADDROF",
+        "BITAND", "BITOR", "XOR",
 
         'ASSIGN',
         "ARROW",
@@ -110,7 +112,7 @@ class Lexer:
         "ELLIPSIS",
 
         # Misc
-        'COLON',
+        'COLON', "CARROT", "PIPE",
     ) + tuple(RESERVED.values())
 
     # This line is necessary until the version of ply that comes out contains the
@@ -127,10 +129,18 @@ class Lexer:
     t_MOD = r"\%"
     t_AND = r"and"
     t_OR = r"or"
+    t_LSHIFT = r"<<"
+    t_RSHIFT = r">>"
 
     # Comparison ops
     t_LE = r"<="
     t_GE = r">="
+
+    # Unary ops
+    t_INC = r"\+\+"
+    t_DEC = r"--"
+    t_AMP = r"\&"
+    t_INV = r"~"
 
     t_COLON = r':'
     t_EQ = r'=='
@@ -147,10 +157,8 @@ class Lexer:
 
     t_NULL = r"NULL"
 
-    t_INC = r"\+\+"
-    t_DEC = r"--"
-    t_AMP = r"\&"
-
+    t_PIPE = r"\|"
+    t_CARROT = r"\^"
     t_ELLIPSIS = r"\.\.\."
 
 

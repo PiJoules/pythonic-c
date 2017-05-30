@@ -8,11 +8,15 @@ class Parser:
     precedence = (
         ("left", "OR"),  # 12
         ("left", "AND"),  # 11
+        ("left", "BITOR"),  # 10
+        ("left", "XOR"),  # 9
+        ("left", "BITAND"),  # 8
         ("left", "EQ", "NE"),  # 7
         ("left", "GT", "LT", "LE", "GE"),  # 6
+        ("left", "LSHIFT", "RSHIFT"),  # 5
         ("left", "PLUS", "MINUS"),  # 4
         ("left", "MULT", "DIV", "MOD"),  # 3
-        ("right", "AMP", "NOT", "CAST", "PREINC", "PREDEC"),  # 2
+        ("right", "ADDROF", "NOT", "CAST", "PREINC", "PREDEC", "INV"),  # 2
         ("left", "ARROW", "POSTINC", "POSTDEC"),  # 1
     )
 
@@ -479,6 +483,28 @@ class Parser:
         "expr : expr OR expr"
         p[0] = BinOp(p[1], "or", p[3])
 
+    # Bitwise operations
+
+    def p_bitand_expr(self, p):
+        "expr : expr AMP expr %prec BITAND"
+        p[0] = BinOp(p[1], "&", p[3])
+
+    def p_bitor_expr(self, p):
+        "expr : expr PIPE expr %prec BITOR"
+        p[0] = BinOp(p[1], "|", p[3])
+
+    def p_xor_expr(self, p):
+        "expr : expr CARROT expr %prec XOR"
+        p[0] = BinOp(p[1], "^", p[3])
+
+    def p_lshift_expr(self, p):
+        "expr : expr LSHIFT expr"
+        p[0] = BinOp(p[1], "<<", p[3])
+
+    def p_rshift_expr(self, p):
+        "expr : expr RSHIFT expr"
+        p[0] = BinOp(p[1], ">>", p[3])
+
     def p_comparison_power(self, p):
         "expr : power"
         p[0] = p[1]
@@ -535,6 +561,10 @@ class Parser:
         "expr : NOT expr"
         p[0] = UnaryOp(Not(), p[2])
 
+    def p_inv_expr(self, p):
+        "expr : INV expr"
+        p[0] = UnaryOp(Invert(), p[2])
+
     def p_null(self, p):
         "atom : NULL"
         p[0] = Null()
@@ -560,7 +590,7 @@ class Parser:
     # Address of
 
     def p_address_of(self, p):
-        "expr : AMP expr"
+        "expr : AMP expr %prec ADDROF"
         p[0] = AddressOf(p[2])
 
     def p_atom_name(self, p):

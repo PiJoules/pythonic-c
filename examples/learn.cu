@@ -204,3 +204,13 @@ def main(argc: int, argv: char[][]):
     assert(j == 1)
 
     s = --j  # Decrement j THEN return j 
+    assert(s == 0)
+    assert(j == 0)
+
+    # Bitwise operators
+    assert(~15 == -16)  # Bitwise negation/1's complement
+    assert((2 & 3) == 2)  # Bitwise and 
+    assert((2 | 3) == 3)  # Bitwise or
+    assert((2 ^ 3) == 1)  # Bitwise xor 
+    assert(1 << 1 == 2)  # Bitwise left shift 1
+    assert(4 >> 1 == 2)  # Bitwise right shift 1
