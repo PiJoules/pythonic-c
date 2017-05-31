@@ -324,7 +324,7 @@ class Parser:
         p[0] = Include(Str(p[2]))
 
     def p_expr_stmt(self, p):
-        """expr_stmt : expr"""
+        "expr_stmt : expr"
         p[0] = ExprStmt(p[1])
 
     # LHS is expr b/c nearly anything can be assigned to

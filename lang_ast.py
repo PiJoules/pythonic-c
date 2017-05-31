@@ -1,8 +1,5 @@
 from file_conversion import to_c_file
-from lang_utils import *
-
-import os
-
+from lang_utils import SlottedClass, optional
 
 INDENT = "    "
 
@@ -15,15 +12,11 @@ class ValueMixin:
     """Mixin to indicate this node represents a value."""
 
 
-class NodeChecker(SlottedClassChecker):
-    def __init__(cls, *args):
-        super().__init__(*args)
-
-        #assert "lines" in cls.__dict__
-        #assert "c_lines" in cls.__dict__
+class StmtMixin:
+    """Mixin to indicate this node represents a statement."""
 
 
-class Node(SlottedClass, metaclass=NodeChecker):
+class Node(SlottedClass):
     def lines(self):
         """
         Yields strings representing each line in the textual representation
@@ -42,16 +35,6 @@ class Node(SlottedClass, metaclass=NodeChecker):
 
     def __str__(self):
         return "\n".join(self.lines())
-
-
-def assert_node(n):
-    assert isinstance(n, Node), "Expected Node. Got {}".format(n)
-
-
-def assert_contains_nodes(seq):
-    assert isinstance(seq, (list, tuple)), "Expected list or tuple for sequence. Got {}".format(type(seq))
-    for n in seq:
-        assert_node(n)
 
 
 def ext_enumerate(iterable):
@@ -92,6 +75,17 @@ def ext_enumerate(iterable):
 def iter_fields(node):
     for attr in node.__slots__:
         yield attr, getattr(node, attr)
+
+
+def iter_indent_seq(seq, c_code=False):
+    """Iterate through a sequence of nodes and indent each line in the node."""
+    for node in seq:
+        if c_code:
+            for line in node.c_lines():
+                yield INDENT + line
+        else:
+            for line in node.lines():
+                yield INDENT + line
 
 
 def dump_tree(node, indent_size=4):
@@ -143,7 +137,7 @@ def dump_tree(node, indent_size=4):
 class Module(Node):
     __slots__ = ("body", "filename")
     __types__ = {
-        "body": [Node],
+        "body": [StmtMixin],
         "filename": optional(str),
     }
     __defaults__ = {
@@ -178,23 +172,7 @@ class NameType(Node, TypeMixin):
         yield self.TYPE_NAME_CONVERSIONS.get(self.id, self.id)
 
 
-class CharTypeNode(NameType):
-    def __init__(self):
-        super().__init__("char")
-
-
-class ShortTypeNode(NameType):
-    def __init__(self):
-        super().__init__("short")
-
-
-TYPE_NODES = {
-    "char": CharTypeNode,
-    "short": ShortTypeNode,
-}
-
-
-class VarDecl(Node):
+class VarDecl(Node, StmtMixin):
     __slots__ = ("name", "type", "init")
     __types__ = {
         "name": str,
@@ -224,7 +202,7 @@ class Ellipsis(Node, TypeMixin):
         yield "..."
 
 
-class VarDeclStmt(Node):
+class VarDeclStmt(Node, StmtMixin):
     __slots__ = ("decl", )
     __types__ = {"decl": VarDecl}
 
@@ -235,12 +213,12 @@ class VarDeclStmt(Node):
         yield self.decl.c_code() + ";"
 
 
-class FuncDef(Node):
+class FuncDef(Node, StmtMixin):
     __slots__ = ("name", "params", "body", "returns")
     __types__ = {
         "name": str,
         "params": [(str, VarDecl)],
-        "body": [Node],
+        "body": [StmtMixin],
         "returns": optional(TypeMixin)
     }
     __defaults__ = {"returns": None}
@@ -257,9 +235,7 @@ class FuncDef(Node):
             line1 += ":"
 
         yield line1
-        for node in self.body:
-            for line in node.lines():
-                yield INDENT + line
+        yield from iter_indent_seq(self.body)
 
     def c_lines(self):
         # Check types
@@ -278,14 +254,12 @@ class FuncDef(Node):
         )
 
         # Body
-        for node in self.body:
-            for line in node.c_lines():
-                yield INDENT + line
+        yield from iter_indent_seq(self.body, c_code=True)
 
         yield "}"
 
 
-class FuncDecl(Node):
+class FuncDecl(Node, StmtMixin):
     __slots__ = ("name", "params", "returns")
     __types__ = {
         "name": str,
@@ -510,7 +484,7 @@ class Cast(Node, ValueMixin):
         )
 
 
-class ExprStmt(Node):
+class ExprStmt(Node, StmtMixin):
     __slots__ = ("value", )
     __types__ = {"value": ValueMixin}
 
@@ -521,7 +495,7 @@ class ExprStmt(Node):
         yield "{};".format(self.value.c_code())
 
 
-class Assign(Node):
+class Assign(Node, StmtMixin):
     __slots__ = ("left", "right")
     __types__ = {
         "left": ValueMixin,
@@ -535,8 +509,9 @@ class Assign(Node):
         yield "{} = {};".format(self.left.c_code(), self.right.c_code())
 
 
-class Return(Node):
+class Return(Node, StmtMixin):
     __slots__ = ("value", )
+    __types__ = {"value": ValueMixin}
 
     def lines(self):
         line_iter = self.value.lines()
@@ -549,7 +524,7 @@ class Return(Node):
         yield "return {};".format(self.value)
 
 
-class Pass(Node):
+class Pass(Node, StmtMixin):
     def lines(self):
         yield "pass"
 
@@ -558,7 +533,7 @@ class Pass(Node):
         yield
 
 
-class Break(Node):
+class Break(Node, StmtMixin):
     def lines(self):
         yield "break"
 
@@ -567,51 +542,40 @@ class Break(Node):
 
 
 # TODO: Maybe add orelse to DoWhile???
-class DoWhile(Node):
+class DoWhile(Node, StmtMixin):
     __slots__ = ("test", "body")
     __types__ = {
         "test": ValueMixin,
-        "body": [Node],
+        "body": [StmtMixin],
     }
 
     def lines(self):
         yield "dowhile {}:".format(self.test)
-
-        for node in self.body:
-            for line in node.lines():
-                yield INDENT + line
+        yield from iter_indent_seq(self.body)
 
     def c_lines(self):
         yield "do {"
-
-        for node in self.body:
-            for line in node.c_lines():
-                yield INDENT + line
-
+        yield from iter_indent_seq(self.body, c_code=True)
         yield "}} while ({});".format(self.test.c_code())
 
 
-class While(Node):
+class While(Node, StmtMixin):
     __slots__ = ("test", "body", "orelse")
     __types__ = {
-        "test": Node,
-        "body": [Node],
-        "orelse": [Node]
+        "test": ValueMixin,
+        "body": [StmtMixin],
+        "orelse": [StmtMixin]
     }
     __defaults__ = {"orelse": []}
 
     def lines(self):
         yield "while {}:".format(self.test)
-        for node in self.body:
-            for line in node.lines():
-                yield INDENT + line
+        yield from iter_indent_seq(self.body)
 
         orelse = self.orelse
         if orelse:
             yield "else:"
-            for node in orelse:
-                for line in node.lines():
-                    yield INDENT + line
+            yield from iter_indent_seq(orelse)
 
     def c_lines(self):
         orelse = self.orelse
@@ -641,27 +605,21 @@ while (1){
         else:
             # Regular while loop
             yield "while ({}) {{".format(self.test.c_code())
-
-            for node in self.body:
-                for line in node.c_lines():
-                    yield INDENT + line
-
+            yield from iter_indent_seq(self.body, c_code=True)
             yield "}"
 
 
-class If(Node):
+class If(Node, StmtMixin):
     __slots__ = ("test", "body", "orelse")
     __types__ = {
         "test": ValueMixin,
-        "body": [Node],
-        "orelse": [Node],
+        "body": [StmtMixin],
+        "orelse": [StmtMixin],
     }
 
     def lines(self):
         yield "if {}:".format(self.test)
-        for node in self.body:
-            for line in node.lines():
-                yield INDENT + line
+        yield from iter_indent_seq(self.body)
 
         orelse = self.orelse
         if orelse:
@@ -675,18 +633,11 @@ class If(Node):
             else:
                 # else block
                 yield "else:"
-                for node in orelse:
-                    for line in node.lines():
-                        yield INDENT + line
-
+                yield from iter_indent_seq(orelse)
 
     def c_lines(self):
         yield "if ({}) {{".format(self.test.c_code())
-
-        for node in self.body:
-            for line in node.c_lines():
-                yield INDENT + line
-
+        yield from iter_indent_seq(self.body, c_code=True)
         yield "}"
 
         orelse = self.orelse
@@ -701,34 +652,8 @@ class If(Node):
             else:
                 # else block
                 yield "else {"
-                for node in orelse:
-                    for line in node.c_lines():
-                        yield INDENT + line
+                yield from iter_indent_seq(orelse, c_code=True)
                 yield "}"
-
-
-class Switch(Node):
-    __slots__ = ("test", "cases")
-    __types__ = {
-        "test": ValueMixin,
-        "cases": [Node],
-    }
-
-    def lines(self):
-        yield "switch {}:".format(self.test)
-
-        for case in self.cases:
-            for line in case.lines():
-                yield INDENT + line
-
-    def c_lines(self):
-        yield "switch ({}){{".format(self.test.c_code())
-
-        for case in self.cases:
-            for line in case.c_lines():
-                yield INDENT + line
-
-        yield "}"
 
 
 class Case(Node):
@@ -739,40 +664,48 @@ class Case(Node):
     __slots__ = ("tests", "body")
     __types__ = {
         "tests": [ValueMixin],
-        "body": [Node],
+        "body": [StmtMixin],
     }
 
     def lines(self):
         yield "case {}:".format(", ".join(map(str, self.tests)))
-
-        for node in self.body:
-            for line in node.lines():
-                yield INDENT + line
+        yield from iter_indent_seq(self.body)
 
     def c_lines(self):
         for case, i, is_last in ext_enumerate(self.tests):
             yield "case {}:".format(case.c_code())
             if is_last:
-                for node in self.body:
-                    for line in node.c_lines():
-                        yield INDENT + line
+                yield from iter_indent_seq(self.body, c_code=True)
 
 
 class Default(Node):
     __slots__ = ("body", )
-    __types__ = {"body": [Node]}
+    __types__ = {"body": [StmtMixin]}
 
     def lines(self):
         yield "else:"
-        for node in self.body:
-            for line in node.lines():
-                yield INDENT + line
+        yield from iter_indent_seq(self.body)
 
     def c_lines(self):
         yield "default:"
-        for node in self.body:
-            for line in node.c_lines():
-                yield INDENT + line
+        yield from iter_indent_seq(self.body, c_code=True)
+
+
+class Switch(Node, StmtMixin):
+    __slots__ = ("test", "cases")
+    __types__ = {
+        "test": ValueMixin,
+        "cases": [(Case, Default)],
+    }
+
+    def lines(self):
+        yield "switch {}:".format(self.test)
+        yield from iter_indent_seq(self.cases)
+
+    def c_lines(self):
+        yield "switch ({}){{".format(self.test.c_code())
+        yield from iter_indent_seq(self.cases, c_code=True)
+        yield "}"
 
 
 # TODO: Make the operators Nodes instead of strings
@@ -973,6 +906,7 @@ class Int(Node, ValueMixin):
 
 class Float(Node, ValueMixin):
     __slots__ = ("n", )
+    __types__ = {"n": float}
 
     def lines(self):
         yield str(self.n)
@@ -1007,13 +941,6 @@ class Char(Node, ValueMixin):
         yield "'{}'".format(self.c)
 
 
-class Tuple(Node, ValueMixin):
-    __slots__ = ("elts", )
-
-    def lines(self):
-        yield "({})".format(", ".join(map(str, self.elts)))
-
-
 class Enum(Node):
     __slots__ = ("name", "members", )
     __types__ = {
@@ -1034,7 +961,7 @@ class Enum(Node):
         )
 
 
-class EnumDecl(Node):
+class EnumDecl(Node, StmtMixin):
     __slots__ = ("enum", )
     __types__ = {"enum": Enum}
 
@@ -1049,7 +976,7 @@ class EnumDecl(Node):
         yield self.enum.c_code() + ";"
 
 
-class TypeDefStmt(Node):
+class TypeDefStmt(Node, StmtMixin):
     __slots__ = ("type", "name")
     __types__ = {
         "type": TypeMixin,
@@ -1067,12 +994,11 @@ class TypeDefStmt(Node):
 
 
 class Struct(Node):
-    __slots__ = ("name", "decls", "_members")
+    __slots__ = ("name", "decls")
     __types__ = {
         "name": str,
         "decls": [VarDecl],
     }
-    __defaults__ = {"_members": None}
 
     def lines(self):
         yield "struct {} {{{}}}".format(
@@ -1086,16 +1012,8 @@ class Struct(Node):
             "; ".join(n.c_code() for n in self.decls) + ";"
         )
 
-    def members(self):
-        if self._members is None:
-            self._members = {d.name: d.type for d in self.decls}
-        return self._members
 
-    def member_type(self, member):
-        return self._members[member]
-
-
-class StructDecl(Node):
+class StructDecl(Node, StmtMixin):
     __slots__ = ("struct", )
     __types__ = {"struct": Struct}
 
@@ -1112,7 +1030,12 @@ class StructDecl(Node):
 
 ##### Macros ######
 
-class Define(Node):
+
+class Macro(Node, StmtMixin):
+    pass
+
+
+class Define(Macro):
     __slots__ = ("name", "value")
     __types__ = {
         "name": str,
@@ -1133,7 +1056,7 @@ class Define(Node):
             yield "#define {}".format(self.name)
 
 
-class CInclude(Node):
+class CInclude(Macro):
     __slots__ = ("path", )
     __types__ = {"path": str}
 
@@ -1141,7 +1064,7 @@ class CInclude(Node):
         yield '#include <{}>'.format(self.path)
 
 
-class Include(Node):
+class Include(Macro):
     __slots__ = ("path", )
     __types__ = {"path": Str}
 
@@ -1152,8 +1075,9 @@ class Include(Node):
         yield '#include "{}"'.format(to_c_file(self.path.s))
 
 
-class Ifndef(Node):
+class Ifndef(Macro):
     __slots__ = ("guard", )
+    __types__ = {"guard": str}
 
     def lines(self):
         yield "ifndef {}".format(self.guard)
@@ -1162,7 +1086,7 @@ class Ifndef(Node):
         yield "#ifndef {}".format(self.guard)
 
 
-class Endif(Node):
+class Endif(Macro):
     def lines(self):
         yield "endif"
 
