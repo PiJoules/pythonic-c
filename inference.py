@@ -249,8 +249,11 @@ class Inferer:
             c_header, module = MODULE_TYPES[t.name]
             if c_header not in self.__extra_includes:
                 self.add_extra_c_header(c_header)
-                self.__check_module(module)
-            self.__global_types[t] = self.__types[t]
+                self.__check_builtin_module(module)
+
+        assert t in self.__types
+        assert t in self.__global_types
+
         return t
 
     def typemixin_to_langtype(self, node):
@@ -332,22 +335,24 @@ class Inferer:
 
         # Check builtin functions
         # Perform if the function is a builtin one and not previously declared
-        #if isinstance(func, Name) and func.id in BUILTIN_VARS and not self.var_exists(func.id):
         if isinstance(func, Name) and func.id in BUILTIN_VARS:
             c_header, module = BUILTIN_VARS[func.id]
             if c_header not in self.__extra_includes:
                 self.add_extra_c_header(c_header)
-                self.__check_module(module)
-            self.__global_variables[func.id] = self.__variables[func.id]
+                self.__check_builtin_module(module)
+            assert func.id in self.__variables
+            assert func.id in self.__global_variables
 
         if isinstance(func, Name):
             if func.id == "sizeof":
                 # Make sure size_t exists first
                 # The arguments of sizeof are not evaluated
-                size_t = LangType("size_t")
-                return self.__builtin_type_check(size_t)
+                return self.__builtin_type_check(SIZE_TYPE)
             else:
-                result = self.lookup(func.id).returns
+                func_t = self.lookup(func.id)
+                self.assert_type_exists(func_t)
+                expanded_t = self.__exhaust_typedef_chain(func_t)
+                result = expanded_t.returns
         else:
             raise NotImplementedError("No logic yet implemented for inferring type for node {}".format(type(func)))
 
@@ -560,6 +565,7 @@ class Inferer:
 
         if func_t not in self.__types:
             self.add_type(func_t)
+        assert CallableType([INT_TYPE], VOID_TYPE)
         self.bind(node.name, func_t)
         return node
 
@@ -953,6 +959,24 @@ class Inferer:
             checked_body = extra_includes + checked_body
 
         return Module(checked_body, node.filename)
+
+    def __check_builtin_module(self, node):
+        # Make the global scope the current one
+        saved_vars = self.__variables
+        saved_types = self.__types
+        self.__variables = self.__global_variables
+        self.__types = self.__global_types
+
+        # Check normally
+        self.__check_module(node)
+
+        # Switch back to the local one
+        self.__variables = saved_vars
+        self.__types = saved_types
+
+        # Merge new variables from global into local
+        self.__variables.update(self.__global_variables)
+        self.__types.update(self.__global_types)
 
     def check_Module(self, node):
         return self.__check_module(node, is_base_module=True)

@@ -365,13 +365,18 @@ def _format_c_decl(name, t):
         )
     elif isinstance(t, NameType):
         return "{} {}".format(t.c_code(), name)
-    else:
+    elif isinstance(t, FuncType):
         params = t.params
         returns = t.returns
         return "{} (*{})({})".format(
             returns.c_code(),
             name,
             ", ".join(p.c_code() for p in params)
+        )
+    else:
+        raise NotImplementedError(
+            "Logic for _format_c_decl not implemented for TypeMixin '{}'"
+            .format(type(t))
         )
 
 
@@ -1055,10 +1060,10 @@ class TypeDefStmt(Node):
         yield "typedef {} {}".format(self.type, self.name)
 
     def c_lines(self):
-        if isinstance(self.type, Node):
-            yield "typedef {} {};".format(self.type.c_code(), self.name)
+        if isinstance(self.type, FuncType):
+            yield "typedef {};".format(_format_c_decl(self.name, self.type))
         else:
-            yield "typedef {} {};".format(self.type, self.name)
+            yield "typedef {} {};".format(self.type.c_code(), self.name)
 
 
 class Struct(Node):

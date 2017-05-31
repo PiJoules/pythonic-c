@@ -427,4 +427,17 @@ def demo_func_ptrs():
     # New function assignment 
     adder_func = add_two_ints_plus_1
     assert(adder_func(1, 2) == 4)
+
+    # You can also typedef functions like so 
+    typedef (int, int) -> int adder_func_t
+
+    adder_func2: adder_func_t = add_two_ints 
+    assert(adder_func2(2, 3) == 5)
+
+
+# Note: You cannot declare a function like you can a variable 
+# This:
+# add_three_ints: (int, int, int) -> int  
+# is not equivalent to 
+# def add_three_ints(x1: int, x2: int, x3: int) -> int
 ```
