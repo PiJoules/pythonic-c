@@ -33,6 +33,7 @@ include "myheader.hu"
 # but with type annotations and no body.
 # These should generally be declared in your header files.
 def function_1() -> void 
+def demo_func_ptrs() -> void
 
 # Function arguments can be specified with or without a type.
 # NOTE: If a type is not specified, the type is inferred based on the types 
@@ -147,6 +148,7 @@ def main(argc: int, argv: char[][]):
     # Access elements 
     array_int = multi_array[0][2]
     printf("%d\n", array_int)  # 3 
+    assert(9 == multi_array[1][2] + 1)
 
     """
     Operators
@@ -319,4 +321,110 @@ def main(argc: int, argv: char[][]):
 
     # Assign string 
     otherarr = "somestring"
+    ptr = otherarr 
+    printf("%s, %s\n", otherarr, ptr)
+
+    # Pointers are incremented based on their type 
+    assert(*(ptr + 1) == ptr[1])
+
+    # You can dynamically allocate memory with malloc, which takes one 
+    # argument of size_t representing the number of bytes to allocate.
+    my_ptr = <int[]> malloc(sizeof(int) * 3)
+
+    # Because malloc returns a void pointer, not specifying the type 
+    # during initial assignment will cause my_ptr to be inferred as a 
+    # void pointer. Casting it as an int pointer, or specifying the 
+    # variable type creates a pointer of that type.
+    # my_ptr: int[] = malloc(sizeof(int) * 3)  works also
+
+    # Assign to malloc'd space
+    my_ptr[0] = 1 
+    my_ptr[1] = 2 
+    my_ptr[2] = 3 
+    assert(my_ptr[0] + my_ptr[1] == my_ptr[2])
+
+    # Always remember to free malloc'd memory 
+    free(my_ptr)
+
+    # Call a function
+    function_1()
+    demo_func_ptrs()
+
+    # End of main function 
+
+
+# Function definition 
+# Essentially the same as a declaration, but it has a body. 
+# If the function type was declared before, the return type 
+# and argument types match it, so it does not need to be 
+# specifed again.
+def add_two_ints(x1, x2):
+    return x1 + x2 
+
+
+# Function definition for a function that was not previously
+# declared must specify argument types and return types, though
+# if a return type is not specified, int is the default return type
+def add_two_ints_plus_1(x1: int, x2: int) -> int:
+    return x1 + x2 + 1
+
+
+"""
+User defined types and structs
+"""
+
+# Typedefs can be used to create type aliases 
+typedef int my_type 
+my_type_var: my_type = 0 
+
+# Structs are collections of data where the members are allocated
+# sequentially in the order they are written.
+struct rectangle {
+    width: uint,
+    height: uint,
+}
+
+
+def function_1():
+    # Newly defined structs are type'd as their name.
+    # You do not type 'struct rectangle', just 'rectangle'
+    my_rect: rectangle
+
+    # Access struct members with '.'
+    my_rect.width = 10 
+    my_rect.height = 20 
+
+    # Declare pointers to structs 
+    my_rect_ptr = &my_rect 
+
+    # Use derefencing to set sruct pointer members 
+    (*my_rect_ptr).width = 30
+    assert(my_rect.width == 30)
+
+    # Alternatively use the -> shorthand for the sake of readability
+    my_rect_ptr->width = 15
+    assert(my_rect.width == 15)
+    assert(my_rect_ptr->width == my_rect.width)
+
+
+"""
+Function pointers
+"""
+
+# Functions are also types and can be stored as variables like so 
+
+def demo_func_ptrs():
+    # Declare adder_func as a function which takes 2 ints and returns an int
+    adder_func: (int, int) -> int
+    adder_func = add_two_ints 
+
+    # The type declaration above the assignment is unecessary since 
+    # type inference would infer addr_func as the proper func type 
+    # during assignment 
+    assert(adder_func(1, 2) == 3)
+    assert(adder_func(3, 0) == adder_func(1, 2))
+
+    # New function assignment 
+    adder_func = add_two_ints_plus_1
+    assert(adder_func(1, 2) == 4)
 ```
