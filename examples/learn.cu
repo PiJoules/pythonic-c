@@ -28,6 +28,7 @@ include "myheader.hu"
 # but with type annotations and no body.
 # These should generally be declared in your header files.
 def function_1() -> void 
+def demo_func_ptrs() -> void
 
 # Function arguments can be specified with or without a type.
 # NOTE: If a type is not specified, the type is inferred based on the types 
@@ -342,6 +343,7 @@ def main(argc: int, argv: char[][]):
 
     # Call a function
     function_1()
+    demo_func_ptrs()
 
     # End of main function 
 
@@ -358,8 +360,8 @@ def add_two_ints(x1, x2):
 # Function definition for a function that was not previously
 # declared must specify argument types and return types, though
 # if a return type is not specified, int is the default return type
-def add_three_numbers(x1: int, x2: int, x3: int) -> int:
-    return x1 + x2 + x3 
+def add_two_ints_plus_1(x1: int, x2: int) -> int:
+    return x1 + x2 + 1
 
 
 """
@@ -385,4 +387,38 @@ def function_1():
 
     # Access struct members with '.'
     my_rect.width = 10 
-    my_rect.height = 20
+    my_rect.height = 20 
+
+    # Declare pointers to structs 
+    my_rect_ptr = &my_rect 
+
+    # Use derefencing to set sruct pointer members 
+    (*my_rect_ptr).width = 30
+    assert(my_rect.width == 30)
+
+    # Alternatively use the -> shorthand for the sake of readability
+    my_rect_ptr->width = 15
+    assert(my_rect.width == 15)
+    assert(my_rect_ptr->width == my_rect.width)
+
+
+"""
+Function pointers
+"""
+
+# Functions are also types and can be stored as variables like so 
+
+def demo_func_ptrs():
+    # Declare adder_func as a function which takes 2 ints and returns an int
+    adder_func: (int, int) -> int
+    adder_func = add_two_ints 
+
+    # The type declaration above the assignment is unecessary since 
+    # type inference would infer addr_func as the proper func type 
+    # during assignment 
+    assert(adder_func(1, 2) == 3)
+    assert(adder_func(3, 0) == adder_func(1, 2))
+
+    # New function assignment 
+    adder_func = add_two_ints_plus_1
+    assert(adder_func(1, 2) == 4)

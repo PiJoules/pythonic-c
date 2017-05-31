@@ -57,7 +57,9 @@ class Inferer:
                  included_files=None,
                  call_stack=None):
         self.__variables = init_variables or {}
+        self.__global_variables = self.__variables
         self.__types = init_types or dict.fromkeys(INIT_TYPES)
+        self.__global_types = self.__types
         self.__call_stack = call_stack or []
         self.__found_included_files = included_files or {}
         self.__extra_includes = extra_includes or set()
@@ -196,7 +198,7 @@ class Inferer:
 
     def add_extra_c_header(self, header):
         """Mark a C standard header that should be included."""
-        assert header not in self.__extra_includes
+        assert header not in self.__extra_includes, "{}, {}".format(header, self.__extra_includes)
         self.__extra_includes.add(header)
 
     ####### Type handling ###########
@@ -245,8 +247,10 @@ class Inferer:
         """Check if the type is a builtin one and import the proper module."""
         if t not in self.__types:
             c_header, module = MODULE_TYPES[t.name]
-            self.add_extra_c_header(c_header)
-            self.__check_module(module)
+            if c_header not in self.__extra_includes:
+                self.add_extra_c_header(c_header)
+                self.__check_module(module)
+            self.__global_types[t] = self.__types[t]
         return t
 
     def typemixin_to_langtype(self, node):
@@ -301,6 +305,13 @@ class Inferer:
             return Pointer(self.langtype_to_typemixin(t.contents))
         elif isinstance(t, ArrayType):
             return Array(self.langtype_to_typemixin(t.contents), t.size)
+        elif isinstance(t, CallableType):
+            return FuncType(
+                [self.langtype_to_typemixin(a) for a in t.args],
+                self.langtype_to_typemixin(t.returns)
+            )
+        elif t == VARARG_TYPE:
+            return Ellipsis()
         else:
             return NameType(t.name)
 
@@ -321,10 +332,13 @@ class Inferer:
 
         # Check builtin functions
         # Perform if the function is a builtin one and not previously declared
-        if isinstance(func, Name) and func.id in BUILTIN_VARS and not self.var_exists(func.id):
+        #if isinstance(func, Name) and func.id in BUILTIN_VARS and not self.var_exists(func.id):
+        if isinstance(func, Name) and func.id in BUILTIN_VARS:
             c_header, module = BUILTIN_VARS[func.id]
-            self.add_extra_c_header(c_header)
-            self.__check_module(module)
+            if c_header not in self.__extra_includes:
+                self.add_extra_c_header(c_header)
+                self.__check_module(module)
+            self.__global_variables[func.id] = self.__variables[func.id]
 
         if isinstance(func, Name):
             if func.id == "sizeof":
@@ -359,6 +373,13 @@ class Inferer:
         value = node.value
         member = node.member
         struct_t = self.__exhaust_typedef_chain(self.infer(value).contents)
+        assert isinstance(struct_t, StructType)
+        return struct_t.members[member]
+
+    def infer_StructMemberAccess(self, node):
+        value = node.value
+        member = node.member
+        struct_t = self.__exhaust_typedef_chain(self.infer(value))
         assert isinstance(struct_t, StructType)
         return struct_t.members[member]
 
@@ -468,7 +489,7 @@ class Inferer:
             return PointerType(CHAR_TYPE)
 
     def infer_AddressOf(self, node):
-        return PointerType(VOID_TYPE)
+        return PointerType(self.infer(node.value))
 
     def infer_Compare(self, node):
         self.infer(node.left)
@@ -537,6 +558,8 @@ class Inferer:
         for param in func_t.args:
             self.assert_type_exists(param)
 
+        if func_t not in self.__types:
+            self.add_type(func_t)
         self.bind(node.name, func_t)
         return node
 
@@ -592,7 +615,7 @@ class Inferer:
         Assert that all parameters in a function are variable declarations.
         """
         for param in params:
-            assert isinstance(param, VarDecl)
+            assert isinstance(param, (VarDecl, Ellipsis))
 
     def check_FuncDef(self, node):
         # Check for main function
@@ -645,7 +668,8 @@ class Inferer:
             # Check and replace returns
             expected_returns = expected_func_t.returns
             if node.returns:
-                assert node.returns == expected_returns
+                returns_t = self.typemixin_to_langtype(node.returns)
+                assert returns_t == expected_returns, "Expected {}. Found {}.".format(expected_returns, returns_t)
             returns = self.langtype_to_typemixin(expected_returns)
         else:
             # First instance of function
@@ -654,6 +678,17 @@ class Inferer:
             # as its arguments and a return type.
             self._assert_args_as_vardecls(node.params)
             assert isinstance(returns, TypeMixin)
+
+            # Create this type
+            func_t = self.typemixin_to_langtype(FuncType(
+                [p if isinstance(p, Ellipsis) else p.type for p in node.params],
+                returns
+            ))
+            if func_t not in self.__types:
+                self.add_type(func_t)
+
+            # Bind this variable
+            self.bind(name, func_t)
 
         # Add the params to the scope
         self.enter_scope()
