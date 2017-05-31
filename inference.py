@@ -2,9 +2,7 @@ from lang_ast import *
 from cparse import Parser
 from lang_types import *
 
-from stdio_module import STDIO_VARS
-from stdlib_module import STDLIB_VARS, STDLIB_TYPES
-from assert_module import ASSERT_VARS
+from c_modules import BUILTIN_VARS, BUILTIN_TYPES
 
 import os
 
@@ -29,22 +27,6 @@ INIT_TYPES = frozenset((
     VARARG_TYPE,
     FILE_TYPE,
 ))
-
-
-FLOATING_POINT_TYPES = frozenset((FLOAT_TYPE, DOUBLE_TYPE))
-
-
-BUILTIN_TYPES = {t.name: t for t in INIT_TYPES}
-
-
-BUILTIN_VARS = {}
-BUILTIN_VARS.update(STDIO_VARS)
-BUILTIN_VARS.update(STDLIB_VARS)
-BUILTIN_VARS.update(ASSERT_VARS)
-
-
-MODULE_TYPES = {}
-MODULE_TYPES.update(STDLIB_TYPES)
 
 
 class Inferer:
@@ -246,7 +228,7 @@ class Inferer:
     def __builtin_type_check(self, t):
         """Check if the type is a builtin one and import the proper module."""
         if t not in self.__types:
-            c_header, module = MODULE_TYPES[t.name]
+            c_header, module = BUILTIN_TYPES[t.name]
             if c_header not in self.__extra_includes:
                 self.add_extra_c_header(c_header)
                 self.__check_builtin_module(module)
@@ -282,7 +264,7 @@ class Inferer:
             if t in self.__types:
                 # Exhaust any typedef chains
                 return t
-            elif node.id in MODULE_TYPES:
+            elif node.id in BUILTIN_TYPES:
                 result = self.__builtin_type_check(t)
             else:
                 raise RuntimeError("type for name '{}' not previously declared".format(node))
