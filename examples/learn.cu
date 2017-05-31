@@ -341,10 +341,48 @@ def main(argc: int, argv: char[][]):
     free(my_ptr)
 
     # Call a function
-    #function_1()
+    function_1()
 
     # End of main function 
 
 
+# Function definition 
+# Essentially the same as a declaration, but it has a body. 
+# If the function type was declared before, the return type 
+# and argument types match it, so it does not need to be 
+# specifed again.
 def add_two_ints(x1, x2):
-    return x1 + x2
+    return x1 + x2 
+
+
+# Function definition for a function that was not previously
+# declared must specify argument types and return types, though
+# if a return type is not specified, int is the default return type
+def add_three_numbers(x1: int, x2: int, x3: int) -> int:
+    return x1 + x2 + x3 
+
+
+"""
+User defined types and structs
+"""
+
+# Typedefs can be used to create type aliases 
+typedef int my_type 
+my_type_var: my_type = 0 
+
+# Structs are collections of data where the members are allocated
+# sequentially in the order they are written.
+struct rectangle {
+    width: uint,
+    height: uint,
+}
+
+
+def function_1():
+    # Newly defined structs are type'd as their name.
+    # You do not type 'struct rectangle', just 'rectangle'
+    my_rect: rectangle
+
+    # Access struct members with '.'
+    my_rect.width = 10 
+    my_rect.height = 20

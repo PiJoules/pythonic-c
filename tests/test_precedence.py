@@ -137,7 +137,6 @@ x = [
 6 == x[1][1] + 1
         """.strip()
         ast = code_to_ast(code, infer=True)
-        dump_ast_trees([ast])
         self.assertEqual(
             ast.body[-1],
             ExprStmt(
@@ -152,6 +151,37 @@ x = [
                         "+",
                         Int(1)
                     )
+                )
+            )
+        )
+
+    def test_struct_member_access(self):
+        """Test the precedence of a struct member access is the same as an
+        index and higher than equality."""
+        code = "x.x[1] + 1"
+        ast = code_to_ast(code)
+        self.assertEqual(
+            ast.body[0].value,
+            BinOp(
+                Index(
+                    StructMemberAccess(Name("x"), "x"),
+                    Int(1)
+                ),
+                "+",
+                Int(1),
+            )
+        )
+
+        code = "1 == x[1].x"
+        ast = code_to_ast(code)
+        self.assertEqual(
+            ast.body[0].value,
+            Compare(
+                Int(1),
+                "==",
+                StructMemberAccess(
+                    Index(Name("x"), Int(1)),
+                    "x"
                 )
             )
         )

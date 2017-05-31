@@ -19,6 +19,7 @@ class Parser:
         ("right", "ADDROF", "NOT", "CAST", "PREINC", "PREDEC", "INV",
                   "DEREF", "USUB", "UADD"),  # 2
         ("left", "ARROW", "POSTINC", "POSTDEC",
+                 "PERIOD",  # Struct access
                  "LBRACKET"),  # 1
 
         # The LBRACKET with highest associativity represents indexing an array.
@@ -87,7 +88,11 @@ class Parser:
     # FuncDef is the standard way of defining a python function
     def p_funcdef(self, p):
         "funcdef : DEF NAME parameters COLON suite"
-        p[0] = FuncDef(p[2], p[3], p[5], None)
+        p[0] = FuncDef(p[2], p[3], p[5])
+
+    def p_funcdef2(self, p):
+        "funcdef : DEF NAME parameters ARROW type_declaration COLON suite"
+        p[0] = FuncDef(p[2], p[3], p[7], p[5])
 
     # Empty parameters
     def p_parameters_empty(self, p):
@@ -528,6 +533,10 @@ class Parser:
     def p_expr_struct_deref(self, p):
         "expr : expr ARROW NAME"
         p[0] = StructPointerDeref(p[1], p[3])
+
+    def p_expr_struct_access(self, p):
+        "expr : expr PERIOD NAME"
+        p[0] = StructMemberAccess(p[1], p[3])
 
     def p_comparison_scoped(self, p):
         "expr : LPAR expr RPAR"

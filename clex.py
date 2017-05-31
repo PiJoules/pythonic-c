@@ -101,6 +101,7 @@ class Lexer:
 
         'ASSIGN',
         "ARROW",
+        "PERIOD",
         'PLUS',
         'MINUS',
         'MULT',
@@ -155,6 +156,7 @@ class Lexer:
     t_DIV = r'/'
     t_COMMA = r','
     t_ARROW = r"->"
+    t_PERIOD = r"\."
 
     t_NULL = r"NULL"
 
@@ -344,7 +346,6 @@ class Lexer:
             (not self.__bracket_count) and
             (not self.__brace_count)
         )
-
 
     ########### Token handlers ############
 

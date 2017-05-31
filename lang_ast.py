@@ -243,6 +243,7 @@ class FuncDef(Node):
         "body": [Node],
         "returns": optional(TypeMixin)
     }
+    __defaults__ = {"returns": None}
 
     def lines(self):
         line1 = "def {}({})".format(
@@ -460,6 +461,20 @@ class StructPointerDeref(Node, ValueMixin):
 
     def c_lines(self):
         yield "{}->{}".format(self.value.c_code(), self.member)
+
+
+class StructMemberAccess(Node, ValueMixin):
+    __slots__ = ("value", "member")
+    __types__ = {
+        "value": ValueMixin,
+        "member": str,
+    }
+
+    def lines(self):
+        yield "{}.{}".format(self.value, self.member)
+
+    def c_lines(self):
+        yield "{}.{}".format(self.value.c_code(), self.member)
 
 
 class ArrayLiteral(Node, ValueMixin):

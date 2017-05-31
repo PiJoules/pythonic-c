@@ -716,6 +716,20 @@ class Inferer:
                                     "member {} of struct {}".format(member, value_t.contents.name))
 
             return node
+        elif isinstance(left, StructMemberAccess):
+            # Get the struct and check the member
+            value = left.value
+            member = left.member
+
+            value_t = self.infer(value)
+            value_t = self.__exhaust_typedef_chain(value_t)
+            expected_t = value_t.members[member]
+
+            # See if can assign
+            self.__check_assignable(expected_t, right_t, right,
+                                    "member {} of struct {}".format(member, value_t.name))
+
+            return node
         elif isinstance(left, Index):
             # Get the array and check the contents
             value = left.value
@@ -754,6 +768,9 @@ class Inferer:
         return node
 
     def __check_assignable(self, expected_t, value_t, value_node, varname):
+        expected_t = self.__exhaust_typedef_chain(expected_t)
+        value_t = self.__exhaust_typedef_chain(value_t)
+
         # Array literals to arrays of anything
         if isinstance(value_node, ArrayLiteral):
             return isinstance(expected_t, ArrayType)
