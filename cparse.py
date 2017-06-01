@@ -39,6 +39,7 @@ class Parser:
         self.__source_file = source_file
 
         self.__lexer = lexer(**kwargs)
+        self.__lexdata = None
         self.tokens = self.__lexer.tokens
         self.parser = yacc.yacc(
             module=self,
@@ -48,6 +49,9 @@ class Parser:
     def lexer(self):
         return self.__lexer
 
+    def lexdata(self):
+        return self.__lexdata
+
     def parse(self, code):
         # The parser will not work for strings for some reason if a newline is
         # not at the end of the string. This does not affect files though.
@@ -55,18 +59,43 @@ class Parser:
         # line will raise a syntax error although a file just containing
         # "func()" works fine. Don't know if this has to do with EOF.
         code += "\n"
-        return self.parser.parse(code, lexer=self.__lexer)
+        self.__lexdata = code
+        return self.parser.parse(code, lexer=self.__lexer, tracking=True)
+
+    def prod_loc(self, yacc_prod):
+        for i in range(len(yacc_prod)):
+            prod = yacc_prod[i]
+            if prod is not None:
+                lineno = yacc_prod.lineno(i)
+
+                lexpos = yacc_prod.lexpos(i)
+                last_cr = self.__lexdata.rfind("\n", 0, lexpos)
+                if last_cr < 0:
+                    last_cr = 0
+                colno = lexpos - last_cr
+                if not lexpos:
+                    colno += 1
+
+                assert lineno > 0
+                assert colno > 0
+
+                return lineno, colno
+        return 1, 1
 
     ##########   Parser (tokens -> AST) ######
 
     # Module will be a list of statements
     def p_module(self, p):
         """module : stmt_list"""
-        p[0] = Module(p[1], self.__source_file)
+        lineno, colno = self.prod_loc(p)
+        p[0] = Module(p[1], self.__source_file,
+                      lineno=lineno, colno=colno)
 
     def p_empty_module(self, p):
         "module : empty"
-        p[0] = Module(filename=self.__source_file)
+        lineno, colno = self.prod_loc(p)
+        p[0] = Module(filename=self.__source_file,
+                      lineno=lineno, colno=colno)
 
     # Statements are separated by newlines
     def p_stmt_list_1(self, p):
@@ -88,11 +117,15 @@ class Parser:
     # FuncDef is the standard way of defining a python function
     def p_funcdef(self, p):
         "funcdef : DEF NAME parameters COLON suite"
-        p[0] = FuncDef(p[2], p[3], p[5])
+        lineno, colno = self.prod_loc(p)
+        p[0] = FuncDef(p[2], p[3], p[5],
+                       lineno=lineno, colno=colno)
 
     def p_funcdef2(self, p):
         "funcdef : DEF NAME parameters ARROW type_declaration COLON suite"
-        p[0] = FuncDef(p[2], p[3], p[7], p[5])
+        lineno, colno = self.prod_loc(p)
+        p[0] = FuncDef(p[2], p[3], p[7], p[5],
+                       lineno=lineno, colno=colno)
 
     # Empty parameters
     def p_parameters_empty(self, p):
@@ -320,12 +353,13 @@ class Parser:
         p[0] = p[2]
 
     def p_include_standard(self, p):
-        "include_stmt : INCLUDE STRING"
-        p[0] = Include(Str(p[2]))
+        "include_stmt : INCLUDE string"
+        p[0] = Include(p[2])
 
     def p_expr_stmt(self, p):
         "expr_stmt : expr"
-        p[0] = ExprStmt(p[1])
+        lineno, colno = self.prod_loc(p)
+        p[0] = ExprStmt(p[1], lineno=lineno, colno=colno)
 
     # LHS is expr b/c nearly anything can be assigned to
     def p_assign(self, p):
@@ -334,7 +368,8 @@ class Parser:
 
     def p_return_stmt(self, p):
         "return_stmt : RETURN expr"
-        p[0] = Return(p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Return(p[2], lineno=lineno, colno=colno)
 
     # compound_stmt is a multiline statement
 
@@ -596,11 +631,13 @@ class Parser:
 
     def p_power_2(self, p):
         "power : atom LPAR RPAR"
-        p[0] = Call(p[1])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Call(p[1], lineno=lineno, colno=colno)
 
     def p_power_call_args(self, p):
         "power : atom LPAR arglist RPAR"
-        p[0] = Call(p[1], p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Call(p[1], p[3], lineno=lineno, colno=colno)
 
     # Indexing
 
@@ -616,19 +653,26 @@ class Parser:
 
     def p_atom_name(self, p):
         "atom : NAME"
-        p[0] = Name(p[1])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Name(p[1], lineno=lineno, colno=colno)
 
     def p_atom_int(self, p):
         "atom : INT"
-        p[0] = Int(p[1])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Int(p[1], lineno=lineno, colno=colno)
 
     def p_atom_float(self, p):
         "atom : FLOAT"
         p[0] = Float(p[1])
 
     def p_atom_str(self, p):
-        "atom : STRING"
-        p[0] = Str(p[1])
+        "atom : string"
+        p[0] = p[1]
+
+    def p_str(self, p):
+        "string : STRING"
+        lineno, colno = self.prod_loc(p)
+        p[0] = Str(p[1], lineno=lineno, colno=colno)
 
     def p_atom_char(self, p):
         "atom : CHAR"

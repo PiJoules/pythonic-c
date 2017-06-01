@@ -168,25 +168,51 @@ class Lexer:
     ########## Lexer interface #########
 
     def __init__(self, **kwargs):
+        # This is required b/c tracking in the parser requires that the lineno
+        # of this lexer be accessed as a property, but I can only return the
+        # property from the internal lexer which also requires the property
+        # of the outer lexer (passed through module=self), but self.__lexer
+        # has not been defined yet.
+        self.__initialized = False
+
         self.__token_stream = None
         self.__paren_count = 0
         self.__bracket_count = 0
         self.__brace_count = 0
         self.__lexer = lex.lex(module=self, **kwargs)
+        self.__last_tok = None
+        self.__tok_buff = None
+
+        self.__initialized = True
 
     def input(self, s):
         self.__lexer.input(s)
         self.__token_stream = self.__token_filters()
 
+    def lexpos(self):
+        return self.__lexer.lexpos
+
+    @property
+    def lineno(self):
+        if self.__initialized:
+            return self.__lexer.lineno
+        return None
+
     def token(self):
         try:
+            self.__last_tok = self.__tok_buff
             tok = next(self.__token_stream)
 
             # Not all tokens for some reason have a reference to the lexer
             tok.lexer = self.__lexer
+
+            self.__tok_buff = tok
             return tok
         except StopIteration:
             return None
+
+    def last_tok(self):
+        return self.__last_tok
 
     def __iter__(self):
         if self.__token_stream is not None:

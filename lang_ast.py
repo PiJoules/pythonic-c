@@ -46,6 +46,11 @@ class Node(SlottedClass):
     def __str__(self):
         return "\n".join(self.lines())
 
+    def loc(self):
+        assert self.lineno > 0
+        assert self.colno > 0
+        return self.lineno, self.colno
+
 
 def ext_enumerate(iterable):
     """
@@ -83,7 +88,7 @@ def ext_enumerate(iterable):
 
 
 def iter_fields(node):
-    for attr in node.__attrs__:
+    for attr in node.__slots__:
         yield attr, getattr(node, attr)
 
 

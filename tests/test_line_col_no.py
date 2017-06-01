@@ -1,6 +1,7 @@
 import unittest
 import ply.lex as lex
 
+from compiler import file_to_ast, dump_ast_trees
 from clex import Lexer, find_column
 
 
@@ -92,8 +93,9 @@ class TestLineColNo(unittest.TestCase):
         lexer.input(code)
 
         # First quote
+        tok = lexer.token()
         self.assert_tokens_equal(
-            lexer.token(),
+            tok,
             TokenWrap("STRING", "double quote comment", 3, 1)
         )
 
@@ -190,6 +192,44 @@ class TestLineColNo(unittest.TestCase):
         #tok = lexer.token()
         #print(tok, TokenWrap.from_lex_token(tok))
         #raise RuntimeError
+
+    def test_ast_alignment(self):
+        """Test the line and col nums in the ast are accurate."""
+        ast = file_to_ast("examples/alignment_test.cu")
+
+        body = ast.body
+
+        self.assertEqual(ast.lineno, 3)
+        self.assertEqual(ast.colno, 1)
+
+        # String comment
+        self.assertEqual(body[0].loc(), (3, 1))
+
+    def test_hello_world_alignment(self):
+        """Test alignment of nodes in hello world example."""
+        ast = file_to_ast("examples/hello_world.cu")
+        self.assertEqual(ast.loc(), (1, 1))
+
+        body = ast.body
+
+        # Func def
+        func_def = body[0]
+        self.assertEqual(func_def.loc(), (1, 1))
+
+        # Print stmt
+        func_body = func_def.body
+        print_stmt = func_body[0]
+        print_func = print_stmt.value
+        self.assertEqual(print_stmt.loc(), (2, 5))
+        self.assertEqual(print_func.loc(), (2, 5))
+        self.assertEqual(print_func.func.loc(), (2, 5))
+        self.assertEqual(print_func.args[0].loc(), (2, 12))
+
+        # Retrun stmt
+        return_stmt = func_body[1]
+        return_val = return_stmt.value
+        self.assertEqual(return_stmt.loc(), (3, 5))
+        self.assertEqual(return_val.loc(), (3, 12))
 
 
 if __name__ == "__main__":

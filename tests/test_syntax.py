@@ -1,5 +1,6 @@
 import unittest
 
+from compiler import code_to_ast
 from cparse import Parser
 from lang_ast import *
 
@@ -720,19 +721,12 @@ not x->y
             """.strip()
         )
 
-    def test_array_index(self):
-        """Test indexing an array."""
-        code = """
-x[4]
-        """
-        #ast = self.__create_ast(code)
-        #self.assertEqual(
-        #    ast,
-        #    Module([
-        #        ExprStmt(
-        #        )
-        #    ])
-        #)
+    #def test_empty_production(self):
+    #    """Test empty prod."""
+    #    code = "struct A {a: int}"
+    #    ast = code_to_ast(code)
+    #    print(ast)
+    #    raise RuntimeError
 
 
 if __name__ == "__main__":

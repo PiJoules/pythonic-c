@@ -90,9 +90,9 @@ class SlottedClass(metaclass=SlottedClassChecker):
 
     def __init__(self, *args, **kwargs):
         for i, val in enumerate(args):
-            self.assign_and_check(self.__attrs__[i], val)
+            self.assign_and_check(self.__slots__[i], val)
 
-        for attr in self.__attrs__[len(args):]:
+        for attr in self.__slots__[len(args):]:
             if attr not in kwargs:
                 val = copy.copy(self.__defaults__[attr])
             else:
@@ -181,3 +181,9 @@ class SlottedClass(metaclass=SlottedClassChecker):
 
     def __ne__(self, other):
         return not (self == other)
+
+    def all_attrs(self):
+        return self.__slots__
+
+    def dict(self):
+        return {a: getattr(self, a) for a in self.all_attrs()}
