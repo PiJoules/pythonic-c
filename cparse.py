@@ -63,6 +63,7 @@ class Parser:
         return self.parser.parse(code, lexer=self.__lexer, tracking=True)
 
     def prod_loc(self, yacc_prod):
+        """Get the line and column number from a yacc production."""
         for i in range(len(yacc_prod)):
             prod = yacc_prod[i]
             if prod is not None:
@@ -147,7 +148,8 @@ class Parser:
 
     def p_ellipsis(self, p):
         "varaglist_elem : ELLIPSIS"
-        p[0] = Ellipsis()
+        lineno, colno = self.prod_loc(p)
+        p[0] = Ellipsis(lineno=lineno, colno=colno)
 
     def p_varargslist_many(self, p):
         """varargslist : varargslist COMMA varaglist_elem"""
@@ -187,42 +189,51 @@ class Parser:
 
     def p_typedef_stmt(self, p):
         "typedef_stmt : TYPEDEF type_declaration NAME"
-        p[0] = TypeDefStmt(p[2], p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = TypeDefStmt(p[2], p[3], lineno=lineno, colno=colno)
 
     # Macros
 
     def p_define_stmt(self, p):
         "define_stmt : DEFINE NAME expr"
-        p[0] = Define(p[2], p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Define(p[2], p[3], lineno=lineno, colno=colno)
 
     def p_define_stmt_empty(self, p):
         "define_stmt : DEFINE NAME"
-        p[0] = Define(p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Define(p[2], lineno=lineno, colno=colno)
 
     def p_ifndef_stmt(self, p):
         "ifndef_stmt : IFNDEF NAME"
-        p[0] = Ifndef(p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Ifndef(p[2], lineno=lineno, colno=colno)
 
     def p_endif_stmt(self, p):
         "endif_stmt : ENDIF"
-        p[0] = Endif()
+        lineno, colno = self.prod_loc(p)
+        p[0] = Endif(lineno=lineno, colno=colno)
 
     def p_pass(self, p):
         "pass : PASS"
-        p[0] = Pass()
+        lineno, colno = self.prod_loc(p)
+        p[0] = Pass(lineno=lineno, colno=colno)
 
     def p_break(self, p):
         "break : BREAK"
-        p[0] = Break()
+        lineno, colno = self.prod_loc(p)
+        p[0] = Break(lineno=lineno, colno=colno)
 
     # Enums
     def p_enum_decl_stmt(self, p):
         "enum_decl_stmt : enum_decl"
-        p[0] = EnumDecl(p[1])
+        lineno, colno = self.prod_loc(p)
+        p[0] = EnumDecl(p[1], lineno=lineno, colno=colno)
 
     def p_enum_decl(self, p):
         "enum_decl : ENUM NAME LBRACE enum_name_list RBRACE"
-        p[0] = Enum(p[2], p[4])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Enum(p[2], p[4], lineno=lineno, colno=colno)
 
     def p_enum_name_list(self, p):
         "enum_name_list : NAME"
@@ -236,11 +247,13 @@ class Parser:
     # They must have at least 1 member
     def p_struct_decl_stmt(self, p):
         "struct_decl_stmt : struct_decl"
-        p[0] = StructDecl(p[1])
+        lineno, colno = self.prod_loc(p)
+        p[0] = StructDecl(p[1], lineno=lineno, colno=colno)
 
     def p_struct_decl(self, p):
         "struct_decl : STRUCT NAME LBRACE struct_decl_list optional_comma RBRACE"
-        p[0] = Struct(p[2], p[4])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Struct(p[2], p[4], lineno=lineno, colno=colno)
 
     def p_optional_seq_comma(self, p):
         """optional_comma : COMMA
@@ -259,16 +272,19 @@ class Parser:
     # def func(a, b:int)
     def p_func_decl(self, p):
         "func_decl : DEF NAME parameters"
-        p[0] = FuncDecl(p[2], p[3], NameType("int"))
+        lineno, colno = self.prod_loc(p)
+        p[0] = FuncDecl(p[2], p[3], lineno=lineno, colno=colno)
 
     # def func(a, b:int) -> ret
     def p_func_declwith_ret(self, p):
         "func_decl : DEF NAME parameters ARROW type_declaration"
-        p[0] = FuncDecl(p[2], p[3], p[5])
+        lineno, colno = self.prod_loc(p)
+        p[0] = FuncDecl(p[2], p[3], p[5], lineno=lineno, colno=colno)
 
     def p_var_decl_stmt(self, p):
         "var_decl_stmt : var_decl"
-        p[0] = VarDeclStmt(p[1])
+        lineno, colno = self.prod_loc(p)
+        p[0] = VarDeclStmt(p[1], lineno=lineno, colno=colno)
 
     # x: int
     def p_vardecl(self, p):

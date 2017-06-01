@@ -47,8 +47,6 @@ class Node(SlottedClass):
         return "\n".join(self.lines())
 
     def loc(self):
-        assert self.lineno > 0
-        assert self.colno > 0
         return self.lineno, self.colno
 
 
@@ -280,6 +278,9 @@ class FuncDecl(Node, StmtMixin):
         "name": str,
         "params": [(VarDecl, Ellipsis)],
         "returns": TypeMixin
+    }
+    __defaults__ = {
+        "returns": NameType("int"),
     }
 
     def lines(self):
