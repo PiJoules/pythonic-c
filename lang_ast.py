@@ -4,19 +4,29 @@ from lang_utils import SlottedClass, optional
 INDENT = "    "
 
 
-class TypeMixin:
+class TypeMixin(SlottedClass):
     """Mixin to indicate this node represents a type."""
 
 
-class ValueMixin:
+class ValueMixin(SlottedClass):
     """Mixin to indicate this node represents a value."""
 
 
-class StmtMixin:
+class StmtMixin(SlottedClass):
     """Mixin to indicate this node represents a statement."""
 
 
 class Node(SlottedClass):
+    __extra_attrs__ = {"lineno", "colno"}
+    __types__ = {
+        "lineno": int,
+        "colno": int,
+    }
+    __defaults__ = {
+        "lineno": -1,
+        "colno": -1,
+    }
+
     def lines(self):
         """
         Yields strings representing each line in the textual representation
@@ -73,7 +83,7 @@ def ext_enumerate(iterable):
 
 
 def iter_fields(node):
-    for attr in node.__slots__:
+    for attr in node.__attrs__:
         yield attr, getattr(node, attr)
 
 
@@ -135,7 +145,7 @@ def dump_tree(node, indent_size=4):
 
 
 class Module(Node):
-    __slots__ = ("body", "filename")
+    __attrs__ = ("body", "filename")
     __types__ = {
         "body": [StmtMixin],
         "filename": optional(str),
@@ -155,7 +165,7 @@ class Module(Node):
 
 
 class NameType(Node, TypeMixin):
-    __slots__ = ("id", )
+    __attrs__ = ("id", )
     __types__ = {"id": str}
 
     TYPE_NAME_CONVERSIONS = {
@@ -173,7 +183,7 @@ class NameType(Node, TypeMixin):
 
 
 class VarDecl(Node, StmtMixin):
-    __slots__ = ("name", "type", "init")
+    __attrs__ = ("name", "type", "init")
     __types__ = {
         "name": str,
         "type": TypeMixin,
@@ -203,7 +213,7 @@ class Ellipsis(Node, TypeMixin):
 
 
 class VarDeclStmt(Node, StmtMixin):
-    __slots__ = ("decl", )
+    __attrs__ = ("decl", )
     __types__ = {"decl": VarDecl}
 
     def lines(self):
@@ -214,7 +224,7 @@ class VarDeclStmt(Node, StmtMixin):
 
 
 class FuncDef(Node, StmtMixin):
-    __slots__ = ("name", "params", "body", "returns")
+    __attrs__ = ("name", "params", "body", "returns")
     __types__ = {
         "name": str,
         "params": [(str, VarDecl)],
@@ -260,7 +270,7 @@ class FuncDef(Node, StmtMixin):
 
 
 class FuncDecl(Node, StmtMixin):
-    __slots__ = ("name", "params", "returns")
+    __attrs__ = ("name", "params", "returns")
     __types__ = {
         "name": str,
         "params": [(VarDecl, Ellipsis)],
@@ -297,7 +307,7 @@ class FuncDecl(Node, StmtMixin):
 
 
 class FuncType(Node, TypeMixin):
-    __slots__ = ("params", "returns")
+    __attrs__ = ("params", "returns")
     __types__ = {
         "params": [(TypeMixin, Ellipsis)],
         "returns": TypeMixin
@@ -377,7 +387,7 @@ def _format_container(node, sizes=None):
 
 
 class Array(Node, TypeMixin):
-    __slots__ = ("contents", "size")
+    __attrs__ = ("contents", "size")
     __types__ = {
         "contents": TypeMixin,
         "size": ValueMixin,
@@ -401,7 +411,7 @@ class Array(Node, TypeMixin):
 
 
 class Pointer(Node, TypeMixin):
-    __slots__ = ("contents", )
+    __attrs__ = ("contents", )
     __types__ = {"contents": TypeMixin}
 
     def lines(self):
@@ -418,7 +428,7 @@ class Pointer(Node, TypeMixin):
 
 
 class Deref(Node, ValueMixin):
-    __slots__ = ("value", )
+    __attrs__ = ("value", )
     __types__ = {"value": ValueMixin}
 
     def lines(self):
@@ -429,7 +439,7 @@ class Deref(Node, ValueMixin):
 
 
 class StructPointerDeref(Node, ValueMixin):
-    __slots__ = ("value", "member")
+    __attrs__ = ("value", "member")
     __types__ = {
         "value": ValueMixin,
         "member": str,
@@ -443,7 +453,7 @@ class StructPointerDeref(Node, ValueMixin):
 
 
 class StructMemberAccess(Node, ValueMixin):
-    __slots__ = ("value", "member")
+    __attrs__ = ("value", "member")
     __types__ = {
         "value": ValueMixin,
         "member": str,
@@ -457,7 +467,7 @@ class StructMemberAccess(Node, ValueMixin):
 
 
 class ArrayLiteral(Node, ValueMixin):
-    __slots__ = ("contents", )
+    __attrs__ = ("contents", )
     __types__ = {"contents": [ValueMixin]}
 
     def lines(self):
@@ -468,7 +478,7 @@ class ArrayLiteral(Node, ValueMixin):
 
 
 class Cast(Node, ValueMixin):
-    __slots__ = ("target_type", "expr")
+    __attrs__ = ("target_type", "expr")
     __types__ = {
         "target_type": TypeMixin,
         "expr": ValueMixin,
@@ -485,7 +495,7 @@ class Cast(Node, ValueMixin):
 
 
 class ExprStmt(Node, StmtMixin):
-    __slots__ = ("value", )
+    __attrs__ = ("value", )
     __types__ = {"value": ValueMixin}
 
     def lines(self):
@@ -496,7 +506,7 @@ class ExprStmt(Node, StmtMixin):
 
 
 class Assign(Node, StmtMixin):
-    __slots__ = ("left", "right")
+    __attrs__ = ("left", "right")
     __types__ = {
         "left": ValueMixin,
         "right": ValueMixin,
@@ -510,7 +520,7 @@ class Assign(Node, StmtMixin):
 
 
 class Return(Node, StmtMixin):
-    __slots__ = ("value", )
+    __attrs__ = ("value", )
     __types__ = {"value": ValueMixin}
 
     def lines(self):
@@ -543,7 +553,7 @@ class Break(Node, StmtMixin):
 
 # TODO: Maybe add orelse to DoWhile???
 class DoWhile(Node, StmtMixin):
-    __slots__ = ("test", "body")
+    __attrs__ = ("test", "body")
     __types__ = {
         "test": ValueMixin,
         "body": [StmtMixin],
@@ -560,7 +570,7 @@ class DoWhile(Node, StmtMixin):
 
 
 class While(Node, StmtMixin):
-    __slots__ = ("test", "body", "orelse")
+    __attrs__ = ("test", "body", "orelse")
     __types__ = {
         "test": ValueMixin,
         "body": [StmtMixin],
@@ -610,7 +620,7 @@ while (1){
 
 
 class If(Node, StmtMixin):
-    __slots__ = ("test", "body", "orelse")
+    __attrs__ = ("test", "body", "orelse")
     __types__ = {
         "test": ValueMixin,
         "body": [StmtMixin],
@@ -661,7 +671,7 @@ class Case(Node):
     Cases will match the syntax proposed in this pep:
     https://www.python.org/dev/peps/pep-3103/#alternative-a
     """
-    __slots__ = ("tests", "body")
+    __attrs__ = ("tests", "body")
     __types__ = {
         "tests": [ValueMixin],
         "body": [StmtMixin],
@@ -679,7 +689,7 @@ class Case(Node):
 
 
 class Default(Node):
-    __slots__ = ("body", )
+    __attrs__ = ("body", )
     __types__ = {"body": [StmtMixin]}
 
     def lines(self):
@@ -692,7 +702,7 @@ class Default(Node):
 
 
 class Switch(Node, StmtMixin):
-    __slots__ = ("test", "cases")
+    __attrs__ = ("test", "cases")
     __types__ = {
         "test": ValueMixin,
         "cases": [(Case, Default)],
@@ -710,7 +720,7 @@ class Switch(Node, StmtMixin):
 
 # TODO: Make the operators Nodes instead of strings
 class BinOp(Node, ValueMixin):
-    __slots__ = ("left", "op", "right")
+    __attrs__ = ("left", "op", "right")
     __types__ = {
         "left": ValueMixin,
         "op": str,
@@ -772,7 +782,7 @@ class Invert(UnaryOperator):
 
 
 class UnaryOp(Node, ValueMixin):
-    __slots__ = ("op", "value")
+    __attrs__ = ("op", "value")
     __types__ = {
         "value": ValueMixin,
         "op": UnaryOperator,
@@ -789,7 +799,7 @@ class UnaryOp(Node, ValueMixin):
 
 
 class PostInc(Node, ValueMixin):
-    __slots__ = ("value", )
+    __attrs__ = ("value", )
     __types__ = {"value": ValueMixin}
 
     def lines(self):
@@ -800,7 +810,7 @@ class PostInc(Node, ValueMixin):
 
 
 class PostDec(Node, ValueMixin):
-    __slots__ = ("value", )
+    __attrs__ = ("value", )
     __types__ = {"value": ValueMixin}
 
     def lines(self):
@@ -811,7 +821,7 @@ class PostDec(Node, ValueMixin):
 
 
 class PreInc(Node, ValueMixin):
-    __slots__ = ("value", )
+    __attrs__ = ("value", )
     __types__ = {"value": ValueMixin}
 
     def lines(self):
@@ -822,7 +832,7 @@ class PreInc(Node, ValueMixin):
 
 
 class PreDec(Node, ValueMixin):
-    __slots__ = ("value", )
+    __attrs__ = ("value", )
     __types__ = {"value": ValueMixin}
 
     def lines(self):
@@ -833,7 +843,7 @@ class PreDec(Node, ValueMixin):
 
 
 class Call(Node, ValueMixin):
-    __slots__ = ("func", "args")
+    __attrs__ = ("func", "args")
     __types__ = {
         "func": ValueMixin,
         "args": [ValueMixin]
@@ -848,7 +858,7 @@ class Call(Node, ValueMixin):
 
 
 class Index(Node, ValueMixin):
-    __slots__ = ("value", "index")
+    __attrs__ = ("value", "index")
     __types__ = {
         "value": ValueMixin,
         "index": ValueMixin,
@@ -862,7 +872,7 @@ class Index(Node, ValueMixin):
 
 
 class AddressOf(Node, ValueMixin):
-    __slots__ = ("value", )
+    __attrs__ = ("value", )
     __types__ = {"value": ValueMixin}
 
     def lines(self):
@@ -873,7 +883,7 @@ class AddressOf(Node, ValueMixin):
 
 
 class Name(Node, ValueMixin):
-    __slots__ = ("id", )
+    __attrs__ = ("id", )
     __types__ = {
         "id": str,
     }
@@ -894,7 +904,7 @@ class Null(Node, ValueMixin):
 
 
 class Int(Node, ValueMixin):
-    __slots__ = ("n", )
+    __attrs__ = ("n", )
     __types__ = {"n": int}
 
     def lines(self):
@@ -905,7 +915,7 @@ class Int(Node, ValueMixin):
 
 
 class Float(Node, ValueMixin):
-    __slots__ = ("n", )
+    __attrs__ = ("n", )
     __types__ = {"n": float}
 
     def lines(self):
@@ -916,7 +926,7 @@ class Float(Node, ValueMixin):
 
 
 class Str(Node, ValueMixin):
-    __slots__ = ("s", )
+    __attrs__ = ("s", )
     __types__ = {"s": str}
 
     def lines(self):
@@ -931,7 +941,7 @@ class Str(Node, ValueMixin):
 
 
 class Char(Node, ValueMixin):
-    __slots__ = ("c", )
+    __attrs__ = ("c", )
     __types__ = {"c": str}
 
     def lines(self):
@@ -942,7 +952,7 @@ class Char(Node, ValueMixin):
 
 
 class Enum(Node):
-    __slots__ = ("name", "members", )
+    __attrs__ = ("name", "members", )
     __types__ = {
         "name": str,
         "members": [str]
@@ -962,7 +972,7 @@ class Enum(Node):
 
 
 class EnumDecl(Node, StmtMixin):
-    __slots__ = ("enum", )
+    __attrs__ = ("enum", )
     __types__ = {"enum": Enum}
 
     def lines(self):
@@ -977,7 +987,7 @@ class EnumDecl(Node, StmtMixin):
 
 
 class TypeDefStmt(Node, StmtMixin):
-    __slots__ = ("type", "name")
+    __attrs__ = ("type", "name")
     __types__ = {
         "type": TypeMixin,
         "name": str
@@ -994,7 +1004,7 @@ class TypeDefStmt(Node, StmtMixin):
 
 
 class Struct(Node):
-    __slots__ = ("name", "decls")
+    __attrs__ = ("name", "decls")
     __types__ = {
         "name": str,
         "decls": [VarDecl],
@@ -1014,7 +1024,7 @@ class Struct(Node):
 
 
 class StructDecl(Node, StmtMixin):
-    __slots__ = ("struct", )
+    __attrs__ = ("struct", )
     __types__ = {"struct": Struct}
 
     def lines(self):
@@ -1036,7 +1046,7 @@ class Macro(Node, StmtMixin):
 
 
 class Define(Macro):
-    __slots__ = ("name", "value")
+    __attrs__ = ("name", "value")
     __types__ = {
         "name": str,
         "value": optional(ValueMixin)
@@ -1057,7 +1067,7 @@ class Define(Macro):
 
 
 class CInclude(Macro):
-    __slots__ = ("path", )
+    __attrs__ = ("path", )
     __types__ = {"path": str}
 
     def c_lines(self):
@@ -1065,7 +1075,7 @@ class CInclude(Macro):
 
 
 class Include(Macro):
-    __slots__ = ("path", )
+    __attrs__ = ("path", )
     __types__ = {"path": Str}
 
     def lines(self):
@@ -1076,7 +1086,7 @@ class Include(Macro):
 
 
 class Ifndef(Macro):
-    __slots__ = ("guard", )
+    __attrs__ = ("guard", )
     __types__ = {"guard": str}
 
     def lines(self):
@@ -1123,7 +1133,7 @@ class NodeVisitor:
 
     def visit_children(self, node):
         if isinstance(node, Node):
-            for attr in node.__slots__:
+            for attr in node.__attrs__:
                 val = getattr(node, attr)
                 if val is not None:
                     self.visit(val)

@@ -3,7 +3,7 @@ from lang_utils import SlottedClass
 
 
 class LangType(SlottedClass):
-    __slots__ = ("name", )
+    __attrs__ = ("name", )
     __types__ = {
         "name": str,
     }
@@ -17,14 +17,14 @@ class LangType(SlottedClass):
 
 """
 Rule of thumb: Try to create a subclass of LangType only if you need to
-add more __slots__. Enums do not need a subclass because you just use the name
+add more __attrs__. Enums do not need a subclass because you just use the name
 of the enum as the type whereas structs have members and pointers point to
 stuff.
 """
 
 
 class PointerType(LangType):
-    __slots__ = ("contents", )
+    __attrs__ = ("contents", )
     __types__ = {
         "contents": LangType,
     }
@@ -37,7 +37,7 @@ class PointerType(LangType):
 
 
 class ArrayType(LangType):
-    __slots__ = ("contents", "size")
+    __attrs__ = ("contents", "size")
     __types__ = {
         "contents": LangType,
         "size": ValueMixin,
@@ -60,7 +60,7 @@ class ArrayType(LangType):
 
 
 class StructType(LangType):
-    __slots__ = ("members", )
+    __attrs__ = ("members", )
     __types__ = {
         "members": {str: LangType}
     }
@@ -70,7 +70,7 @@ class StructType(LangType):
 
 
 class CallableType(LangType):
-    __slots__ = ("args", "returns")
+    __attrs__ = ("args", "returns")
     __types__ = {
         "args": [LangType],
         "returns": LangType

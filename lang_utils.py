@@ -20,46 +20,79 @@ CHECKED_IDS = set()
 
 
 class SlottedClassChecker(type):
-    def __init__(cls, name, bases, namespace):
-        super().__init__(name, bases, namespace)
-
-        # Combine the slotted class attrs of parent classes
-        cls.__slots__ = namespace.get("__slots__", tuple())
-        cls.__types__ = namespace.get("__types__", {})
-        cls.__defaults__ = namespace.get("__defaults__", {})
+    def __new__(cls, name, bases, namespace):
+        # Get the attributes
+        cls_attrs = namespace.get("__attrs__", tuple())
+        cls_types = namespace.get("__types__", {})
+        cls_defaults = namespace.get("__defaults__", {})
+        cls_extra_attrs = namespace.get("__extra_attrs__", set())
 
         # Check types
-        assert isinstance(cls.__slots__, tuple)
-        assert isinstance(cls.__types__, dict)
-        assert isinstance(cls.__defaults__, dict)
+        assert isinstance(cls_attrs, tuple)
+        assert isinstance(cls_types, dict)
+        assert isinstance(cls_defaults, dict)
+        assert isinstance(cls_extra_attrs, set)
 
+        # Combine the slotted class attrs of parent classes
+        found_slots = False
         for base in bases:
-            slots = getattr(base, "__slots__", tuple())
-            cls.__slots__ = slots + cls.__slots__
+            assert issubclass(base, SlottedClass), "{} inherits from class {} which must inherit from SlottedClass".format(name, base.__name__)
+            base_slots = getattr(base, "__slots__", None)
+            if base_slots:
+                if not found_slots:
+                    found_slots = True
+                else:
+                    raise RuntimeError("{} found to contain __slots__. Only one class that {} inherits from can contain __slots__ or be a SlotttedCLass".format(base.__name__, name))
+
+            attrs = getattr(base, "__attrs__", tuple())
+            cls_attrs = attrs + cls_attrs
 
             types = getattr(base, "__types__", {})
-            cls.__types__.update(types)
+            cls_types.update(types)
 
             defaults = getattr(base, "__defaults__", {})
-            cls.__defaults__.update(defaults)
+            cls_defaults.update(defaults)
+
+            extra_attrs = getattr(base, "__extra_attrs__", frozenset())
+            cls_extra_attrs |= extra_attrs
+
+        # Create and set the slots
+        namespace["__attrs__"] = cls_attrs
+        namespace["__types__"] = cls_types
+        namespace["__defaults__"] = cls_defaults
+        namespace["__extra_attrs__"] = cls_extra_attrs
+
+        slots = cls_attrs + tuple(cls_extra_attrs)
+        namespace["__slots__"] = slots
 
         # Check slotted attributes
-        for attr in cls.__types__:
-            assert attr in cls.__slots__, "type '{}' not in __slots__ for {}".format(attr, cls)
-        for attr in cls.__defaults__:
-            assert attr in cls.__slots__, "default '{}' not in __slots__ for {}".format(attr, cls)
+        attrs = set(slots)
+        for attr in cls_types:
+            assert attr in attrs, "type '{}' not in __attrs__ for {}".format(attr, cls)
+        for attr in cls_defaults:
+            assert attr in attrs, "default '{}' not in __attrs__ for {}".format(attr, cls)
+
+        return type.__new__(cls, name, bases, namespace)
 
 
 class SlottedClass(metaclass=SlottedClassChecker):
-    __slots__ = tuple()
+    # Ordered attributes
+    __attrs__ = tuple()
+
+    # Expected types
     __types__ = {}
+
+    # Default values for types
     __defaults__ = {}
+
+    # Unordered attributes
+    __extra_attrs__ = set()
 
     def __init__(self, *args, **kwargs):
         for i, val in enumerate(args):
-            self.assign_and_check(self.__slots__[i], val)
+            self.assign_and_check(self.__attrs__[i], val)
 
-        for attr in self.__slots__[len(args):]:
+        for attr in self.__attrs__[len(args):]:
             if attr not in kwargs:
                 val = copy.copy(self.__defaults__[attr])
             else:
@@ -120,7 +153,7 @@ class SlottedClass(metaclass=SlottedClassChecker):
             return False
 
         # Same attributes
-        if self.__slots__ != other.__slots__:
+        if self.__attrs__ != other.__attrs__:
             return False
 
         # Get ids and save them
@@ -132,7 +165,7 @@ class SlottedClass(metaclass=SlottedClassChecker):
             CHECKED_IDS.add(other_id)
 
         # Check attribute values
-        for attr in self.__slots__:
+        for attr in self.__attrs__:
             self_val = getattr(self, attr)
             if id(self_val) in CHECKED_IDS:
                 continue
