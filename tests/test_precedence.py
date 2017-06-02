@@ -18,8 +18,8 @@ class TestPrecedence(unittest.TestCase):
             ast,
             Module([
                 ExprStmt(
-                    Compare(
-                        Compare(
+                    LogicalOp(
+                        LogicalOp(
                             Int(7),
                             Gt(),
                             Int(6)
@@ -71,7 +71,7 @@ class TestPrecedence(unittest.TestCase):
             ast,
             Module([
                 ExprStmt(
-                    Compare(
+                    LogicalOp(
                         Int(1),
                         Eq(),
                         BinOp(Int(2), Add(), Int(3)),
@@ -88,7 +88,7 @@ class TestPrecedence(unittest.TestCase):
             ast,
             Module([
                 ExprStmt(
-                    Compare(
+                    LogicalOp(
                         Index(Name("x"), Int(1)),
                         Eq(),
                         BinOp(Name("x"), Add(), Int(1)),
@@ -103,7 +103,7 @@ class TestPrecedence(unittest.TestCase):
             ast,
             Module([
                 ExprStmt(
-                    Compare(
+                    LogicalOp(
                         Index(Name("x"), Int(1)),
                         Eq(),
                         Name("x"),
@@ -140,7 +140,7 @@ x = [
         self.assertEqual(
             ast.body[-1],
             ExprStmt(
-                Compare(
+                LogicalOp(
                     Int(6),
                     Eq(),
                     BinOp(
@@ -176,7 +176,7 @@ x = [
         ast = code_to_ast(code)
         self.assertEqual(
             ast.body[0].value,
-            Compare(
+            LogicalOp(
                 Int(1),
                 Eq(),
                 StructMemberAccess(

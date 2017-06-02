@@ -185,6 +185,9 @@ class Inferer:
 
     ####### Type handling ###########
 
+    def types_eq(self, t1, t2):
+        return self.__exhaust_typedef_chain(t1) == self.__exhaust_typedef_chain(t2)
+
     def add_type(self, new_type):
         """
         Add a new base type. This is primarily meant for newly declared
@@ -370,6 +373,26 @@ class Inferer:
         assert isinstance(struct_t, StructType)
         return struct_t.members[member]
 
+    def dominant_base_type(self, t1, t2):
+        """
+        Returns the dominant base type.
+
+        http://stackoverflow.com/a/5563131/2775471
+        """
+        if t1.name == "void" or t2.name == "void":
+            raise RuntimeError("Cannot add to void type")
+        elif t1.name == "double" or t2.name == "double":
+            return DOUBLE_TYPE
+        elif t1.name == "float" or t2.name == "float":
+            return FLOAT_TYPE
+        elif t1.name == "uint" or t2.name == "uint":
+            return UINT_TYPE
+        else:
+            return INT_TYPE
+
+    def type_is_pointer(self, t):
+        return isinstance(self.__exhaust_typedef_chain(t), PointerType)
+
     # TODO: Clean this up and also take into account typedef chains
     def infer_BinOp(self, node):
         left = node.left
@@ -385,49 +408,47 @@ class Inferer:
                 raise RuntimeError("Expected the pointer to be a PointerType")
             return ptr_t
 
-        def __dominant_base_type(t1, t2):
-            """
-            Returns the dominant base type.
-
-            http://stackoverflow.com/a/5563131/2775471
-            """
-            types = (t1, t2)
-            if t1.name == "void" or t2.name == "void":
-                raise RuntimeError("Cannot add to void type")
-            elif t1.name == "double" or t2.name == "double":
-                return DOUBLE_TYPE
-            elif t1.name == "float" or t2.name == "float":
-                return FLOAT_TYPE
-            elif t1.name == "uint" or t2.name == "uint":
-                return UINT_TYPE
-            else:
-                return INT_TYPE
-
         if op == Add() or op == Sub():
-            if isinstance(left_t, (PointerType, ArrayType)):
-                return __pointer_offset(left_t, right_t)
-            elif isinstance(right_t, (PointerType, ArrayType)):
-                return __pointer_offset(right_t, left_t)
-            else:
-                return __dominant_base_type(left_t, right_t)
+            if self.type_is_pointer(right_t):
+                if not self.type_is_integeral(left_t):
+                    raise TypeError("Cannot shift pointer in {} with type {}. Expected an integral.".formay(
+                        node, left_t
+                    ))
+                return right_t
+
+            if self.type_is_pointer(left_t):
+                if not self.type_is_integeral(right_t):
+                    raise TypeError("Cannot shift pointer in {} with type {}. Expected an integral.".formay(
+                        node, right_t
+                    ))
+                return left_t
+
+            return self.dominant_base_type(left_t, right_t)
         elif op == Div() or op == Mult():
-            return __dominant_base_type(left_t, right_t)
-        elif (op == Mod() or op == BitAnd() or op == BitOr() or op == Xor() or
-              op == LShift() or op == RShift()):
-            # Both operands must be int like types
-            final_left_t = self.__exhaust_typedef_chain(left_t)
-            if not can_implicit_assign(INT_TYPE, final_left_t):
-                raise TypeError("Int like types are required for modulo. Found {} for LHS of {}.".format(left_t, node))
-
-            final_right_t = self.__exhaust_typedef_chain(right_t)
-            if not can_implicit_assign(INT_TYPE, final_right_t):
-                raise TypeError("Int like types are required for modulo. Found {} for RHS of {}.".format(right_t, node))
-
-            return INT_TYPE
-        elif op == And() or op == Or():
-            return INT_TYPE
+            return self.dominant_base_type(left_t, right_t)
         else:
             raise RuntimeError("Unable to infer for binary operation '{}'".format(op))
+
+    def infer_BitwiseOp(self, node):
+        return self.infer_IntegralOp(node)
+
+    def type_is_integeral(self, t):
+        return can_implicit_assign(INT_TYPE, self.__exhaust_typedef_chain(t))
+
+    def infer_IntegralOp(self, node):
+        left_t = self.infer(node.left)
+        if not self.type_is_integeral(left_t):
+            raise TypeError("Expected LHS of {} to be an integral type. Found {}.".format(
+                node, left_t
+            ))
+
+        right_t = self.infer(node.right)
+        if not self.type_is_integeral(right_t):
+            raise TypeError("Expected RHS of {} to be an integral type. Found {}.".format(
+                node, right_t
+            ))
+
+        return INT_TYPE
 
     def infer_PostInc(self, node):
         return self.infer(node.value)
@@ -478,7 +499,7 @@ class Inferer:
     def infer_AddressOf(self, node):
         return PointerType(self.infer(node.value))
 
-    def infer_Compare(self, node):
+    def infer_LogicalOp(self, node):
         self.infer(node.left)
         self.infer(node.right)
         return INT_TYPE
@@ -500,11 +521,10 @@ class Inferer:
     def infer_Deref(self, node):
         value = node.value
         value_t = self.infer(value)
+        if not self.type_is_pointer(value_t):
+            raise TypeError("Attempting to dereference {} which is of type {} and not a pointer.".format(value, value_t))
+
         final_value_t = self.__exhaust_typedef_chain(value_t)
-
-        if not isinstance(final_value_t, PointerType):
-            raise TypeError("Attempting to dereference {} which is of type {} and not a pointer.".format(value, final_value_t))
-
         contents_t = final_value_t.contents
         final_contents_t = self.__exhaust_typedef_chain(contents_t)
         if contents_t == VOID_TYPE:
@@ -859,25 +879,6 @@ class Inferer:
             node.test,
             self.check(node.body)
         )
-
-    def check_Compare(self, node):
-        return Compare(
-            self.check(node.left),
-            node.op,
-            self.check(node.right),
-        )
-
-    def check_StructPointerDeref(self, node):
-        return StructPointerDeref(
-            self.check(node.value),
-            node.member
-        )
-
-    def check_Name(self, node):
-        return node
-
-    def check_Null(self, node):
-        return node
 
     def check_If(self, node):
         self.infer(node.test)

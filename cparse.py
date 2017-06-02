@@ -534,77 +534,77 @@ class Parser:
         lineno, colno = self.prod_loc(p)
         p[0] = BinOp(p[1], Mult(), p[3], lineno=lineno, colno=colno)
 
-    def p_mod_expr(self, p):
-        "expr : expr MOD expr"
-        lineno, colno = self.prod_loc(p)
-        p[0] = BinOp(p[1], Mod(), p[3], lineno=lineno, colno=colno)
-
     def p_div_expr(self, p):
         "expr : expr DIV expr"
         lineno, colno = self.prod_loc(p)
         p[0] = BinOp(p[1], Div(), p[3], lineno=lineno, colno=colno)
 
+    def p_mod_expr(self, p):
+        "expr : expr MOD expr"
+        lineno, colno = self.prod_loc(p)
+        p[0] = IntegralOp(p[1], Mod(), p[3], lineno=lineno, colno=colno)
+
     def p_eq_expr(self, p):
         "expr : expr EQ expr"
         lineno, colno = self.prod_loc(p)
-        p[0] = Compare(p[1], Eq(), p[3], lineno=lineno, colno=colno)
+        p[0] = LogicalOp(p[1], Eq(), p[3], lineno=lineno, colno=colno)
 
     def p_lt_expr(self, p):
         "expr : expr LT expr"
         lineno, colno = self.prod_loc(p)
-        p[0] = Compare(p[1], Lt(), p[3], lineno=lineno, colno=colno)
+        p[0] = LogicalOp(p[1], Lt(), p[3], lineno=lineno, colno=colno)
 
     def p_gt_expr(self, p):
         "expr : expr GT expr"
         lineno, colno = self.prod_loc(p)
-        p[0] = Compare(p[1], Gt(), p[3], lineno=lineno, colno=colno)
+        p[0] = LogicalOp(p[1], Gt(), p[3], lineno=lineno, colno=colno)
 
     def p_le_expr(self, p):
         "expr : expr LE expr"
         lineno, colno = self.prod_loc(p)
-        p[0] = Compare(p[1], Le(), p[3], lineno=lineno, colno=colno)
+        p[0] = LogicalOp(p[1], Le(), p[3], lineno=lineno, colno=colno)
 
     def p_ge_expr(self, p):
         "expr : expr GE expr"
         lineno, colno = self.prod_loc(p)
-        p[0] = Compare(p[1], Ge(), p[3], lineno=lineno, colno=colno)
+        p[0] = LogicalOp(p[1], Ge(), p[3], lineno=lineno, colno=colno)
 
     def p_and_expr(self, p):
         "expr : expr AND expr"
         lineno, colno = self.prod_loc(p)
-        p[0] = BinOp(p[1], And(), p[3], lineno=lineno, colno=colno)
+        p[0] = LogicalOp(p[1], And(), p[3], lineno=lineno, colno=colno)
 
     def p_or_expr(self, p):
         "expr : expr OR expr"
         lineno, colno = self.prod_loc(p)
-        p[0] = BinOp(p[1], Or(), p[3], lineno=lineno, colno=colno)
+        p[0] = LogicalOp(p[1], Or(), p[3], lineno=lineno, colno=colno)
 
     # Bitwise operations
 
     def p_bitand_expr(self, p):
         "expr : expr AMP expr %prec BITAND"
         lineno, colno = self.prod_loc(p)
-        p[0] = BinOp(p[1], BitAnd(), p[3], lineno=lineno, colno=colno)
+        p[0] = BitwiseOp(p[1], BitAnd(), p[3], lineno=lineno, colno=colno)
 
     def p_bitor_expr(self, p):
         "expr : expr PIPE expr %prec BITOR"
         lineno, colno = self.prod_loc(p)
-        p[0] = BinOp(p[1], BitOr(), p[3], lineno=lineno, colno=colno)
+        p[0] = BitwiseOp(p[1], BitOr(), p[3], lineno=lineno, colno=colno)
 
     def p_xor_expr(self, p):
         "expr : expr CARROT expr %prec XOR"
         lineno, colno = self.prod_loc(p)
-        p[0] = BinOp(p[1], Xor(), p[3], lineno=lineno, colno=colno)
+        p[0] = BitwiseOp(p[1], Xor(), p[3], lineno=lineno, colno=colno)
 
     def p_lshift_expr(self, p):
         "expr : expr LSHIFT expr"
         lineno, colno = self.prod_loc(p)
-        p[0] = BinOp(p[1], LShift(), p[3], lineno=lineno, colno=colno)
+        p[0] = BitwiseOp(p[1], LShift(), p[3], lineno=lineno, colno=colno)
 
     def p_rshift_expr(self, p):
         "expr : expr RSHIFT expr"
         lineno, colno = self.prod_loc(p)
-        p[0] = BinOp(p[1], RShift(), p[3], lineno=lineno, colno=colno)
+        p[0] = BitwiseOp(p[1], RShift(), p[3], lineno=lineno, colno=colno)
 
     def p_comparison_power(self, p):
         "expr : power"
@@ -613,7 +613,7 @@ class Parser:
     def p_ne(self, p):
         "expr : expr NE expr"
         lineno, colno = self.prod_loc(p)
-        p[0] = Compare(p[1], Ne(), p[3], lineno=lineno, colno=colno)
+        p[0] = LogicalOp(p[1], Ne(), p[3], lineno=lineno, colno=colno)
 
     def p_expr_struct_deref(self, p):
         "expr : expr ARROW NAME"

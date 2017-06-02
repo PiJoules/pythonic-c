@@ -78,4 +78,29 @@ int main(){
 
     int arr[10] = {1, 2, 3};
     int arrc[10][10] = {1,2,3};
+
+    int* ptr;
+    // Both sides of these expressions must be integrals and returns integrals
+    //2.0 << 4;
+    //2.0 >> 4;
+    //2 ^ 4.0;
+    //2 | 4.0;
+    //2 & 4.0;
+    
+    // Takes any types and always returns ints
+    //2 || 4.0;
+    //2 && 4.0;
+    //2 > 4.0;
+    //2 < 4.0;
+    //2 >= 4.0;
+    //2 <= 4.0;
+    //2 != 4.0;
+    //2 == 4.0;
+    //4.0 % 2;  // Not logical but only takes integrals
+    
+    // Returns dominant types
+    //2 / 4.0; 
+    //2 * 4.0; 
+    //2 - 4.0; 
+    //2 + 4.0; 
 }

@@ -893,8 +893,16 @@ class BinOp(Node, ValueMixin):
                                   self.right.c_code())
 
 
-class Compare(BinOp):
+class IntegralOp(BinOp):
+    """This operation only takes integral types and returns an integral type."""
+
+
+class BitwiseOp(IntegralOp):
     pass
+
+
+class LogicalOp(BinOp):
+    """This node always infers to a boolean/int."""
 
 
 class UnaryOperator(Node):
