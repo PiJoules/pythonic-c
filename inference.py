@@ -403,17 +403,17 @@ class Inferer:
             else:
                 return INT_TYPE
 
-        if op == "+" or op == "-":
+        if op == Add() or op == Sub():
             if isinstance(left_t, (PointerType, ArrayType)):
                 return __pointer_offset(left_t, right_t)
             elif isinstance(right_t, (PointerType, ArrayType)):
                 return __pointer_offset(right_t, left_t)
             else:
                 return __dominant_base_type(left_t, right_t)
-        elif op == "/" or op == "*":
+        elif op == Div() or op == Mult():
             return __dominant_base_type(left_t, right_t)
-        elif (op == "%" or op == "&" or op == "|" or op == "^" or op == "<<" or
-              op == ">>"):
+        elif (op == Mod() or op == BitAnd() or op == BitOr() or op == Xor() or
+              op == LShift() or op == RShift()):
             # Both operands must be int like types
             final_left_t = self.__exhaust_typedef_chain(left_t)
             if not can_implicit_assign(INT_TYPE, final_left_t):
@@ -424,7 +424,7 @@ class Inferer:
                 raise TypeError("Int like types are required for modulo. Found {} for RHS of {}.".format(right_t, node))
 
             return INT_TYPE
-        elif op == "and" or op == "or":
+        elif op == And() or op == Or():
             return INT_TYPE
         else:
             raise RuntimeError("Unable to infer for binary operation '{}'".format(op))

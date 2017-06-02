@@ -20,7 +20,7 @@ class TestCast(unittest.TestCase):
                             NameType("float"),
                             Int(2),
                         ),
-                        "/",
+                        Div(),
                         Int(4)
                     )
                 )

@@ -289,21 +289,23 @@ class Parser:
     # x: int
     def p_vardecl(self, p):
         "var_decl : NAME COLON type_declaration"
-        p[0] = VarDecl(p[1], p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = VarDecl(p[1], p[3], lineno=lineno, colno=colno)
 
     # x: int = 2
     def p_vardecl_assign(self, p):
         "var_decl : NAME COLON type_declaration ASSIGN expr"
-        p[0] = VarDecl(p[1], p[3], p[5])
+        lineno, colno = self.prod_loc(p)
+        p[0] = VarDecl(p[1], p[3], p[5], lineno=lineno, colno=colno)
 
     def p_declaration_name(self, p):
         "type_declaration : NAME"
-        p[0] = NameType(p[1])
+        lineno, colno = self.prod_loc(p)
+        p[0] = NameType(p[1], lineno=lineno, colno=colno)
 
     def p_type_declaration_scoped(self, p):
         "type_declaration : LBRACE type_declaration RBRACE"
         p[0] = p[2]
-
 
     # Function type declarations
 
@@ -313,7 +315,8 @@ class Parser:
 
     def p_inline_func_decl(self, p):
         "inline_func_decl : param_type_list ARROW type_declaration"
-        p[0] = FuncType(p[1], p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = FuncType(p[1], p[3], lineno=lineno, colno=colno)
 
     def p_param_type_list_empty(self, p):
         "param_type_list : LPAR RPAR"
@@ -335,6 +338,7 @@ class Parser:
 
     def p_declaration_array(self, p):
         "type_declaration : type_declaration bracket_list"
+        lineno, colno = self.prod_loc(p)
         def _distribute(sizes):
             # Wraps p[1] in either an array or pointer by distributing the bracket
             # sizes
@@ -342,9 +346,11 @@ class Parser:
                 return p[1]
             size = sizes[0]
             if size is None:
-                return Pointer(_distribute(sizes[1:]))
+                return Pointer(_distribute(sizes[1:]),
+                               lineno=lineno, colno=colno)
             else:
-                return Array(_distribute(sizes[1:]), size)
+                return Array(_distribute(sizes[1:]), size,
+                             lineno=lineno, colno=colno)
         p[0] = _distribute(p[2])
 
     def p_pointer_or_array(self, p):
@@ -370,7 +376,8 @@ class Parser:
 
     def p_include_standard(self, p):
         "include_stmt : INCLUDE string"
-        p[0] = Include(p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Include(p[2], lineno=lineno, colno=colno)
 
     def p_expr_stmt(self, p):
         "expr_stmt : expr"
@@ -380,7 +387,8 @@ class Parser:
     # LHS is expr b/c nearly anything can be assigned to
     def p_assign(self, p):
         "assign_stmt : expr ASSIGN expr"
-        p[0] = Assign(p[1], p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Assign(p[1], p[3], lineno=lineno, colno=colno)
 
     def p_return_stmt(self, p):
         "return_stmt : RETURN expr"
@@ -397,37 +405,40 @@ class Parser:
                          | funcdef"""
         p[0] = p[1]
 
-
     ###### Control flow ##########
 
     # Do while stmt
     # I do it this way b/c it was simple
     def p_dowhile(self, p):
         "dowhile_stmt : DOWHILE expr COLON suite"
-        p[0] = DoWhile(p[2], p[4])
+        lineno, colno = self.prod_loc(p)
+        p[0] = DoWhile(p[2], p[4], lineno=lineno, colno=colno)
 
     # While stmt
     def p_while_stmt(self, p):
         "while_stmt : WHILE expr COLON suite"
-        p[0] = While(p[2], p[4], [])
+        lineno, colno = self.prod_loc(p)
+        p[0] = While(p[2], p[4], lineno=lineno, colno=colno)
 
     def p_while_stmt_orelse(self, p):
         "while_stmt : WHILE expr COLON suite while_orelse"
-        p[0] = While(p[2], p[4], p[5])
+        lineno, colno = self.prod_loc(p)
+        p[0] = While(p[2], p[4], p[5], lineno=lineno, colno=colno)
 
     def p_while_orelse(self, p):
         "while_orelse : ELSE COLON suite"
         p[0] = p[3]
 
-
     # If stmt
     def p_if_stmt(self, p):
         'if_stmt : IF expr COLON suite'
-        p[0] = If(p[2], p[4], [])
+        lineno, colno = self.prod_loc(p)
+        p[0] = If(p[2], p[4], lineno=lineno, colno=colno)
 
     def p_if_else(self, p):
         'if_stmt : IF expr COLON suite if_orelse'
-        p[0] = If(p[2], p[4], p[5])
+        lineno, colno = self.prod_loc(p)
+        p[0] = If(p[2], p[4], p[5], lineno=lineno, colno=colno)
 
     def p_orelse_else(self, p):
         "if_orelse : ELSE COLON suite"
@@ -435,16 +446,19 @@ class Parser:
 
     def p_orelse_elif_no_orelse(self, p):
         "if_orelse : ELIF expr COLON suite"
-        p[0] = [If(p[2], p[4], [])]
+        lineno, colno = self.prod_loc(p)
+        p[0] = [If(p[2], p[4], lineno=lineno, colno=colno)]
 
     def p_orelse_elif_with_orelse(self, p):
         "if_orelse : ELIF expr COLON suite if_orelse"
-        p[0] = [If(p[2], p[4], p[5])]
+        lineno, colno = self.prod_loc(p)
+        p[0] = [If(p[2], p[4], p[5], lineno=lineno, colno=colno)]
 
     # Switch statement
     def p_switch(self, p):
         "switch_stmt : SWITCH expr COLON switch_suite"
-        p[0] = Switch(p[2], p[4])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Switch(p[2], p[4], lineno=lineno, colno=colno)
 
     def p_switch_suite(self, p):
         "switch_suite : NEWLINE INDENT switch_stmts DEDENT"
@@ -464,7 +478,8 @@ class Parser:
 
     def p_default(self, p):
         "default : ELSE COLON suite"
-        p[0] = Default(p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Default(p[3], lineno=lineno, colno=colno)
 
     def p_case_list_one(self, p):
         "case_list : case"
@@ -476,7 +491,8 @@ class Parser:
 
     def p_case(self, p):
         "case : CASE case_expr_list COLON suite"
-        p[0] = Case(p[2], p[4])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Case(p[2], p[4], lineno=lineno, colno=colno)
 
     def p_case_expr_list_one(self, p):
         "case_expr_list : expr"
@@ -505,73 +521,90 @@ class Parser:
 
     def p_add_expr(self, p):
         "expr : expr PLUS expr"
-        p[0] = BinOp(p[1], "+", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = BinOp(p[1], Add(), p[3], lineno=lineno, colno=colno)
 
     def p_sub_expr(self, p):
         "expr : expr MINUS expr"
-        p[0] = BinOp(p[1], "-", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = BinOp(p[1], Sub(), p[3], lineno=lineno, colno=colno)
 
     def p_mult_expr(self, p):
         "expr : expr MULT expr"
-        p[0] = BinOp(p[1], "*", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = BinOp(p[1], Mult(), p[3], lineno=lineno, colno=colno)
 
     def p_mod_expr(self, p):
         "expr : expr MOD expr"
-        p[0] = BinOp(p[1], "%", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = BinOp(p[1], Mod(), p[3], lineno=lineno, colno=colno)
 
     def p_div_expr(self, p):
         "expr : expr DIV expr"
-        p[0] = BinOp(p[1], "/", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = BinOp(p[1], Div(), p[3], lineno=lineno, colno=colno)
 
     def p_eq_expr(self, p):
         "expr : expr EQ expr"
-        p[0] = Compare(p[1], "==", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Compare(p[1], Eq(), p[3], lineno=lineno, colno=colno)
 
     def p_lt_expr(self, p):
         "expr : expr LT expr"
-        p[0] = Compare(p[1], "<", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Compare(p[1], Lt(), p[3], lineno=lineno, colno=colno)
 
     def p_gt_expr(self, p):
         "expr : expr GT expr"
-        p[0] = Compare(p[1], ">", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Compare(p[1], Gt(), p[3], lineno=lineno, colno=colno)
 
     def p_le_expr(self, p):
         "expr : expr LE expr"
-        p[0] = Compare(p[1], "<=", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Compare(p[1], Le(), p[3], lineno=lineno, colno=colno)
 
     def p_ge_expr(self, p):
         "expr : expr GE expr"
-        p[0] = Compare(p[1], ">=", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Compare(p[1], Ge(), p[3], lineno=lineno, colno=colno)
 
     def p_and_expr(self, p):
         "expr : expr AND expr"
-        p[0] = BinOp(p[1], "and", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = BinOp(p[1], And(), p[3], lineno=lineno, colno=colno)
 
     def p_or_expr(self, p):
         "expr : expr OR expr"
-        p[0] = BinOp(p[1], "or", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = BinOp(p[1], Or(), p[3], lineno=lineno, colno=colno)
 
     # Bitwise operations
 
     def p_bitand_expr(self, p):
         "expr : expr AMP expr %prec BITAND"
-        p[0] = BinOp(p[1], "&", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = BinOp(p[1], BitAnd(), p[3], lineno=lineno, colno=colno)
 
     def p_bitor_expr(self, p):
         "expr : expr PIPE expr %prec BITOR"
-        p[0] = BinOp(p[1], "|", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = BinOp(p[1], BitOr(), p[3], lineno=lineno, colno=colno)
 
     def p_xor_expr(self, p):
         "expr : expr CARROT expr %prec XOR"
-        p[0] = BinOp(p[1], "^", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = BinOp(p[1], Xor(), p[3], lineno=lineno, colno=colno)
 
     def p_lshift_expr(self, p):
         "expr : expr LSHIFT expr"
-        p[0] = BinOp(p[1], "<<", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = BinOp(p[1], LShift(), p[3], lineno=lineno, colno=colno)
 
     def p_rshift_expr(self, p):
         "expr : expr RSHIFT expr"
-        p[0] = BinOp(p[1], ">>", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = BinOp(p[1], RShift(), p[3], lineno=lineno, colno=colno)
 
     def p_comparison_power(self, p):
         "expr : power"
@@ -579,15 +612,18 @@ class Parser:
 
     def p_ne(self, p):
         "expr : expr NE expr"
-        p[0] = Compare(p[1], "!=", p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Compare(p[1], Ne(), p[3], lineno=lineno, colno=colno)
 
     def p_expr_struct_deref(self, p):
         "expr : expr ARROW NAME"
-        p[0] = StructPointerDeref(p[1], p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = StructPointerDeref(p[1], p[3], lineno=lineno, colno=colno)
 
     def p_expr_struct_access(self, p):
         "expr : expr PERIOD NAME"
-        p[0] = StructMemberAccess(p[1], p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = StructMemberAccess(p[1], p[3], lineno=lineno, colno=colno)
 
     def p_comparison_scoped(self, p):
         "expr : LPAR expr RPAR"
@@ -595,51 +631,62 @@ class Parser:
 
     def p_comparison_cast(self, p):
         "expr : LT type_declaration GT expr %prec CAST"
-        p[0] = Cast(p[2], p[4])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Cast(p[2], p[4], lineno=lineno, colno=colno)
 
     def p_comparison_deref(self, p):
         "expr : MULT expr %prec DEREF"
-        p[0] = Deref(p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Deref(p[2], lineno=lineno, colno=colno)
 
     def p_comparison_uadd(self, p):
         "expr : PLUS expr %prec UADD"
-        p[0] = UnaryOp(UAdd(), p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = UnaryOp(UAdd(), p[2], lineno=lineno, colno=colno)
 
     def p_comparison_usub(self, p):
         "expr : MINUS expr %prec USUB"
-        p[0] = UnaryOp(USub(), p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = UnaryOp(USub(), p[2], lineno=lineno, colno=colno)
 
     # Post inc/decrement
 
     def p_post_inc(self, p):
         "expr : expr INC %prec POSTINC"
-        p[0] = PostInc(p[1])
+        lineno, colno = self.prod_loc(p)
+        p[0] = PostInc(p[1], lineno=lineno, colno=colno)
 
     def p_post_dec(self, p):
         "expr : expr DEC %prec POSTDEC"
-        p[0] = PostDec(p[1])
+        lineno, colno = self.prod_loc(p)
+        p[0] = PostDec(p[1], lineno=lineno, colno=colno)
 
     # Pre inc/decrement
 
     def p_pre_inc(self, p):
         "expr : INC expr %prec PREINC"
-        p[0] = PreInc(p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = PreInc(p[2], lineno=lineno, colno=colno)
 
     def p_pre_dec(self, p):
         "expr : DEC expr %prec PREDEC"
-        p[0] = PreDec(p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = PreDec(p[2], lineno=lineno, colno=colno)
 
     def p_comparison_not(self, p):
         "expr : NOT expr"
-        p[0] = UnaryOp(Not(), p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = UnaryOp(Not(), p[2], lineno=lineno, colno=colno)
 
     def p_inv_expr(self, p):
         "expr : INV expr"
-        p[0] = UnaryOp(Invert(), p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = UnaryOp(Invert(), p[2], lineno=lineno, colno=colno)
 
     def p_null(self, p):
         "atom : NULL"
-        p[0] = Null()
+        lineno, colno = self.prod_loc(p)
+        p[0] = Null(lineno=lineno, colno=colno)
 
     def p_power_1(self, p):
         "power : atom"
@@ -659,13 +706,15 @@ class Parser:
 
     def p_index(self, p):
         "expr : expr LBRACKET expr RBRACKET"
-        p[0] = Index(p[1], p[3])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Index(p[1], p[3], lineno=lineno, colno=colno)
 
     # Address of
 
     def p_address_of(self, p):
         "expr : AMP expr %prec ADDROF"
-        p[0] = AddressOf(p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = AddressOf(p[2], lineno=lineno, colno=colno)
 
     def p_atom_name(self, p):
         "atom : NAME"
@@ -679,7 +728,8 @@ class Parser:
 
     def p_atom_float(self, p):
         "atom : FLOAT"
-        p[0] = Float(p[1])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Float(p[1], lineno=lineno, colno=colno)
 
     def p_atom_str(self, p):
         "atom : string"
@@ -692,15 +742,18 @@ class Parser:
 
     def p_atom_char(self, p):
         "atom : CHAR"
-        p[0] = Char(p[1])
+        lineno, colno = self.prod_loc(p)
+        p[0] = Char(p[1], lineno=lineno, colno=colno)
 
     def p_atom_array_empty(self, p):
         "atom : LBRACKET RBRACKET"
-        p[0] = ArrayLiteral([])
+        lineno, colno = self.prod_loc(p)
+        p[0] = ArrayLiteral([], lineno=lineno, colno=colno)
 
     def p_atom_array(self, p):
         "atom : LBRACKET array_contents RBRACKET"
-        p[0] = ArrayLiteral(p[2])
+        lineno, colno = self.prod_loc(p)
+        p[0] = ArrayLiteral(p[2], lineno=lineno, colno=colno)
 
     def p_array_litral_contents(self, p):
         "array_contents : expr"

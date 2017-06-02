@@ -632,6 +632,9 @@ class If(Node, StmtMixin):
         "body": [StmtMixin],
         "orelse": [StmtMixin],
     }
+    __defaults__ = {
+        "orelse": [],
+    }
 
     def lines(self):
         yield "if {}:".format(self.test)
@@ -724,12 +727,160 @@ class Switch(Node, StmtMixin):
         yield "}"
 
 
+class BinaryOperator(Node):
+    pass
+
+
+class Add(BinaryOperator):
+    def lines(self):
+        yield "+"
+
+    def c_lines(self):
+        yield "+"
+
+
+class Sub(BinaryOperator):
+    def lines(self):
+        yield "-"
+
+    def c_lines(self):
+        yield "-"
+
+
+class Mult(BinaryOperator):
+    def lines(self):
+        yield "*"
+
+    def c_lines(self):
+        yield "*"
+
+
+class Mod(BinaryOperator):
+    def lines(self):
+        yield "%"
+
+    def c_lines(self):
+        yield "%"
+
+
+class Div(BinaryOperator):
+    def lines(self):
+        yield "/"
+
+    def c_lines(self):
+        yield "/"
+
+
+class Eq(BinaryOperator):
+    def lines(self):
+        yield "=="
+
+    def c_lines(self):
+        yield "=="
+
+
+class Ne(BinaryOperator):
+    def lines(self):
+        yield "!="
+
+    def c_lines(self):
+        yield "!="
+
+
+class Lt(BinaryOperator):
+    def lines(self):
+        yield "<"
+
+    def c_lines(self):
+        yield "<"
+
+
+class Gt(BinaryOperator):
+    def lines(self):
+        yield ">"
+
+    def c_lines(self):
+        yield ">"
+
+
+class Le(BinaryOperator):
+    def lines(self):
+        yield "<="
+
+    def c_lines(self):
+        yield "<="
+
+
+class Ge(BinaryOperator):
+    def lines(self):
+        yield ">="
+
+    def c_lines(self):
+        yield ">="
+
+
+class And(BinaryOperator):
+    def lines(self):
+        yield "and"
+
+    def c_lines(self):
+        yield "&&"
+
+
+class Or(BinaryOperator):
+    def lines(self):
+        yield "or"
+
+    def c_lines(self):
+        yield "||"
+
+
+class BitAnd(BinaryOperator):
+    def lines(self):
+        yield "&"
+
+    def c_lines(self):
+        yield "&"
+
+
+class BitOr(BinaryOperator):
+    def lines(self):
+        yield "|"
+
+    def c_lines(self):
+        yield "|"
+
+
+class Xor(BinaryOperator):
+    def lines(self):
+        yield "^"
+
+    def c_lines(self):
+        yield "^"
+
+
+class LShift(BinaryOperator):
+    def lines(self):
+        yield "<<"
+
+    def c_lines(self):
+        yield "<<"
+
+
+class RShift(BinaryOperator):
+    def lines(self):
+        yield ">>"
+
+    def c_lines(self):
+        yield ">>"
+
+
 # TODO: Make the operators Nodes instead of strings
 class BinOp(Node, ValueMixin):
     __attrs__ = ("left", "op", "right")
     __types__ = {
         "left": ValueMixin,
-        "op": str,
+        "op": BinaryOperator,
         "right": ValueMixin
     }
 
@@ -737,14 +888,9 @@ class BinOp(Node, ValueMixin):
         yield "({} {} {})".format(self.left, self.op, self.right)
 
     def c_lines(self):
-        op = self.op
-
-        if op == "and":
-            op = "&&"
-        elif op == "or":
-            op = "||"
-
-        yield "({} {} {})".format(self.left.c_code(), op, self.right.c_code())
+        yield "({} {} {})".format(self.left.c_code(),
+                                  self.op.c_code(),
+                                  self.right.c_code())
 
 
 class Compare(BinOp):

@@ -21,10 +21,10 @@ class TestPrecedence(unittest.TestCase):
                     Compare(
                         Compare(
                             Int(7),
-                            ">",
+                            Gt(),
                             Int(6)
                         ),
-                        ">",
+                        Gt(),
                         Int(5)
                     )
                 )
@@ -73,8 +73,8 @@ class TestPrecedence(unittest.TestCase):
                 ExprStmt(
                     Compare(
                         Int(1),
-                        "==",
-                        BinOp(Int(2), "+", Int(3)),
+                        Eq(),
+                        BinOp(Int(2), Add(), Int(3)),
                     )
                 )
             ])
@@ -90,8 +90,8 @@ class TestPrecedence(unittest.TestCase):
                 ExprStmt(
                     Compare(
                         Index(Name("x"), Int(1)),
-                        "==",
-                        BinOp(Name("x"), "+", Int(1)),
+                        Eq(),
+                        BinOp(Name("x"), Add(), Int(1)),
                     )
                 )
             ])
@@ -105,7 +105,7 @@ class TestPrecedence(unittest.TestCase):
                 ExprStmt(
                     Compare(
                         Index(Name("x"), Int(1)),
-                        "==",
+                        Eq(),
                         Name("x"),
                     )
                 )
@@ -120,7 +120,7 @@ class TestPrecedence(unittest.TestCase):
                 ExprStmt(
                     BinOp(
                         Name("x"),
-                        "+",
+                        Add(),
                         Index(Name("x"), Int(1)),
                     )
                 )
@@ -142,13 +142,13 @@ x = [
             ExprStmt(
                 Compare(
                     Int(6),
-                    "==",
+                    Eq(),
                     BinOp(
                         Index(
                             Index(Name("x"), Int(1)),
                             Int(1)
                         ),
-                        "+",
+                        Add(),
                         Int(1)
                     )
                 )
@@ -167,7 +167,7 @@ x = [
                     StructMemberAccess(Name("x"), "x"),
                     Int(1)
                 ),
-                "+",
+                Add(),
                 Int(1),
             )
         )
@@ -178,7 +178,7 @@ x = [
             ast.body[0].value,
             Compare(
                 Int(1),
-                "==",
+                Eq(),
                 StructMemberAccess(
                     Index(Name("x"), Int(1)),
                     "x"

@@ -1,10 +1,11 @@
 - Edit the ast nodes and parser to include line and column numbers when parsing to make debuging easier
 - Edit the ast nodes to assert the node is either single line or can be multiple lines
 - Complete the method to inferer for handling implicit conversion between types 
-- Replace the operations in BinOp node with actual ast nodes instead of strings
 - Add for loop syntax
   - Yield from Range object
     - Create objects 
 - All operators that don't have highest precedence should be wrapped in parenthesis for scoping
 - Clean up the check_Assign method
 - Add comments explaining how SlottedClass works
+- Make BinOp subclasses to clean up the check_BinOp method just as inferring the Compare node always 
+  returns an int
