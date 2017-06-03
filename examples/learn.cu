@@ -43,7 +43,7 @@ def func_no_specified_ret()
 # The program's entry poiny is a function called "main"
 # which can accept either no arguments, or 2 arguments, and 
 # returns a string, similar to C.
-def main(argc: int, argv: char[][]):
+def main(argc: int, argv: char**):
     # Also could have been declared as:
     # def main()
     # def main(argc, argv)  # type inference fills in the types
@@ -286,13 +286,13 @@ def main(argc: int, argv: char[][]):
     # of your variables, then mess with them.
 
     x = 5
-    printf("%p\n", <void[]>&x)  # Use & to retrieve the address of a variable 
+    printf("%p\n", <void*>&x)  # Use & to retrieve the address of a variable 
 
-    # Pointers are declared with empty brackets ([]),
+    # Pointers are declared with empty brackets (*),
     # similar to an array declaration, but without a size 
-    px: int[] = &x
+    px: int* = &x
     not_a_pointer: int 
-    printf("%p\n", <void[]> px)  # Print some address in memory
+    printf("%p\n", <void*> px)  # Print some address in memory
     printf("pointer size: %zu, int size: %zu\n", sizeof(px), sizeof(not_a_pointer))
 
     # To retrive the value at the address a pointer points to,
@@ -324,13 +324,13 @@ def main(argc: int, argv: char[][]):
 
     # You can dynamically allocate memory with malloc, which takes one 
     # argument of size_t representing the number of bytes to allocate.
-    my_ptr = <int[]> malloc(sizeof(int) * 3)
+    my_ptr = <int*> malloc(sizeof(int) * 3)
 
     # Because malloc returns a void pointer, not specifying the type 
     # during initial assignment will cause my_ptr to be inferred as a 
     # void pointer. Casting it as an int pointer, or specifying the 
     # variable type creates a pointer of that type.
-    # my_ptr: int[] = malloc(sizeof(int) * 3)  works also
+    # my_ptr: int* = malloc(sizeof(int) * 3)  works also
 
     # Assign to malloc'd space
     my_ptr[0] = 1 

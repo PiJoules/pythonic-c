@@ -18,19 +18,19 @@ include "myheader.h"  # local header include
 # Variable declaration
 x: int
 x: int[3]  # int array of size 3
-x: int[]  # Generic int pointer (int*)
+x: int*  # Generic int pointer (int*)
 x: int[2][3]  # 2x3 array of ints
-x: int[][]  # double int pointer (int**)
-x: int[3][]  # int *x[3]; x is an array of size 3 containg int pointers
+x: int**  # double int pointer (int**)
+x: int[3]*  # int *x[3]; x is an array of size 3 containg int pointers
              # x[0] gets the first int pointer, x[0][0] gets the first int in
              # the first int pointer
-x: int[][3]  # int (*x)[3]; x is a pointer to an array of 3 ints
-x: int[][3][]  # x is a pointer to an array of size 3 that contains pointers to ints
+x: int*[3]  # int (*x)[3]; x is a pointer to an array of 3 ints
+x: int*[3]*  # x is a pointer to an array of size 3 that contains pointers to ints
 x: int[1][2][3]
 
 # Function declaration
-def func() -> int[]  # int *x(); x is a function that returns int pointers
-func: () -> int[]  # Can declare a function in the form of a variable declaration
+def func() -> int*  # int *x(); x is a function that returns int pointers
+func: () -> int*  # Can declare a function in the form of a variable declaration
 
 # Combinations
 # Use brackets to scope
@@ -75,10 +75,10 @@ def func():
 
 func()
 
-def main(argc: int, argv: char[][]):
+def main(argc: int, argv: char**):
     return 0
 
-s: char[] = "some str"
+s: char* = "some str"
 
 # Initialize multidimentional array
 arr: int[2][3] = [

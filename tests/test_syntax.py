@@ -1,15 +1,12 @@
 import unittest
 
-from compiler import code_to_ast
 from cparse import Parser
 from lang_ast import *
-
-PARSER = Parser()
 
 
 class TestSyntax(unittest.TestCase):
     def __create_ast(self, code):
-        return PARSER.parse(code)
+        return Parser().parse(code)
 
     ###### Types ######
 
@@ -105,7 +102,7 @@ enum days {MON, TUE, WED, THU, FRI, SAT, SUN};
     def test_struct_creation(self):
         """Test creating a new struct."""
         code = """
-struct s {x: int, y: char[][]}
+struct s {x: int, y: char**}
         """
         ast = self.__create_ast(code)
         self.assertEqual(

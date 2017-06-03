@@ -71,7 +71,7 @@ class TestLineColNo(unittest.TestCase):
 
         found = TokenWrap.from_lex_token(lex_token)
 
-        assert found == token_wrap, "Found {}. Expected {}.".format(found, token_wrap)
+        assert found == token_wrap, "Expected {}. Found {}.".format(found, token_wrap)
 
     def assert_token_line(self, *token_wraps):
         """Compare a line of tokens excluding the newline"""
@@ -178,15 +178,15 @@ class TestLineColNo(unittest.TestCase):
             TokenWrap("NAME", "x", 25, 1), TokenWrap("COLON", ":", 25, 2),
             TokenWrap("NAME", "int", 25, 4), TokenWrap("LBRACKET", "[", 25, 7),
             TokenWrap("INT", 3, 25, 8), TokenWrap("RBRACKET", "]", 25, 9),
-            TokenWrap("LBRACKET", "[", 25, 10), TokenWrap("RBRACKET", "]", 25, 11),
+            TokenWrap("MULT", "*", 25, 10),
         )
 
         # Next vardecl
         self.assert_token_line(
             TokenWrap("NAME", "x", 28, 1), TokenWrap("COLON", ":", 28, 2),
             TokenWrap("NAME", "int", 28, 4),
-            TokenWrap("LBRACKET", "[", 28, 7), TokenWrap("RBRACKET", "]", 28, 8),
-            TokenWrap("LBRACKET", "[", 28, 9), TokenWrap("INT", 3, 28, 10), TokenWrap("RBRACKET", "]", 28, 11),
+            TokenWrap("MULT", "*", 28, 7),
+            TokenWrap("LBRACKET", "[", 28, 8), TokenWrap("INT", 3, 28, 9), TokenWrap("RBRACKET", "]", 28, 10),
         )
 
         #tok = lexer.token()

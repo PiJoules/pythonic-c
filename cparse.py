@@ -367,7 +367,7 @@ class Parser:
         p[0] = p[1] + [p[2]]
 
     def p_pointer(self, p):
-        "pointer : LBRACKET RBRACKET"
+        "pointer : MULT"
         p[0] = None  # None to indicate to higher rule this has no size
 
     def p_array(self, p):

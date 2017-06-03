@@ -394,7 +394,7 @@ def _format_container(node, sizes=None):
     else:
         s = ""
         for size in sizes:
-            s += "[]" if size is None else "[{}]".format(size)
+            s += "*" if size is None else "[{}]".format(size)
         if isinstance(node, FuncType):
             return "{{{}}}".format(node) + s
         else:
