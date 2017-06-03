@@ -1210,6 +1210,37 @@ class StructDecl(Node, StmtMixin):
         yield self.struct.c_code() + ";"
 
 
+class ClassDef(Node, StmtMixin):
+    __attrs__ = ("name", "generics", "parents", "body")
+    __types__ = {
+        "name": str,
+        "parents": [TypeMixin],
+        "generics": [TypeMixin],
+        "body": [(VarDecl, FuncDef)],
+    }
+    __defaults__ = {
+        "parents": [],
+        "generics": [],
+        "body": [],
+    }
+
+    def lines(self):
+        line1 = "class {}".format(self.name)
+        if self.generics:
+            line1 += "[{}]".format(", ".join(map(str, self.generics)))
+        if self.parents:
+            line1 += "({})".format(", ".join(map(str, self.parents)))
+        yield line1 + ":"
+
+        yield from iter_indent_seq(self.body)
+
+    # c_lines() is not implemented b/c there will not be a 1-to-1 mapping of
+    # this class declaration in C space. This class decl should instead be
+    # replaced with an include to a header which contains the struct
+    # declaration of this class and the function prototypes. A separate C file
+    # will contain the function definitions.
+
+
 ##### Macros ######
 
 

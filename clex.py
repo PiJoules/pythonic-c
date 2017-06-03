@@ -37,6 +37,7 @@ class Lexer:
 
     RESERVED = {
         "def": "DEF",
+        "class": "CLASS",
         "pass": "PASS",
 
         # Control flow

@@ -22,6 +22,7 @@ typedef enum enum_t enum_t;
 enum enum_t {A, B, C};
 
 
+#include "header.h"
 int main(){
     printf("%zu\n", sizeof(func));
     printf("%zu\n", sizeof(*func));
@@ -113,8 +114,10 @@ int main(){
     t2* f2 = (t2*)func;
     printf("%d\n", (f+2-2)(1, 2));  // Can call a binary expression 
     printf("%d\n", (&(*f))(1, 2));  // Can call an address-of
-    printf("%d\n", (*f2)(1, 2));  // Can call a dereference 
+    //printf("%d\n", (*f2)(1, 2));  // Can call a dereference 
 
     A+2;
-    s2+2;
+    //s2+2;
+
+    #include "header.h"
 }

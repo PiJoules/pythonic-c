@@ -23,6 +23,9 @@ class TestExamples(unittest.TestCase):
     def test_learn(self):
         run_files(["examples/learn.cu"], input=b"6", stdout=subprocess.PIPE)
 
+    def test_fib(self):
+        run_files(["examples/fib.cu"], stdout=subprocess.PIPE)
+
 
 if __name__ == "__main__":
     unittest.main()
