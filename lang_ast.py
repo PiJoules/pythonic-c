@@ -488,6 +488,9 @@ class ArrayLiteral(Node, ValueMixin):
         yield "{{{}}}".format(", ".join(c.c_code() for c in self.contents))
 
 
+# I did not make casting a ValueMixin b/c gcc kept throwing warnings saying
+# "initialization makes {type} from pointer without a cast" and that that
+# program will abort if that code is reached.
 class Cast(Node, ValueMixin):
     __attrs__ = ("target_type", "expr")
     __types__ = {
@@ -990,10 +993,10 @@ class PreInc(Node, ValueMixin):
     __types__ = {"value": ValueMixin}
 
     def lines(self):
-        yield "++{}".format(self.value)
+        yield "(++{})".format(self.value)
 
     def c_lines(self):
-        yield "++{}".format(self.value.c_code())
+        yield "(++{})".format(self.value.c_code())
 
 
 class PreDec(Node, ValueMixin):
@@ -1001,10 +1004,10 @@ class PreDec(Node, ValueMixin):
     __types__ = {"value": ValueMixin}
 
     def lines(self):
-        yield "--{}".format(self.value)
+        yield "(--{})".format(self.value)
 
     def c_lines(self):
-        yield "--{}".format(self.value.c_code())
+        yield "(--{})".format(self.value.c_code())
 
 
 class Call(Node, ValueMixin):
@@ -1310,7 +1313,7 @@ class NodeVisitor:
         return {k: self.visit(v) for k, v in d.items()}
 
 
-# Get all TypeMixin nodes
+# Get all nodes of specific mixins
 def is_typemixin(obj):
     return (inspect.isclass(obj) and issubclass(obj, TypeMixin) and
             obj != TypeMixin)

@@ -1,8 +1,7 @@
 - Edit the ast nodes to assert the node is either single line or can be multiple lines
-- Complete the method to inferer for handling implicit conversion between types 
 - Add for loop syntax
   - Yield from Range object
     - Create objects 
 - All operators that don't have highest precedence should be wrapped in parenthesis for scoping
 - Clean up the check_Assign method
-- Add comments explaining how SlottedClass works
+- Add comments explaining how SlottedClass works 

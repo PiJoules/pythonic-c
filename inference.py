@@ -141,7 +141,13 @@ class Inferer:
         method_name = prefix + "_" + name
         if hasattr(self, method_name):
             method = getattr(self, method_name)
-            result = method(node)
+
+            try:
+                result = method(node)
+            except Exception as e:
+                raise RuntimeError("Error running '{}' on node '{}' ({})".format(
+                    prefix, node, node.loc()
+                )) from e
 
             if expected is not None and not isinstance(result, expected):
                 self.__dump_call_stack()
@@ -268,7 +274,7 @@ class Inferer:
         return VARARG_TYPE
 
     def langtype_to_typemixin(self, t):
-        assert isinstance(t, LangType)
+        self.assert_type_exists(t)
 
         if isinstance(t, PointerType):
             return Pointer(self.langtype_to_typemixin(t.contents))
@@ -287,6 +293,7 @@ class Inferer:
     ######## Type inference ###########
 
     def infer(self, node):
+        """Infer the type of a node."""
         assert isinstance(node, ValueMixin)
         return self.__call_node_method(node, "infer", expected=LangType)
 
@@ -299,6 +306,17 @@ class Inferer:
     def infer_Call(self, node):
         func = node.func
 
+        # Check for sizeof() since the contents of it do not get evaluated
+        if isinstance(func, Name) and func.id == "sizeof":
+            # Make sure size_t exists first
+            # The arguments of sizeof are not evaluated
+            return self.__builtin_type_check(SIZE_TYPE)
+
+        # Evaluate the args
+        print(node, node.args)
+        for arg in node.args:
+            self.infer(arg)
+
         # Check builtin functions
         # Perform if the function is a builtin one and not previously declared
         if isinstance(func, Name) and func.id in C_VARS:
@@ -309,24 +327,9 @@ class Inferer:
             assert func.id in self.__variables
             assert func.id in self.__global_variables
 
-        if isinstance(func, Name):
-            if func.id == "sizeof":
-                # Make sure size_t exists first
-                # The arguments of sizeof are not evaluated
-                return self.__builtin_type_check(SIZE_TYPE)
-            else:
-                func_t = self.lookup(func.id)
-                self.assert_type_exists(func_t)
-                expanded_t = self.exhaust_typedef_chain(func_t)
-                result = expanded_t.returns
-        else:
-            raise NotImplementedError("No logic yet implemented for inferring type for node {}".format(type(func)))
-
-        # Evaluate the args
-        for arg in node.args:
-            self.infer(arg)
-
-        return result
+        func_t = self.infer(func)
+        expanded_t = self.exhaust_typedef_chain(func_t)
+        return expanded_t.returns
 
     def infer_Int(self, node):
         return INT_TYPE
@@ -516,7 +519,7 @@ class Inferer:
     ######## Node checking ###########
 
     def check(self, node):
-        return self.__call_node_method(node, "check", expected=(Node, list))
+        return self.__call_node_method(node, "check", expected=Node)
 
     def check_Define(self, node):
         if node.value:
@@ -684,7 +687,7 @@ class Inferer:
         for param in node_params:
             param_t = self.langtype_from(param.type)
             self.bind(param.name, param_t)
-        body = self.check(node.body)
+        body = [self.check(n) for n in node.body]
         self.exit_scope()
 
         # Check the body
@@ -788,6 +791,8 @@ class Inferer:
         return node
 
     def check_ExprStmt(self, node):
+        if isinstance(node.value, Str):
+            return Pass()
         self.infer(node.value)
         return node
 
@@ -853,30 +858,24 @@ class Inferer:
         self.infer(node.test)
         return While(
             node.test,
-            self.check(node.body),
-            self.check(node.orelse),
+            [self.check(n) for n in node.body],
+            [self.check(n) for n in node.orelse],
         )
 
     def check_DoWhile(self, node):
         self.infer(node.test)
         return DoWhile(
             node.test,
-            self.check(node.body)
+            [self.check(n) for n in node.body]
         )
 
     def check_If(self, node):
         self.infer(node.test)
         return If(
             node.test,
-            self.check(node.body),
-            self.check(node.orelse)
+            [self.check(n) for n in node.body],
+            [self.check(n) for n in node.orelse]
         )
-
-    def check_list(self, seq):
-        def __is_string_comment(node):
-            return isinstance(node, ExprStmt) and isinstance(node.value, Str)
-
-        return [self.check(n) for n in seq if not __is_string_comment(n)]
 
     def check_EnumDecl(self, node):
         # Create an enum type
@@ -892,7 +891,7 @@ class Inferer:
         self.infer(node.test)
         return Switch(
             node.test,
-            self.check(node.cases)
+            [self.check(n) for n in node.cases]
         )
 
     def check_Case(self, node):
@@ -900,7 +899,7 @@ class Inferer:
             self.infer(test)
         return Case(
             node.tests,
-            self.check(node.body)
+            [self.check(n) for n in node.body]
         )
 
     def check_Break(self, node):
@@ -911,14 +910,14 @@ class Inferer:
 
     def check_Default(self, node):
         return Default(
-            self.check(node.body)
+            [self.check(n) for n in node.body]
         )
 
     def __check_module(self, node, *, is_base_module=False):
         if is_base_module and node.filename:
             self.__init_src_file(node.filename)
 
-        checked_body = self.check(node.body)
+        checked_body = [self.check(n) for n in node.body]
 
         # Add extra includes
         if is_base_module:

@@ -102,5 +102,16 @@ int main(){
     //2 / 4.0; 
     //2 * 4.0; 
     //2 - 4.0; 
-    //2 + 4.0; 
+    //2 + 4.0;  
+    
+    // Not entirely sure if you can cast to a function pointer still
+    //t2* f = (t2*)func;
+    //int res = (*f)(1, 2);
+    //int res = ((t2*)func)(1, 2);
+
+    t1* f = func;
+    t2* f2 = (t2*)func;
+    printf("%d\n", (f+2-2)(1, 2));  // Can call a binary expression 
+    printf("%d\n", (&(*f))(1, 2));  // Can call an address-of
+    printf("%d\n", (*f2)(1, 2));  // Can call a dereference
 }
