@@ -2,31 +2,9 @@ from lang_ast import *
 from cparse import Parser
 from lang_types import *
 
-from c_modules import BUILTIN_VARS, BUILTIN_TYPES
+from c_modules import C_VARS, C_TYPES
 
 import os
-
-
-INIT_TYPES = frozenset((
-    CHAR_TYPE,
-    SHORT_TYPE,
-    INT_TYPE,
-    LONG_TYPE,
-
-    # Unsigned
-    UCHAR_TYPE,
-    UINT_TYPE,
-
-    # Floating point
-    FLOAT_TYPE,
-    DOUBLE_TYPE,
-
-    # Misc
-    NULL_TYPE,
-    VOID_TYPE,
-    VARARG_TYPE,
-    FILE_TYPE,
-))
 
 
 class Inferer:
@@ -40,7 +18,7 @@ class Inferer:
                  call_stack=None):
         self.__variables = init_variables or {}
         self.__global_variables = self.__variables
-        self.__types = init_types or dict.fromkeys(INIT_TYPES)
+        self.__types = init_types or dict.fromkeys(BUILTIN_TYPES)
         self.__global_types = self.__types
         self.__call_stack = call_stack or []
         self.__found_included_files = included_files or {}
@@ -52,6 +30,7 @@ class Inferer:
         self.__init_src_file(source_file)
 
     def __init_src_file(self, source):
+        """Set the file source of the ast this inferer will check."""
         if source:
             assert os.path.isfile(source)
             self.__source = source
@@ -86,11 +65,13 @@ class Inferer:
         return self.__found_included_files
 
     def bind(self, varname, t):
-        """Bind a type to a variable name."""
-        assert isinstance(t, LangType)
+        """Bind a type to a variable name.
 
-        if type(t) == LangType:
-            self.assert_type_exists(t)
+        Args:
+            varname (str)
+            t (LangType)
+        """
+        self.assert_type_exists(t)
 
         if varname in self.__variables:
             assert self.__variables[varname] == t
@@ -106,9 +87,9 @@ class Inferer:
         Returns:
             LangType
         """
-        t = self.__variables.get(varname, None)
-        if t is not None:
-            return t
+        variables = self.__variables
+        if varname in variables:
+            return variables[varname]
         raise KeyError("Undeclared variable '{}'".format(varname))
 
     def var_exists(self, varname):
@@ -120,11 +101,15 @@ class Inferer:
         else:
             return True
 
-    def type_exists(self, t):
+    def __type_exists(self, t, declared_types):
         assert isinstance(t, LangType)
         if isinstance(t, (ArrayType, PointerType)):
             return self.type_exists(t.contents)
-        return t in self.__types
+        return t in declared_types
+
+    def type_exists(self, t):
+        """Check if a type exists in this scope."""
+        return self.__type_exists(t, self.__types)
 
     def assert_type_exists(self, t):
         if not self.type_exists(t):
@@ -140,6 +125,15 @@ class Inferer:
             print(func)
 
     def __call_node_method(self, node, prefix, expected=None):
+        """Call a specific method for a node type.
+
+        Args:
+            node (ast.Node)
+            prefix (str): String describing what to do with the node.
+            expected (optional[type]): Expected return type of
+                calling "prefix_Node". An error is raised if an expected type
+                is passed and the return type is not of that expected type.
+        """
         name = node.__class__.__name__
 
         self.__call_stack.append("{}: {}".format(prefix, name))
@@ -180,40 +174,31 @@ class Inferer:
 
     def add_extra_c_header(self, header):
         """Mark a C standard header that should be included."""
-        assert header not in self.__extra_includes, "{}, {}".format(header, self.__extra_includes)
+        assert header not in self.__extra_includes
         self.__extra_includes.add(header)
 
     ####### Type handling ###########
 
     def types_eq(self, t1, t2):
-        return self.__exhaust_typedef_chain(t1) == self.__exhaust_typedef_chain(t2)
+        """Check if two types are equal."""
+        return self.exhaust_typedef_chain(t1) == self.exhaust_typedef_chain(t2)
 
     def add_type(self, new_type):
         """
         Add a new base type. This is primarily meant for newly declared
         structs.
         """
-        assert isinstance(new_type, LangType)
-        if new_type in self.__types:
-            raise RuntimeError("{} already previously declared.".format(new_type))
+        self.assert_type_not_exists(new_type)
         self.__types[new_type] = None
 
     def bind_typedef(self, typename, base_t):
         """Bind a LangType to another LangType to indicate the one type was
         typedef'd to another."""
         self.assert_type_exists(base_t)
-        assert isinstance(typename, LangType)
+        self.assert_type_not_exists(typename)
+        self.__types[typename] = base_t
 
-        if typename in self.__types:
-            found = self.__types[typename]
-            raise RuntimeError("{}({}) already typedef'd to {}({})".format(
-                typename, type(typename),
-                found, type(found),
-            ))
-        else:
-            self.__types[typename] = base_t
-
-    def __exhaust_typedef_chain(self, typedef_t):
+    def exhaust_typedef_chain(self, typedef_t):
         """
         Given a LangType, traverse the known types until we hit a value of None,
         indicating the type used as a key is a base type.
@@ -221,70 +206,66 @@ class Inferer:
         if isinstance(typedef_t, (PointerType, ArrayType)):
             return typedef_t
 
-        actual_t = self.__types[typedef_t]
+        types = self.__types
+        actual_t = types[typedef_t]
         while actual_t is not None:
             # Actual is another typedef
             typedef_t = actual_t
-            actual_t = self.__types[typedef_t]
+            actual_t = types[typedef_t]
         return typedef_t
 
     def __builtin_type_check(self, t):
         """Check if the type is a builtin one and import the proper module."""
         if t not in self.__types:
-            c_header, module = BUILTIN_TYPES[t.name]
+            c_header, module = C_TYPES[t.name]
             if c_header not in self.__extra_includes:
                 self.add_extra_c_header(c_header)
                 self.__check_builtin_module(module)
 
-        assert t in self.__types
-        assert t in self.__global_types
+        self.assert_type_exists(t)
+        assert self.__type_exists(t, self.__global_types)
 
         return t
 
-    def typemixin_to_langtype(self, node):
-        """Needs to handle
-        - TypeMixin nodes
-          - NameType
-          - Pointer
-          - Array
-        - Typedefs
-          - Function will receieve a NameType
-          - Do not keep nodes in a dict since they aren't meant to be hashable
-        """
+    ####### Converting TypeMixin nodes to LangTypes ###########
+
+    def langtype_from(self, node):
         assert isinstance(node, TypeMixin)
+        return self.__call_node_method(node, "langtype_from", expected=LangType)
 
-        if isinstance(node, FuncType):
-            param_nodes = node.params
-            return_node = node.returns
+    def langtype_from_FuncType(self, node):
+        param_nodes = node.params
+        return_node = node.returns
+        return CallableType(
+            [self.langtype_from(p) for p in param_nodes],
+            self.langtype_from(return_node)
+        )
 
-            return CallableType(
-                [self.typemixin_to_langtype(p) for p in param_nodes],
-                self.typemixin_to_langtype(return_node)
-            )
-        elif isinstance(node, NameType):
-            # Account for typedefs
-            t = LangType(node.id)
-            if t in self.__types:
-                # Exhaust any typedef chains
-                return t
-            elif node.id in BUILTIN_TYPES:
-                result = self.__builtin_type_check(t)
-            else:
-                raise RuntimeError("type for name '{}' not previously declared".format(node))
-            return result
-        elif isinstance(node, Pointer):
-            return PointerType(self.typemixin_to_langtype(node.contents))
-        elif isinstance(node, Array):
-            # Infer size b/c it is an expression
-            size_t = self.infer(node.size)
-            if self.__can_implicit_cast(SIZE_TYPE, size_t):
-                return ArrayType(self.typemixin_to_langtype(node.contents), node.size)
-            else:
-                raise RuntimeError("Cannot use type '{}' for array size ({}).".format(size_t, node.size))
-        elif isinstance(node, Ellipsis):
-            return VARARG_TYPE
+    def langtype_from_NameType(self, node):
+        # Account for typedefs
+        t = LangType(node.id)
+        if t in self.__types:
+            # Exhaust any typedef chains
+            return t
+        elif node.id in C_TYPES:
+            result = self.__builtin_type_check(t)
         else:
-            raise RuntimeError("Logic for converting node {} to LangType not implemented".format(type(node)))
+            raise RuntimeError("type for name '{}' not previously declared".format(node))
+        return result
+
+    def langtype_from_Pointer(self, node):
+        return PointerType(self.langtype_from(node.contents))
+
+    def langtype_from_Array(self, node):
+        # Infer size b/c it is an expression
+        size_t = self.infer(node.size)
+        if self.__can_implicit_cast(SIZE_TYPE, size_t):
+            return ArrayType(self.langtype_from(node.contents), node.size)
+        else:
+            raise RuntimeError("Cannot use type '{}' for array size ({}).".format(size_t, node.size))
+
+    def langtype_from_Ellipsis(self, node):
+        return VARARG_TYPE
 
     def langtype_to_typemixin(self, t):
         assert isinstance(t, LangType)
@@ -311,7 +292,7 @@ class Inferer:
 
     def infer_Cast(self, node):
         self.infer(node.expr)
-        t = self.typemixin_to_langtype(node.target_type)
+        t = self.langtype_from(node.target_type)
         self.assert_type_exists(t)
         return t
 
@@ -320,8 +301,8 @@ class Inferer:
 
         # Check builtin functions
         # Perform if the function is a builtin one and not previously declared
-        if isinstance(func, Name) and func.id in BUILTIN_VARS:
-            c_header, module = BUILTIN_VARS[func.id]
+        if isinstance(func, Name) and func.id in C_VARS:
+            c_header, module = C_VARS[func.id]
             if c_header not in self.__extra_includes:
                 self.add_extra_c_header(c_header)
                 self.__check_builtin_module(module)
@@ -336,7 +317,7 @@ class Inferer:
             else:
                 func_t = self.lookup(func.id)
                 self.assert_type_exists(func_t)
-                expanded_t = self.__exhaust_typedef_chain(func_t)
+                expanded_t = self.exhaust_typedef_chain(func_t)
                 result = expanded_t.returns
         else:
             raise NotImplementedError("No logic yet implemented for inferring type for node {}".format(type(func)))
@@ -362,14 +343,14 @@ class Inferer:
     def infer_StructPointerDeref(self, node):
         value = node.value
         member = node.member
-        struct_t = self.__exhaust_typedef_chain(self.infer(value).contents)
+        struct_t = self.exhaust_typedef_chain(self.infer(value).contents)
         assert isinstance(struct_t, StructType)
         return struct_t.members[member]
 
     def infer_StructMemberAccess(self, node):
         value = node.value
         member = node.member
-        struct_t = self.__exhaust_typedef_chain(self.infer(value))
+        struct_t = self.exhaust_typedef_chain(self.infer(value))
         assert isinstance(struct_t, StructType)
         return struct_t.members[member]
 
@@ -391,7 +372,7 @@ class Inferer:
             return INT_TYPE
 
     def type_is_pointer(self, t):
-        return isinstance(self.__exhaust_typedef_chain(t), PointerType)
+        return isinstance(self.exhaust_typedef_chain(t), PointerType)
 
     # TODO: Clean this up and also take into account typedef chains
     def infer_BinOp(self, node):
@@ -433,7 +414,7 @@ class Inferer:
         return self.infer_IntegralOp(node)
 
     def type_is_integeral(self, t):
-        return can_implicit_assign(INT_TYPE, self.__exhaust_typedef_chain(t))
+        return can_implicit_assign(INT_TYPE, self.exhaust_typedef_chain(t))
 
     def infer_IntegralOp(self, node):
         left_t = self.infer(node.left)
@@ -512,7 +493,7 @@ class Inferer:
             return INT_TYPE
         elif isinstance(op, Invert):
             value_t = self.infer(node.value)
-            if not can_implicit_assign(INT_TYPE, self.__exhaust_typedef_chain(value_t)):
+            if not can_implicit_assign(INT_TYPE, self.exhaust_typedef_chain(value_t)):
                 raise TypeError("Invert operation cannot be performed on '{}' since it is of type '{}' and inversion expects an int type.".format(node.value, value_t))
             return INT_TYPE
         else:
@@ -524,9 +505,9 @@ class Inferer:
         if not self.type_is_pointer(value_t):
             raise TypeError("Attempting to dereference {} which is of type {} and not a pointer.".format(value, value_t))
 
-        final_value_t = self.__exhaust_typedef_chain(value_t)
+        final_value_t = self.exhaust_typedef_chain(value_t)
         contents_t = final_value_t.contents
-        final_contents_t = self.__exhaust_typedef_chain(contents_t)
+        final_contents_t = self.exhaust_typedef_chain(contents_t)
         if contents_t == VOID_TYPE:
             raise TypeError("Cannot derefernce a void pointer ({})".format(value))
 
@@ -553,14 +534,14 @@ class Inferer:
 
         self.add_type(struct_t)
         self.bind_typedef(LangType(node.struct.name), struct_t)
-        struct_t.members = {d.name: self.typemixin_to_langtype(d.type) for d in node.struct.decls}
+        struct_t.members = {d.name: self.langtype_from(d.type) for d in node.struct.decls}
 
         for t in struct_t.members.values():
             self.assert_type_exists(t)
         return node
 
     def check_FuncDecl(self, node):
-        func_t = self.typemixin_to_langtype(node.type())
+        func_t = self.langtype_from(node.type())
         self.assert_type_exists(func_t.returns)
         for param in func_t.args:
             self.assert_type_exists(param)
@@ -676,7 +657,7 @@ class Inferer:
             # Check and replace returns
             expected_returns = expected_func_t.returns
             if node.returns:
-                returns_t = self.typemixin_to_langtype(node.returns)
+                returns_t = self.langtype_from(node.returns)
                 assert returns_t == expected_returns, "Expected {}. Found {}.".format(expected_returns, returns_t)
             returns = self.langtype_to_typemixin(expected_returns)
         else:
@@ -688,7 +669,7 @@ class Inferer:
             assert isinstance(returns, TypeMixin)
 
             # Create this type
-            func_t = self.typemixin_to_langtype(FuncType(
+            func_t = self.langtype_from(FuncType(
                 [p if isinstance(p, Ellipsis) else p.type for p in node.params],
                 returns
             ))
@@ -701,7 +682,7 @@ class Inferer:
         # Add the params to the scope
         self.enter_scope()
         for param in node_params:
-            param_t = self.typemixin_to_langtype(param.type)
+            param_t = self.langtype_from(param.type)
             self.bind(param.name, param_t)
         body = self.check(node.body)
         self.exit_scope()
@@ -751,7 +732,7 @@ class Inferer:
             member = left.member
 
             value_t = self.infer(value)
-            value_contents_t = self.__exhaust_typedef_chain(value_t.contents)
+            value_contents_t = self.exhaust_typedef_chain(value_t.contents)
             expected_t = value_contents_t.members[member]
 
             # See if can assign
@@ -765,7 +746,7 @@ class Inferer:
             member = left.member
 
             value_t = self.infer(value)
-            value_t = self.__exhaust_typedef_chain(value_t)
+            value_t = self.exhaust_typedef_chain(value_t)
             expected_t = value_t.members[member]
 
             # See if can assign
@@ -779,7 +760,7 @@ class Inferer:
             index = left.index
 
             value_t = self.infer(value)
-            expected_t = self.__exhaust_typedef_chain(value_t.contents)
+            expected_t = self.exhaust_typedef_chain(value_t.contents)
 
             # See if can assign
             self.__check_assignable(
@@ -801,7 +782,7 @@ class Inferer:
         return node
 
     def check_TypeDefStmt(self, node):
-        base_t = self.typemixin_to_langtype(node.type)
+        base_t = self.langtype_from(node.type)
         self.assert_type_exists(base_t)
         self.bind_typedef(LangType(node.name), base_t)
         return node
@@ -811,8 +792,8 @@ class Inferer:
         return node
 
     def __check_assignable(self, expected_t, value_t, value_node, varname):
-        expected_t = self.__exhaust_typedef_chain(expected_t)
-        value_t = self.__exhaust_typedef_chain(value_t)
+        expected_t = self.exhaust_typedef_chain(expected_t)
+        value_t = self.exhaust_typedef_chain(value_t)
 
         # Array literals to arrays of anything
         if isinstance(value_node, ArrayLiteral):
@@ -840,10 +821,13 @@ class Inferer:
         # TODO: Make size_t a builtin type to avoid having to do this check
         if target_t == SIZE_TYPE or value_t == SIZE_TYPE:
             self.__builtin_type_check(SIZE_TYPE)
-        return can_implicit_assign(target_t, value_t)
+        return can_implicit_assign(
+            self.exhaust_typedef_chain(target_t),
+            self.exhaust_typedef_chain(value_t),
+        )
 
     def check_VarDecl(self, node):
-        node_t = self.typemixin_to_langtype(node.type)
+        node_t = self.langtype_from(node.type)
 
         self.assert_type_exists(node_t)
         name = node.name
@@ -963,3 +947,8 @@ class Inferer:
 
     def check_Module(self, node):
         return self.__check_module(node, is_base_module=True)
+
+
+# Check langtype_from functions were implemented for all type mixins
+for name, mixin in TYPE_MIXINS:
+    assert hasattr(Inferer, "langtype_from_" + name)

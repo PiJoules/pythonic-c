@@ -89,13 +89,16 @@ class CallableType(LangType):
         )
 
 
+# Initialize some base types since these will pretty much not change at all
 CHAR_TYPE = LangType("char")
 SHORT_TYPE = LangType("short")
 INT_TYPE = LangType("int")
 LONG_TYPE = LangType("long")
 
 UCHAR_TYPE = LangType("uchar")
+USHORT_TYPE = LangType("ushort")
 UINT_TYPE = LangType("uint")
+ULONG_TYPE = LangType("ulong")
 
 FLOAT_TYPE = LangType("float")
 DOUBLE_TYPE = LangType("double")
@@ -105,6 +108,41 @@ NULL_TYPE = LangType("NULL")
 VOID_TYPE = LangType("void")
 VARARG_TYPE = LangType("vararg")
 FILE_TYPE = LangType("FILE")
+
+
+# Builtin C types
+BUILTIN_TYPES = frozenset((
+    # Signed integral
+    CHAR_TYPE,
+    SHORT_TYPE,
+    INT_TYPE,
+    LONG_TYPE,
+
+    # Unsigned integral
+    UCHAR_TYPE,
+    USHORT_TYPE,
+    UINT_TYPE,
+    ULONG_TYPE,
+
+    # Floating point
+    FLOAT_TYPE,
+    DOUBLE_TYPE,
+
+    # Misc
+    NULL_TYPE,
+    VOID_TYPE,
+    VARARG_TYPE,
+    FILE_TYPE,
+))
+
+
+# Integral types
+INTEGRAL_TYPES = frozenset({CHAR_TYPE, SHORT_TYPE, INT_TYPE, LONG_TYPE,
+                            UCHAR_TYPE, USHORT_TYPE, UINT_TYPE, ULONG_TYPE})
+
+
+# Floating point types
+FLOATING_POINT_TYPES = frozenset({FLOAT_TYPE, DOUBLE_TYPE})
 
 
 def can_implicit_assign(target_t, value_t):
@@ -117,22 +155,18 @@ def can_implicit_assign(target_t, value_t):
     'y' is a char but holds a numeric value whose possible ranges fit into an
     int type
     """
+    assert target_t in BUILTIN_TYPES, "{} not in builtins".format(target_t)
+    assert value_t in BUILTIN_TYPES, "{} not in builtins".format(value_t)
+
     if target_t == value_t:
         return True
 
-    return (target_t, value_t) in {
-        # To char
-        (CHAR_TYPE, INT_TYPE),
+    # Integral types can be casted to other integrals
+    if value_t in INTEGRAL_TYPES and target_t in INTEGRAL_TYPES:
+        return True
 
-        # To int
-        (INT_TYPE, CHAR_TYPE),
+    # Floating points can be casted to floating poinrts
+    if value_t in FLOATING_POINT_TYPES and target_t in FLOATING_POINT_TYPES:
+        return True
 
-        # To uint
-        (UINT_TYPE, INT_TYPE),
-
-        # To double
-        (DOUBLE_TYPE, FLOAT_TYPE),
-
-        # To size_t
-        (SIZE_TYPE, INT_TYPE),
-    }
+    return False

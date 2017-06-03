@@ -1,3 +1,6 @@
+import inspect
+import sys
+
 from file_conversion import to_c_file
 from lang_utils import SlottedClass, optional
 
@@ -173,8 +176,10 @@ class NameType(Node, TypeMixin):
 
     TYPE_NAME_CONVERSIONS = {
         "long": "long long",
-        "uint": "unsigned int",
         "uchar": "unsigned char",
+        "ushort": "unsigned short",
+        "uint": "unsigned int",
+        "ulong": "unsigned long",
     }
 
     def lines(self):
@@ -1303,3 +1308,11 @@ class NodeVisitor:
 
     def visit_dict(self, d):
         return {k: self.visit(v) for k, v in d.items()}
+
+
+# Get all TypeMixin nodes
+def is_typemixin(obj):
+    return (inspect.isclass(obj) and issubclass(obj, TypeMixin) and
+            obj != TypeMixin)
+
+TYPE_MIXINS = inspect.getmembers(sys.modules[__name__], is_typemixin)
