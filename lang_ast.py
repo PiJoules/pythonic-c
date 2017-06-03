@@ -15,6 +15,10 @@ class ValueMixin(SlottedClass):
     """Mixin to indicate this node represents a value."""
 
 
+class AssignableMixin(ValueMixin):
+    """Indicates this node can have a value assigned to it."""
+
+
 class StmtMixin(SlottedClass):
     """Mixin to indicate this node represents a statement."""
 
@@ -449,7 +453,7 @@ class Deref(Node, ValueMixin):
         yield "(*{})".format(self.value.c_code())
 
 
-class StructPointerDeref(Node, ValueMixin):
+class StructPointerDeref(Node, AssignableMixin):
     __attrs__ = ("value", "member")
     __types__ = {
         "value": ValueMixin,
@@ -463,7 +467,7 @@ class StructPointerDeref(Node, ValueMixin):
         yield "{}->{}".format(self.value.c_code(), self.member)
 
 
-class StructMemberAccess(Node, ValueMixin):
+class StructMemberAccess(Node, AssignableMixin):
     __attrs__ = ("value", "member")
     __types__ = {
         "value": ValueMixin,
@@ -1025,7 +1029,7 @@ class Call(Node, ValueMixin):
         yield "{}({})".format(self.func.c_code(), ", ".join(a.c_code() for a in self.args))
 
 
-class Index(Node, ValueMixin):
+class Index(Node, AssignableMixin):
     __attrs__ = ("value", "index")
     __types__ = {
         "value": ValueMixin,
@@ -1050,7 +1054,7 @@ class AddressOf(Node, ValueMixin):
         yield "&({})".format(self.value.c_code())
 
 
-class Name(Node, ValueMixin):
+class Name(Node, AssignableMixin):
     __attrs__ = ("id", )
     __types__ = {
         "id": str,
@@ -1318,4 +1322,11 @@ def is_typemixin(obj):
     return (inspect.isclass(obj) and issubclass(obj, TypeMixin) and
             obj != TypeMixin)
 
+
+def is_assignable(obj):
+    return (inspect.isclass(obj) and issubclass(obj, AssignableMixin) and
+            obj != AssignableMixin)
+
+
 TYPE_MIXINS = inspect.getmembers(sys.modules[__name__], is_typemixin)
+ASSIGNABLE_MIXINS = inspect.getmembers(sys.modules[__name__], is_assignable)

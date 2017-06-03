@@ -691,81 +691,100 @@ class Inferer:
             returns
         )
 
-    def check_Assign(self, node):
+    def checkassign_Name(self, node):
+        right = node.right
+        right_t = self.infer(right)
+
+        name = node.left.id
+        if self.var_exists(name):
+            expected_t = self.lookup(name)
+            if not self.types_eq(expected_t, right_t):
+                raise TypeError("Expected type {} for {}. Found {}.".format(expected_t, name, right_t))
+            return node
+        else:
+            # First instance of this variable. Change to a VarDecl.
+            # The default type for the vardecl will be the type of the RHS
+            # Apply any necessary changes
+            assign_t = right_t
+
+            if (isinstance(right_t, ArrayType) and
+                    not isinstance(right, ArrayLiteral) and
+                    not isinstance(right, Str)):
+                # RHS is array type, but not an array literal -> assign as
+                # pointer
+                assign_t = PointerType(right_t.contents)
+
+            return self.check(VarDeclStmt(VarDecl(
+                name,
+                self.langtype_to_typemixin(assign_t),
+                right
+            )))
+
+    def checkassign_StructPointerDeref(self, node):
         left = node.left
         right = node.right
         right_t = self.infer(right)
 
-        if isinstance(left, Name):
-            name = left.id
-            if self.var_exists(name):
-                expected_t = self.lookup(name)
-                if expected_t != right_t:
-                    raise TypeError("Expected type {} for {}. Found {}.".format(expected_t, name, right_t))
-                return node
-            else:
-                # The default type for the vardecl will be the type of the RHS
-                # Apply any necessary changes
-                assign_t = right_t
+        # Get the struct and check the member
+        value = left.value
+        member = left.member
 
-                if (isinstance(right_t, ArrayType) and
-                        not isinstance(right, ArrayLiteral) and
-                        not isinstance(right, Str)):
-                    # RHS is array type, but not an array literal -> assign as
-                    # pointer
-                    assign_t = PointerType(right_t.contents)
+        value_t = self.infer(value)
+        final_value_t = self.exhaust_typedef_chain(value_t)  # Struct pointer
+        contents_t = final_value_t.contents
+        struct_t = self.exhaust_typedef_chain(contents_t)  # Struct
+        expected_t = struct_t.members[member]
 
-                # First instance of this variable
-                # Change to a VarDecl
-                return self.check(VarDeclStmt(VarDecl(
-                    name,
-                    self.langtype_to_typemixin(assign_t),
-                    right
-                )))
-        elif isinstance(left, StructPointerDeref):
-            # Get the struct and check the member
-            value = left.value
-            member = left.member
+        # See if can assign
+        self.__check_assignable(
+            expected_t, right_t, right,
+            "member {} of struct {}".format(member, struct_t.name))
 
-            value_t = self.infer(value)
-            value_contents_t = self.exhaust_typedef_chain(value_t.contents)
-            expected_t = value_contents_t.members[member]
+        return node
 
-            # See if can assign
-            self.__check_assignable(expected_t, right_t, right,
-                                    "member {} of struct {}".format(member, value_t.contents.name))
+    def checkassign_StructMemberAccess(self, node):
+        left = node.left
+        right = node.right
+        right_t = self.infer(right)
 
-            return node
-        elif isinstance(left, StructMemberAccess):
-            # Get the struct and check the member
-            value = left.value
-            member = left.member
+        # Get the struct and check the member
+        value = left.value
+        member = left.member
 
-            value_t = self.infer(value)
-            value_t = self.exhaust_typedef_chain(value_t)
-            expected_t = value_t.members[member]
+        value_t = self.infer(value)
+        struct_t = self.exhaust_typedef_chain(value_t)  # Struct
+        expected_t = struct_t.members[member]
 
-            # See if can assign
-            self.__check_assignable(expected_t, right_t, right,
-                                    "member {} of struct {}".format(member, value_t.name))
+        # See if can assign
+        self.__check_assignable(
+            expected_t, right_t, right,
+            "member {} of struct {}".format(member, struct_t.name))
 
-            return node
-        elif isinstance(left, Index):
-            # Get the array and check the contents
-            value = left.value
-            index = left.index
+        return node
 
-            value_t = self.infer(value)
-            expected_t = self.exhaust_typedef_chain(value_t.contents)
+    def checkassign_Index(self, node):
+        left = node.left
+        right = node.right
+        right_t = self.infer(right)
 
-            # See if can assign
-            self.__check_assignable(
-                expected_t, right_t, right,
-                "contents of pointer/array {}".format(value)
-            )
-            return node
-        else:
-            raise NotImplementedError("Unable to assign to {}".format(type(left)))
+        # Get the array and check the contents
+        value = left.value
+        self.infer(left.index)
+
+        value_t = self.infer(value)
+        container_t = self.exhaust_typedef_chain(value_t)  # Pointer/Array
+        expected_t = self.exhaust_typedef_chain(container_t.contents)
+
+        # See if can assign
+        self.__check_assignable(
+            expected_t, right_t, right,
+            "contents of pointer/array {}".format(value)
+        )
+        return node
+
+    def check_Assign(self, node):
+        left_node_name = type(node.left).__name__
+        return getattr(self, "checkassign_" + left_node_name)(node)
 
     def check_Return(self, node):
         self.infer(node.value)
@@ -944,3 +963,7 @@ class Inferer:
 # Check langtype_from functions were implemented for all type mixins
 for name, mixin in TYPE_MIXINS:
     assert hasattr(Inferer, "langtype_from_" + name)
+
+# Same for the assignable types
+for name, mixin in ASSIGNABLE_MIXINS:
+    assert hasattr(Inferer, "checkassign_" + name)
