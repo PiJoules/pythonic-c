@@ -136,13 +136,28 @@ BUILTIN_TYPES = frozenset((
 ))
 
 
-# Integral types
 INTEGRAL_TYPES = frozenset({CHAR_TYPE, SHORT_TYPE, INT_TYPE, LONG_TYPE,
                             UCHAR_TYPE, USHORT_TYPE, UINT_TYPE, ULONG_TYPE})
 
-
-# Floating point types
 FLOATING_POINT_TYPES = frozenset({FLOAT_TYPE, DOUBLE_TYPE})
+
+NUMERIC_TYPES = INTEGRAL_TYPES | FLOATING_POINT_TYPES
+
+
+def is_integral_type(t):
+    return t in INTEGRAL_TYPES
+
+
+def is_floating_point_type(t):
+    return t in FLOATING_POINT_TYPES
+
+
+def is_numeric_type(t):
+    return t in NUMERIC_TYPES
+
+
+def is_container_type(t):
+    return isinstance(t, (ArrayType, PointerType))
 
 
 def can_implicit_assign(target_t, value_t):

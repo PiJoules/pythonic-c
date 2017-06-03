@@ -141,13 +141,7 @@ class Inferer:
         method_name = prefix + "_" + name
         if hasattr(self, method_name):
             method = getattr(self, method_name)
-
-            try:
-                result = method(node)
-            except Exception as e:
-                raise RuntimeError("Error running '{}' on node '{}' ({})".format(
-                    prefix, node, node.loc()
-                )) from e
+            result = method(node)
 
             if expected is not None and not isinstance(result, expected):
                 self.__dump_call_stack()
@@ -313,7 +307,6 @@ class Inferer:
             return self.__builtin_type_check(SIZE_TYPE)
 
         # Evaluate the args
-        print(node, node.args)
         for arg in node.args:
             self.infer(arg)
 
@@ -344,18 +337,14 @@ class Inferer:
         return NULL_TYPE
 
     def infer_StructPointerDeref(self, node):
-        value = node.value
-        member = node.member
-        struct_t = self.exhaust_typedef_chain(self.infer(value).contents)
+        struct_t = self.exhaust_typedef_chain(self.infer(node.value).contents)
         assert isinstance(struct_t, StructType)
-        return struct_t.members[member]
+        return struct_t.members[node.member]
 
     def infer_StructMemberAccess(self, node):
-        value = node.value
-        member = node.member
-        struct_t = self.exhaust_typedef_chain(self.infer(value))
+        struct_t = self.exhaust_typedef_chain(self.infer(node.value))
         assert isinstance(struct_t, StructType)
-        return struct_t.members[member]
+        return struct_t.members[node.member]
 
     def dominant_base_type(self, t1, t2):
         """
@@ -386,38 +375,42 @@ class Inferer:
         left_t = self.infer(left)
         right_t = self.infer(right)
 
-        def __pointer_offset(ptr_t, offset_t):
-            """Return the pointer type if a pointer and whole number are provided."""
-            if not isinstance(ptr_t, (PointerType, ArrayType)):
-                raise RuntimeError("Expected the pointer to be a PointerType")
-            return ptr_t
-
         if op == Add() or op == Sub():
+            # Check for shifting pointers
             if self.type_is_pointer(right_t):
                 if not self.type_is_integeral(left_t):
                     raise TypeError("Cannot shift pointer in {} with type {}. Expected an integral.".formay(
                         node, left_t
                     ))
                 return right_t
-
-            if self.type_is_pointer(left_t):
+            elif self.type_is_pointer(left_t):
                 if not self.type_is_integeral(right_t):
                     raise TypeError("Cannot shift pointer in {} with type {}. Expected an integral.".formay(
                         node, right_t
                     ))
                 return left_t
 
-            return self.dominant_base_type(left_t, right_t)
-        elif op == Div() or op == Mult():
-            return self.dominant_base_type(left_t, right_t)
-        else:
-            raise RuntimeError("Unable to infer for binary operation '{}'".format(op))
+        # Otherwise both types must be numeric
+        if not self.type_is_numeric(left_t):
+            raise typeerror("cannot perform binary operation '{}' on type '{}' in {}".format(
+                op, left_t, node
+            ))
+
+        if not self.type_is_numeric(right_t):
+            raise typeerror("cannot perform binary operation '{}' on type '{}' in {}".format(
+                op, right_t, node
+            ))
+
+        return self.dominant_base_type(left_t, right_t)
 
     def infer_BitwiseOp(self, node):
         return self.infer_IntegralOp(node)
 
     def type_is_integeral(self, t):
-        return can_implicit_assign(INT_TYPE, self.exhaust_typedef_chain(t))
+        return is_integral_type(self.exhaust_typedef_chain(t))
+
+    def type_is_numeric(self, t):
+        return is_numeric_type(self.exhaust_typedef_chain(t))
 
     def infer_IntegralOp(self, node):
         left_t = self.infer(node.left)
@@ -450,29 +443,30 @@ class Inferer:
         return CHAR_TYPE
 
     def infer_ArrayLiteral(self, node):
-        contents = node.contents
-        content_ts = [self.infer(c) for c in contents]
+        content_ts = [self.infer(c) for c in node.contents]
 
         # Assert all are same contents
         base_t = content_ts[0]
-        for content_t in content_ts:
-            assert content_t == base_t
+        for content_t in content_ts[1:]:
+            assert self.types_eq(content_t, base_t)
 
         return ArrayType(base_t, Int(len(content_ts)))
 
+    def type_is_container(self, t):
+        return is_container_type(self.exhaust_typedef_chain(t))
+
     def infer_Index(self, node):
         value = node.value
-        index = node.index
 
         value_t = self.infer(value)
-        if not isinstance(value_t, (ArrayType, PointerType)):
+        if not self.type_is_container(value_t):
             raise TypeError("Could not index {} b/c it is not an array or pointer. Found {}.".format(value, value_t))
 
-        index_t = self.infer(index)
+        index_t = self.infer(node.index)
         if not self.__can_implicit_cast(SIZE_TYPE, index_t):
             raise TypeError("Cannot index with type '{}'".format(index_t))
 
-        return value_t.contents
+        return self.exhaust_typedef_chain(value_t).contents
 
     def infer_Str(self, node):
         if isinstance(node, Str):
@@ -490,17 +484,15 @@ class Inferer:
 
     def infer_UnaryOp(self, node):
         op = node.op
+        node_t = self.infer(node.value)
+
         if isinstance(op, (UAdd, USub)):
-            return self.infer(node.value)
-        elif isinstance(op, Not):
-            return INT_TYPE
-        elif isinstance(op, Invert):
-            value_t = self.infer(node.value)
-            if not can_implicit_assign(INT_TYPE, self.exhaust_typedef_chain(value_t)):
-                raise TypeError("Invert operation cannot be performed on '{}' since it is of type '{}' and inversion expects an int type.".format(node.value, value_t))
-            return INT_TYPE
-        else:
-            raise RuntimeError("Unknown UnaryOperator '{}'".format(op))
+            return node_t
+
+        if isinstance(op, Invert) and not self.type_is_integeral(node_t):
+            raise TypeError("Invert operation cannot be performed on '{}' since it is of type '{}' and inversion expects an int type.".format(node.value, node_t))
+
+        return INT_TYPE
 
     def infer_Deref(self, node):
         value = node.value
@@ -508,10 +500,9 @@ class Inferer:
         if not self.type_is_pointer(value_t):
             raise TypeError("Attempting to dereference {} which is of type {} and not a pointer.".format(value, value_t))
 
-        final_value_t = self.exhaust_typedef_chain(value_t)
-        contents_t = final_value_t.contents
+        contents_t = self.exhaust_typedef_chain(value_t).contents
         final_contents_t = self.exhaust_typedef_chain(contents_t)
-        if contents_t == VOID_TYPE:
+        if final_contents_t == VOID_TYPE:
             raise TypeError("Cannot derefernce a void pointer ({})".format(value))
 
         return contents_t
@@ -544,14 +535,15 @@ class Inferer:
         return node
 
     def check_FuncDecl(self, node):
-        func_t = self.langtype_from(node.type())
+        func_t = self.langtype_from(node.as_func_type())
         self.assert_type_exists(func_t.returns)
         for param in func_t.args:
             self.assert_type_exists(param)
 
-        if func_t not in self.__types:
+        # Declaring a function creates the type
+        if not self.type_exists(func_t):
             self.add_type(func_t)
-        assert CallableType([INT_TYPE], VOID_TYPE)
+
         self.bind(node.name, func_t)
         return node
 
@@ -619,7 +611,7 @@ class Inferer:
 
         # Check the function signiature
         returns = node.returns
-        if name in self.__variables:
+        if self.var_exists(name):
             # Func was previously declared
             # Check and match parameters and types
             expected_func_t = self.lookup(name)
@@ -676,7 +668,8 @@ class Inferer:
                 [p if isinstance(p, Ellipsis) else p.type for p in node.params],
                 returns
             ))
-            if func_t not in self.__types:
+
+            if not self.type_exists(func_t):
                 self.add_type(func_t)
 
             # Bind this variable
@@ -716,8 +709,8 @@ class Inferer:
                 assign_t = right_t
 
                 if (isinstance(right_t, ArrayType) and
-                    not isinstance(right, ArrayLiteral) and
-                    not isinstance(right, Str)):
+                        not isinstance(right, ArrayLiteral) and
+                        not isinstance(right, Str)):
                     # RHS is array type, but not an array literal -> assign as
                     # pointer
                     assign_t = PointerType(right_t.contents)
@@ -839,7 +832,7 @@ class Inferer:
         init = node.init
 
         # Make sure the variable is not declared in the same scope
-        if name in self.__variables:
+        if self.var_exists(name):
             raise RuntimeError("Cannot declare variable '{}' again in same scope".format(name))
 
         # Check types

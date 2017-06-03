@@ -313,8 +313,8 @@ class FuncDecl(Node, StmtMixin):
             ", ".join(p.c_code() for p in self.params)
         )
 
-    def type(self):
-        return FuncType([p if isinstance(p, Ellipsis) else p.type for p in self.params], self.returns)
+    def as_func_type(self):
+        return FuncType([p.type if isinstance(p, VarDecl) else p for p in self.params], self.returns)
 
 
 class FuncType(Node, TypeMixin):
