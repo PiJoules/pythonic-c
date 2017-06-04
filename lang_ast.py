@@ -1215,8 +1215,8 @@ class ClassDef(Node, StmtMixin):
     __types__ = {
         "name": str,
         "parents": [TypeMixin],
-        "generics": [TypeMixin],
-        "body": [(VarDecl, FuncDef)],
+        "generics": [str],
+        "body": [StmtMixin],
     }
     __defaults__ = {
         "parents": [],

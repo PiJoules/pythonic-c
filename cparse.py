@@ -792,26 +792,26 @@ class Parser:
     # Classes
 
     def p_class_decl_plain(self, p):
-        "classdef : CLASS NAME COLON class_suite"
+        "classdef : CLASS NAME COLON suite"
         lineno, colno = self.prod_loc(p)
         p[0] = ClassDef(name=p[2], body=p[4], lineno=lineno, colno=colno)
 
     def p_class_decl_generic(self, p):
-        "classdef : CLASS NAME COLON LBRACKET name_list optional_comma RBRACKET class_suite"
+        "classdef : CLASS NAME LBRACKET name_list optional_comma RBRACKET COLON suite"
         lineno, colno = self.prod_loc(p)
-        p[0] = ClassDef(name=p[2], generics=p[5], body=p[8],
+        p[0] = ClassDef(name=p[2], generics=p[4], body=p[8],
                         lineno=lineno, colno=colno)
 
     def p_class_decl_parents(self, p):
-        "classdef : CLASS NAME COLON LPAR typedecl_list optional_comma RPAR class_suite"
+        "classdef : CLASS NAME LPAR typedecl_list optional_comma RPAR COLON suite"
         lineno, colno = self.prod_loc(p)
-        p[0] = ClassDef(name=p[2], parents=p[5], body=p[9],
+        p[0] = ClassDef(name=p[2], parents=p[4], body=p[8],
                         lineno=lineno, colno=colno)
 
     def p_class_decl_generics_and_parents(self, p):
-        "classdef : CLASS NAME COLON LBRACKET name_list optional_comma RBRACKET LPAR typedecl_list optional_comma RPAR class_suite"
+        "classdef : CLASS NAME LBRACKET name_list optional_comma RBRACKET LPAR typedecl_list optional_comma RPAR COLON suite"
         lineno, colno = self.prod_loc(p)
-        p[0] = ClassDef(name=p[2], generics=p[5], parents=p[9], body=p[12],
+        p[0] = ClassDef(name=p[2], generics=p[4], parents=p[8], body=p[12],
                         lineno=lineno, colno=colno)
 
     def p_name_list_one(self, p):
@@ -830,22 +830,23 @@ class Parser:
         "typedecl_list : typedecl_list COMMA type_declaration"
         p[0] = p[1] + [p[3]]
 
-    def p_class_suite(self, p):
-        "class_suite : NEWLINE INDENT class_stmts DEDENT"
-        p[0] = p[3]
+    #def p_class_suite(self, p):
+    #    "class_suite : NEWLINE INDENT class_stmts DEDENT"
+    #    p[0] = p[3]
 
-    def p_cls_stmts_1(self, p):
-        "class_stmts : class_stmt"
-        p[0] = [p[1]]
+    #def p_cls_stmts_1(self, p):
+    #    "class_stmts : class_stmt"
+    #    p[0] = [p[1]]
 
-    def p_class_stmts_2(self, p):
-        "class_stmts : class_stmts class_stmt"
-        p[0] = p[1] + [p[2]]
+    #def p_class_stmts_2(self, p):
+    #    "class_stmts : class_stmts class_stmt"
+    #    p[0] = p[1] + [p[2]]
 
-    def p_class_stmt(self, p):
-        """class_stmt : var_decl
-                      | funcdef"""
-        p[0] = p[1]
+    #def p_class_stmt(self, p):
+    #    """class_stmt : var_decl
+    #                  | funcdef
+    #                  | pass"""
+    #    p[0] = p[1]
 
     def p_error(self, p):
         raise SyntaxError("Unexpected symbol '{}' at ({}, {})".format(
