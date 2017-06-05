@@ -928,6 +928,29 @@ class Inferer:
             [self.check(n) for n in node.body]
         )
 
+    def check_ClassDef(self, node):
+        name = node.name
+        self.assert_type_not_exists(LangType(name))
+
+        generics = node.generics
+        if generics:
+            raise NotImplementedError("No logic yet implemented for generic types.")
+
+        parents = node.parents
+        if parents:
+            raise NotImplementedError("No logic yet implemented for subclassing.")
+
+        ALLOWED_CLASS_NODES = (VarDeclStmt, FuncDef, Pass)
+        body = node.body
+        for n in body:
+            if not isinstance(n, ALLOWED_CLASS_NODES):
+                raise RuntimeError("Expected only {} in ClassDef ({})".format(
+                    ALLOWED_CLASS_NODES, node.loc()
+                ))
+            n = self.check(n)
+
+        raise NotImplementedError
+
     def __check_module(self, node, *, is_base_module=False):
         if is_base_module and node.filename:
             self.__init_src_file(node.filename)

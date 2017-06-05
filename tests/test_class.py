@@ -87,6 +87,80 @@ class A(B):
             ClassDef(name="A", parents=[NameType("B")], body=[Pass()])
         )
 
+        code = """
+class A(B, ):
+    pass
+        """.strip()
+        ast = code_to_ast(code)
+        self.assertEqual(
+            ast.body[0],
+            ClassDef(name="A", parents=[NameType("B")], body=[Pass()])
+        )
+
+        code = """
+class A(B, List<B>):
+    pass
+        """.strip()
+        ast = code_to_ast(code)
+        self.assertEqual(
+            ast.body[0],
+            ClassDef(
+                name="A",
+                parents=[
+                    NameType("B"),
+                    Generic(NameType("List"), [NameType("B")])
+                ],
+                body=[Pass()]
+            )
+        )
+
+    def test_generics_and_parents(self):
+        """Class has generics and parents."""
+        code = """
+class A<T, U>(B, List<B>):
+    pass
+        """.strip()
+        ast = code_to_ast(code)
+        self.assertEqual(
+            ast.body[0],
+            ClassDef(
+                name="A",
+                generics=["T", "U"],
+                parents=[
+                    NameType("B"),
+                    Generic(NameType("List"), [NameType("B")])
+                ],
+                body=[Pass()]
+            )
+        )
+
+    def test_class_with_body(self):
+        """The class has a body now."""
+        code = """
+class A:
+    x: int = 0
+
+    def func(self, x):
+        pass
+        """.strip()
+        ast = code_to_ast(code)
+        self.assertEqual(
+            ast.body[0],
+            ClassDef(
+                name="A",
+                body=[
+                    VarDeclStmt(
+                        VarDecl("x", NameType("int"), Int(0))
+                    ),
+                    FuncDef(
+                        "func",
+                        ["self", "x"],
+                        [Pass()]
+                    )
+                ]
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

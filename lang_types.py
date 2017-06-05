@@ -69,6 +69,26 @@ class StructType(LangType):
     }
 
 
+class ClassType(LangType):
+    __attrs__ = ("properties", "type_params", "parents")
+    __types__ = {
+        "properties": [LangType],
+        "type_params": [str],
+        "parents": [LangType],
+    }
+    __defaults__ = {
+        "properties": [],
+        "type_params": [],
+        "parents": []
+    }
+
+    def __hash__(self):
+        return hash((
+            self.name, tuple(self.properties), tuple(self.type_params),
+            tuple(self.parents)
+        ))
+
+
 class CallableType(LangType):
     __attrs__ = ("args", "returns")
     __types__ = {
