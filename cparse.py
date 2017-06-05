@@ -6,6 +6,11 @@ from lang_ast import *
 class Parser:
     # Note: High precedence last, low precedence first
     precedence = (
+        # Type declaration precedence
+        ("left", "FUNC_TYPE"),
+        ("left", "POINTER_TYPE"),
+
+        # Expressions
         ("left", "OR"),  # 12
         ("left", "AND"),  # 11
         ("left", "BITOR"),  # 10
@@ -306,6 +311,12 @@ class Parser:
     Arrays: int[10]
     Pointers: int*
     Generics: List<int, int>
+
+    Note:
+    - The arrays/pointers always go at the end of a type declaration
+    - Generics come in between the base type and the pointers at the end
+      - TODO: Implement this in the language instead of doing a compile time
+        check
     """
 
     def p_declaration_name(self, p):
@@ -317,14 +328,18 @@ class Parser:
         "type_declaration : LBRACE type_declaration RBRACE"
         p[0] = p[2]
 
+    def p_type_declaration_generic(self, p):
+        "type_declaration : type_declaration LT typedecl_list optional_comma GT"
+        p[0] = Generic(p[1], p[3])
+
     # Function type declarations
 
     def p_function_declaration(self, p):
-        "type_declaration : inline_func_decl"
+        "type_declaration : inline_func_decl %prec FUNC_TYPE"
         p[0] = p[1]
 
     def p_inline_func_decl(self, p):
-        "inline_func_decl : param_type_list ARROW type_declaration"
+        "inline_func_decl : param_type_list ARROW type_declaration %prec FUNC_TYPE"
         lineno, colno = self.prod_loc(p)
         p[0] = FuncType(p[1], p[3], lineno=lineno, colno=colno)
 
@@ -347,7 +362,7 @@ class Parser:
     # Pointer type declarations
 
     def p_declaration_array(self, p):
-        "type_declaration : type_declaration bracket_list"
+        "type_declaration : type_declaration bracket_list %prec POINTER_TYPE"
         lineno, colno = self.prod_loc(p)
         def _distribute(sizes):
             # Wraps p[1] in either an array or pointer by distributing the bracket
@@ -613,9 +628,13 @@ class Parser:
         p[0] = BitwiseOp(p[1], LShift(), p[3], lineno=lineno, colno=colno)
 
     def p_rshift_expr(self, p):
-        "expr : expr RSHIFT expr"
+        "expr : expr rshift expr %prec RSHIFT"
         lineno, colno = self.prod_loc(p)
         p[0] = BitwiseOp(p[1], RShift(), p[3], lineno=lineno, colno=colno)
+
+    def p_rshift(self, p):
+        "rshift : GT GT"
+        p[0] = RShift()
 
     def p_comparison_power(self, p):
         "expr : power"

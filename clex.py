@@ -85,7 +85,22 @@ class Lexer:
 
         # Binary ops
         # % << >>
-        "MOD", "LSHIFT", "RSHIFT",
+        "MOD", "LSHIFT",
+
+        # RSHIFT is treated as a fictitious token.
+        # Before when RSHIFT was defined as r">>", the ply lexer always
+        # returned the RSHIFT token (>>) when 2 GT chars were written next to
+        # each other with no space in between. It would do this when I had
+        # nested mapped generics (ie. List<List<int>>). When the lexer reached
+        # the >>, it returned ">>" and a syntax error rose on it because the
+        # parse rule for generics expects a single >, but always got >>.
+        #
+        # This was fixed by making RSHIFT a fictitious token, and replacing
+        # all instances of RSHIFT with an rshift rule (rshift : GT GT).
+        #
+        # TODO: Submit this bug to the person maintaining ply or ask someone
+        # how to fix this
+        "RSHIFT",
 
         # Comparison bin ops
         # LT and GT are also used for casts
@@ -99,6 +114,7 @@ class Lexer:
         # Fictitious tokens
         "CAST", "PREINC", "PREDEC", "POSTINC", "POSTDEC", "ADDROF",
         "BITAND", "BITOR", "XOR", "DEREF", "UADD", "USUB",
+        "FUNC_TYPE", "POINTER_TYPE",
 
         'ASSIGN',
         "ARROW",
@@ -133,7 +149,6 @@ class Lexer:
     t_AND = r"and"
     t_OR = r"or"
     t_LSHIFT = r"<<"
-    t_RSHIFT = r">>"
 
     # Comparison ops
     t_LE = r"<="

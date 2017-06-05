@@ -267,6 +267,9 @@ class Inferer:
     def langtype_from_Ellipsis(self, node):
         return VARARG_TYPE
 
+    def langtype_from_Generic(self, node):
+        raise NotImplementedError
+
     def langtype_to_typemixin(self, t):
         self.assert_type_exists(t)
 

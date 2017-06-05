@@ -1241,6 +1241,22 @@ class ClassDef(Node, StmtMixin):
     # will contain the function definitions.
 
 
+class Generic(Node, TypeMixin):
+    __attrs__ = ("base_type", "type_params")
+    __types__ = {
+        "base_type": TypeMixin,
+        "type_params": [TypeMixin]
+    }
+
+    def lines(self):
+        yield "{}<{}>".format(
+            self.base_type,
+            ", ".join(map(str, self.type_params))
+        )
+
+    # c_lines() will also not be implemented b/c this does not exist in C
+
+
 ##### Macros ######
 
 
