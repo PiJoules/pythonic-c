@@ -298,6 +298,16 @@ class Parser:
         lineno, colno = self.prod_loc(p)
         p[0] = VarDecl(p[1], p[3], p[5], lineno=lineno, colno=colno)
 
+    """
+    Type decls:
+    Name: int
+    Function: (int, int) -> int
+    Scoping: {int}
+    Arrays: int[10]
+    Pointers: int*
+    Generics: List<int, int>
+    """
+
     def p_declaration_name(self, p):
         "type_declaration : NAME"
         lineno, colno = self.prod_loc(p)
@@ -797,7 +807,7 @@ class Parser:
         p[0] = ClassDef(name=p[2], body=p[4], lineno=lineno, colno=colno)
 
     def p_class_decl_generic(self, p):
-        "classdef : CLASS NAME LBRACKET name_list optional_comma RBRACKET COLON suite"
+        "classdef : CLASS NAME LT name_list optional_comma GT COLON suite"
         lineno, colno = self.prod_loc(p)
         p[0] = ClassDef(name=p[2], generics=p[4], body=p[8],
                         lineno=lineno, colno=colno)
@@ -809,7 +819,7 @@ class Parser:
                         lineno=lineno, colno=colno)
 
     def p_class_decl_generics_and_parents(self, p):
-        "classdef : CLASS NAME LBRACKET name_list optional_comma RBRACKET LPAR typedecl_list optional_comma RPAR COLON suite"
+        "classdef : CLASS NAME LT name_list optional_comma GT LPAR typedecl_list optional_comma RPAR COLON suite"
         lineno, colno = self.prod_loc(p)
         p[0] = ClassDef(name=p[2], generics=p[4], parents=p[8], body=p[12],
                         lineno=lineno, colno=colno)
