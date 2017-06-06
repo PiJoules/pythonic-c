@@ -410,9 +410,6 @@ class Inferer:
         return FLOAT_TYPE
 
     def infer_Name(self, node):
-        if node.id in self.__classes:
-            # Calling a class constructor
-            return self.lookup("new_" + node.id)
         return self.lookup(node.id)
 
     def infer_Null(self, node):
@@ -474,12 +471,12 @@ class Inferer:
 
         # Otherwise both types must be numeric
         if not self.type_is_numeric(left_t):
-            raise typeerror("cannot perform binary operation '{}' on type '{}' in {}".format(
+            raise TypeError("cannot perform binary operation '{}' on type '{}' in {}".format(
                 op, left_t, node
             ))
 
         if not self.type_is_numeric(right_t):
-            raise typeerror("cannot perform binary operation '{}' on type '{}' in {}".format(
+            raise TypeError("cannot perform binary operation '{}' on type '{}' in {}".format(
                 op, right_t, node
             ))
 
@@ -608,7 +605,6 @@ class Inferer:
         # Check struct members
         struct_t = StructType(node.struct.name)
 
-        print(list(map(str, self.__types.keys())))
         self.add_type(struct_t)
         self.bind_typedef(LangType(node.struct.name), struct_t)
         struct_t.members = {d.name: self.langtype_from(d.type) for d in node.struct.decls}
@@ -1012,12 +1008,8 @@ class Inferer:
 
     def check_ClassDef(self, node):
         name = node.name
-        #func_typename = node.name + "_t"
         func_typename = node.name
-        #class_t = ClassType(func_typename)
-        #self.add_type(class_t)
         self.__classes[name] = None
-        #self.bind_typedef(LangType(name), class_t)
 
         generics = node.generics
         if generics:
@@ -1034,26 +1026,16 @@ class Inferer:
         funcdefs = {}
         for n in body:
             if isinstance(n, VarDeclStmt):
-                #t = self.langtype_from(n.type)
-                #class_t.set_prop(n.name, t)
-
                 vardecls[n.name] = n.init
             elif isinstance(n, Assign):
                 if not isinstance(n.left, Name):
                     raise RuntimeError("Expected a name for assigning to class attribute at {}".format(
                         n.left.loc(),
                     ))
-                #t = self.infer(n.right)
-                #class_t.set_prop(n.left.id, t)
-
                 vardecls[n.left.id] = n.right
             elif isinstance(n, FuncDecl):
-                #t = self.langtype_from(n.as_func_type())
-                #class_t.set_prop(n.name, t)
-
                 funcdecls[n.name] = t
             elif isinstance(n, FuncDef):
-                #if n.name in class_t.properties:
                 if n.name in funcdecls:
                     # Check that the signatures are equal
                     raise NotImplementedError
@@ -1062,18 +1044,6 @@ class Inferer:
                     # and add the func to the class
                     self._assert_args_as_vardecls(n.params)
                     assert isinstance(n.returns, TypeMixin)
-
-                    # Create this type
-                    #func_t = self.langtype_from(FuncType(
-                    #    [p if isinstance(p, Ellipsis) else p.type for p in n.params],
-                    #    n.returns
-                    #))
-
-                    ##if not self.type_exists(func_t):
-                    ##    self.add_type(func_t)
-
-                    ## Bind this variable
-                    #class_t.set_prop(n.name, func_t)
 
                     funcdecls[n.name] = n.as_func_decl()
                     funcdefs[n.name] = n
@@ -1091,7 +1061,8 @@ class Inferer:
         # Create the class struct
         struct_decl = self.check(StructDecl(Struct(
             func_typename,
-            list(vardecls.values()) + [fd.as_var_decl() for fd in funcdecls.values()]
+            #list(vardecls.values()) + [fd.as_var_decl() for fd in funcdecls.values()]
+            list(vardecls.values())
         )))
 
         # Create the constructor function
@@ -1101,18 +1072,20 @@ class Inferer:
             init_params = []
 
         cls_ptr_type = Pointer(NameType(func_typename))
-        constr_func_body = [VarDeclStmt(VarDecl(
-            "obj",
-            cls_ptr_type,
-            Cast(
+        constr_func_body = [
+            VarDeclStmt(VarDecl(
+                "obj",
                 cls_ptr_type,
-                Call(
-                    Name("malloc"),
-                    [Call(Name("sizeof"), [Name(func_typename)])]
+                Cast(
+                    cls_ptr_type,
+                    Call(
+                        Name("malloc"),
+                        [Call(Name("sizeof"), [Name(func_typename)])]
+                    )
                 )
-            )
-        ))]
-        constr_func_body.append(Return(Name("obj")))
+            )),
+            Return(Name("obj")),
+        ]
 
         constr_func = self.check(FuncDef(
             "new_" + node.name,
@@ -1121,11 +1094,27 @@ class Inferer:
             cls_ptr_type
         ))
 
+        # Create destructor function
+        dtor_func_body = [
+            ExprStmt(Call(Name("free"), [Name("self")]))
+        ]
+
+        dtor_func = self.check(FuncDef(
+            "del_" + node.name,
+            [VarDecl("self", cls_ptr_type)],
+            dtor_func_body,
+            NameType("void"),
+        ))
+
+        # Create the methods
+        methods = []
+        for name, funcdef in funcdefs.items():
+            funcdef.name = node.name + "_" + name
+            methods.append(funcdef)
+
         # Finalize the group
-        group = StmtGroup([
-            struct_decl,
-            constr_func,
-        ])
+        body = [struct_decl, constr_func, dtor_func] + list(map(self.check, methods))
+        group = StmtGroup(body)
 
         # If the source file for this inferer was provided, dump the C code of
         # this class in a header and source file. Otherwise, return the node

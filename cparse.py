@@ -23,7 +23,7 @@ class Parser:
         ("left", "MULT", "DIV", "MOD"),  # 3
         ("right", "ADDROF", "NOT", "CAST", "PREINC", "PREDEC", "INV",
                   "DEREF", "USUB", "UADD"),  # 2
-        ("left", "ARROW", "POSTINC", "POSTDEC",
+        ("left", "ARROW", "POSTINC", "POSTDEC", "CALL", "LPAR",
                  "PERIOD",  # Struct access
                  "LBRACKET"),  # 1
 
@@ -722,13 +722,13 @@ class Parser:
         "power : atom"
         p[0] = p[1]
 
-    def p_power_2(self, p):
-        "power : atom LPAR RPAR"
+    def p_call(self, p):
+        "expr : expr LPAR RPAR"
         lineno, colno = self.prod_loc(p)
         p[0] = Call(p[1], lineno=lineno, colno=colno)
 
-    def p_power_call_args(self, p):
-        "power : atom LPAR arglist RPAR"
+    def p_call_args(self, p):
+        "expr : expr LPAR arglist RPAR"
         lineno, colno = self.prod_loc(p)
         p[0] = Call(p[1], p[3], lineno=lineno, colno=colno)
 

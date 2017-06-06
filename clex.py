@@ -114,7 +114,7 @@ class Lexer:
         # Fictitious tokens
         "CAST", "PREINC", "PREDEC", "POSTINC", "POSTDEC", "ADDROF",
         "BITAND", "BITOR", "XOR", "DEREF", "UADD", "USUB",
-        "FUNC_TYPE", "POINTER_TYPE",
+        "FUNC_TYPE", "POINTER_TYPE", "CALL",
 
         'ASSIGN',
         "ARROW",
