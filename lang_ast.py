@@ -239,7 +239,7 @@ class FuncDef(Node, StmtMixin):
     __attrs__ = ("name", "params", "body", "returns")
     __types__ = {
         "name": str,
-        "params": [(str, VarDecl)],
+        "params": [(str, VarDecl, Ellipsis)],
         "body": [StmtMixin],
         "returns": optional(TypeMixin)
     }
@@ -280,6 +280,9 @@ class FuncDef(Node, StmtMixin):
 
         yield "}"
 
+    def as_func_decl(self):
+        return FuncDecl(self.name, self.params, self.returns)
+
 
 class FuncDecl(Node, StmtMixin):
     __attrs__ = ("name", "params", "returns")
@@ -319,6 +322,9 @@ class FuncDecl(Node, StmtMixin):
 
     def as_func_type(self):
         return FuncType([p.type if isinstance(p, VarDecl) else p for p in self.params], self.returns)
+
+    def as_var_decl(self):
+        return VarDecl(self.name, self.as_func_type())
 
 
 class FuncType(Node, TypeMixin):
@@ -1191,7 +1197,7 @@ class Struct(Node):
     def c_lines(self):
         yield "struct {} {{{}}}".format(
             self.name,
-            "; ".join(n.c_code() for n in self.decls) + ";"
+            "; ".join(n.c_code() for n in self.decls) + (";" if self.decls else "")
         )
 
 
@@ -1209,6 +1215,21 @@ class StructDecl(Node, StmtMixin):
         )
         yield self.struct.c_code() + ";"
 
+
+class StmtGroup(Node, StmtMixin):
+    __attrs__ = ("body", )
+    __types__ = {"body": [StmtMixin]}
+
+    def lines(self):
+        for node in self.body:
+            yield from node.lines()
+
+    def c_lines(self):
+        for node in self.body:
+            yield from node.c_lines()
+
+
+ALLOWED_CLASS_NODES = (VarDeclStmt, Assign, FuncDef, FuncDecl, Pass)
 
 class ClassDef(Node, StmtMixin):
     __attrs__ = ("name", "generics", "parents", "body")

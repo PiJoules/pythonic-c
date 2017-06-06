@@ -72,21 +72,31 @@ class StructType(LangType):
 class ClassType(LangType):
     __attrs__ = ("properties", "type_params", "parents")
     __types__ = {
-        "properties": [LangType],
+        "properties": {str: LangType},
         "type_params": [str],
         "parents": [LangType],
     }
     __defaults__ = {
-        "properties": [],
+        "properties": {},
         "type_params": [],
         "parents": []
     }
 
-    def __hash__(self):
-        return hash((
-            self.name, tuple(self.properties), tuple(self.type_params),
-            tuple(self.parents)
-        ))
+    def set_prop(self, prop, t):
+        if prop in self.properties:
+            expected_t = self.properties[prop]
+            if expected_t != t:
+                raise KeyError("Property '{}' previosuly declared as type {}. Received {}.".format(
+                    prop, expected_t, t
+                ))
+        else:
+            self.properties[prop] = t
+
+    #def __hash__(self):
+    #    return hash((
+    #        self.name, tuple(self.properties), tuple(self.type_params),
+    #        tuple(self.parents)
+    #    ))
 
 
 class CallableType(LangType):
@@ -99,8 +109,8 @@ class CallableType(LangType):
     def __init__(self, *args, **kwargs):
         super().__init__("callable", *args, **kwargs)
 
-    def __hash__(self):
-        return hash((self.name, tuple(self.args), self.returns))
+    #def __hash__(self):
+    #    return hash((self.name, tuple(self.args), self.returns))
 
     def __str__(self):
         return "callable({}) -> {}".format(

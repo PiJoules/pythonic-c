@@ -930,7 +930,9 @@ class Inferer:
 
     def check_ClassDef(self, node):
         name = node.name
-        self.assert_type_not_exists(LangType(name))
+        func_typename = node.name + "_t"
+        class_t = ClassType(func_typename)
+        self.assert_type_not_exists(class_t)
 
         generics = node.generics
         if generics:
@@ -940,16 +942,112 @@ class Inferer:
         if parents:
             raise NotImplementedError("No logic yet implemented for subclassing.")
 
-        ALLOWED_CLASS_NODES = (VarDeclStmt, FuncDef, Pass)
+        # Initialize the properties of the class type
         body = node.body
+        vardecls = {}
+        funcdecls = {}
+        funcdefs = {}
         for n in body:
-            if not isinstance(n, ALLOWED_CLASS_NODES):
+            if isinstance(n, VarDeclStmt):
+                t = self.langtype_from(n.type)
+                class_t.set_prop(n.name, t)
+
+                vardecls[n.name] = n.init
+            elif isinstance(n, Assign):
+                if not isinstance(n.left, Name):
+                    raise RuntimeError("Expected a name for assigning to class attribute at {}".format(
+                        n.left.loc(),
+                    ))
+                t = self.infer(n.right)
+                class_t.set_prop(n.left.id, t)
+
+                vardecls[n.left.id] = n.right
+            elif isinstance(n, FuncDecl):
+                t = self.langtype_from(n.as_func_type())
+                class_t.set_prop(n.name, t)
+
+                funcdecls[n.name] = t
+            elif isinstance(n, FuncDef):
+                if n.name in class_t.properties:
+                    # Check that the signatures are equal
+                    raise NotImplementedError
+                else:
+                    # Assert all params are VarDecls, return type is specified,
+                    # and add the func to the class
+                    self._assert_args_as_vardecls(n.params)
+                    assert isinstance(returns, TypeMixin)
+
+                    # Create this type
+                    func_t = self.langtype_from(FuncType(
+                        [p if isinstance(p, Ellipsis) else p.type for p in node.params],
+                        returns
+                    ))
+
+                    # Bind this variable
+                    class_t.set_prop(n.name, func_t)
+
+                    funcdecls[n.name] = n.as_func_decl()
+                    funcdefs[n.name] = n
+            elif isinstance(n, Pass):
+                pass
+            else:
                 raise RuntimeError("Expected only {} in ClassDef ({})".format(
                     ALLOWED_CLASS_NODES, node.loc()
                 ))
-            n = self.check(n)
 
-        raise NotImplementedError
+        assert set(funcdecls.keys()) == set(funcdefs.keys())
+
+        # Create the expacted lang code
+        body = []
+
+        # Create the class struct
+        struct_decl = StructDecl(Struct(
+            func_typename,
+            list(vardecls.values()) + list(funcdecls.values())
+        ))
+        body.append(struct_decl)
+
+        # Create the constructor function
+        if "__init__" in funcdecls:
+            init_params = funcdecls["__init__"].params
+        else:
+            init_params = []
+
+        cls_ptr_type = Pointer(NameType(func_typename))
+        constr_func_body = [VarDeclStmt(VarDecl(
+            "obj",
+            cls_ptr_type,
+            Cast(
+                cls_ptr_type,
+                Call(
+                    Name("malloc"),
+                    [Call(Name("sizeof"), [Name(func_typename)])]
+                )
+            )
+        ))]
+        constr_func_body.append(Return(Name("obj")))
+
+        constr_func = FuncDef(
+            node.name,
+            init_params,
+            constr_func_body,
+            cls_ptr_type
+        )
+        body.append(constr_func)
+
+        # Finalize the group
+        group = StmtGroup([self.check(n) for n in body])
+
+        # If the source file for this inferer was provided, dump the C code of
+        # this class in a header and source file. Otherwise, return the node
+        # and dump the C code in the original file.
+        if self.__source:
+            pass
+
+        return group
+
+    def check_StmtGroup(self, node):
+        return StmtGroup([self.check(n) for n in node.body])
 
     def __check_module(self, node, *, is_base_module=False):
         if is_base_module and node.filename:
