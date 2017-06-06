@@ -7,6 +7,75 @@ from c_modules import C_VARS, C_TYPES
 import os
 
 
+class Frame:
+    """Class containing the scope of types at runtime that change when enetring
+    new frames like in new functions."""
+
+    def __init__(self, variables, types, classes, parent=None):
+        """
+        Args:
+            variables (dict[str, LangType])
+            parent (optional[Frame])
+            types (dict[LangType, (LangType, NoneType))
+            classes (dict[LangType, ClassType])
+        """
+        self.__parent = parent
+        self.__variables = variables
+        self.__types = types
+        self.__classes = classes
+
+    def variables(self):
+        return self.__variables
+
+    def types(self):
+        return self.__types
+
+    def classes(self):
+        return self.__classes
+
+    def lookup(self, varname):
+        """Lookup in parent frames."""
+        if varname in self.__variables:
+            return self.__variables[varname]
+
+        if self.__parent is not None:
+            return self.__parent.lookup(varname)
+
+        raise KeyError("Unknown variable '{}'".format(varname))
+
+    def parent(self):
+        return self.__parent
+
+    def is_global(self):
+        return self.__parent is None
+
+    def enter_scope(self):
+        return Frame(
+            dict(self.__variables),
+            dict(self.__types),
+            dict(self.__classes),
+            parent=self
+        )
+
+    def switch_global(self):
+        """Return the global scope on a stack."""
+        frame = self
+        while not frame.is_global():
+            frame = frame.parent()
+        return Frame(
+            frame.variables(),
+            frame.types(),
+            frame.classes(),
+            parent=self,
+        )
+
+    def exit_scope(self):
+        parent = self.__parent
+        if not parent:
+            raise RuntimeError("Global frame has no parent.")
+        return parent
+
+
 class Inferer:
     ######### Interface ########
 
@@ -110,7 +179,7 @@ class Inferer:
         assert isinstance(t, LangType)
         if isinstance(t, (ArrayType, PointerType)):
             return self.type_exists(t.contents)
-        return t in declared_types or t.name in self.__classes
+        return t in declared_types
 
     def type_exists(self, t):
         """Check if a type exists in this scope."""
@@ -341,6 +410,9 @@ class Inferer:
         return FLOAT_TYPE
 
     def infer_Name(self, node):
+        if node.id in self.__classes:
+            # Calling a class constructor
+            return self.lookup("new_" + node.id)
         return self.lookup(node.id)
 
     def infer_Null(self, node):
@@ -536,11 +608,14 @@ class Inferer:
         # Check struct members
         struct_t = StructType(node.struct.name)
 
+        print(list(map(str, self.__types.keys())))
         self.add_type(struct_t)
         self.bind_typedef(LangType(node.struct.name), struct_t)
         struct_t.members = {d.name: self.langtype_from(d.type) for d in node.struct.decls}
 
         for t in struct_t.members.values():
+            if isinstance(t, CallableType) and not self.type_exists(t):
+                self.add_type(t)
             self.assert_type_exists(t)
         return node
 
@@ -939,9 +1014,9 @@ class Inferer:
         name = node.name
         #func_typename = node.name + "_t"
         func_typename = node.name
-        class_t = ClassType(func_typename)
-        self.add_type(class_t)
-        self.__classes[name] = class_t
+        #class_t = ClassType(func_typename)
+        #self.add_type(class_t)
+        self.__classes[name] = None
         #self.bind_typedef(LangType(name), class_t)
 
         generics = node.generics
@@ -959,8 +1034,8 @@ class Inferer:
         funcdefs = {}
         for n in body:
             if isinstance(n, VarDeclStmt):
-                t = self.langtype_from(n.type)
-                class_t.set_prop(n.name, t)
+                #t = self.langtype_from(n.type)
+                #class_t.set_prop(n.name, t)
 
                 vardecls[n.name] = n.init
             elif isinstance(n, Assign):
@@ -968,17 +1043,18 @@ class Inferer:
                     raise RuntimeError("Expected a name for assigning to class attribute at {}".format(
                         n.left.loc(),
                     ))
-                t = self.infer(n.right)
-                class_t.set_prop(n.left.id, t)
+                #t = self.infer(n.right)
+                #class_t.set_prop(n.left.id, t)
 
                 vardecls[n.left.id] = n.right
             elif isinstance(n, FuncDecl):
-                t = self.langtype_from(n.as_func_type())
-                class_t.set_prop(n.name, t)
+                #t = self.langtype_from(n.as_func_type())
+                #class_t.set_prop(n.name, t)
 
                 funcdecls[n.name] = t
             elif isinstance(n, FuncDef):
-                if n.name in class_t.properties:
+                #if n.name in class_t.properties:
+                if n.name in funcdecls:
                     # Check that the signatures are equal
                     raise NotImplementedError
                 else:
@@ -988,16 +1064,16 @@ class Inferer:
                     assert isinstance(n.returns, TypeMixin)
 
                     # Create this type
-                    func_t = self.langtype_from(FuncType(
-                        [p if isinstance(p, Ellipsis) else p.type for p in n.params],
-                        n.returns
-                    ))
+                    #func_t = self.langtype_from(FuncType(
+                    #    [p if isinstance(p, Ellipsis) else p.type for p in n.params],
+                    #    n.returns
+                    #))
 
-                    if not self.type_exists(func_t):
-                        self.add_type(func_t)
+                    ##if not self.type_exists(func_t):
+                    ##    self.add_type(func_t)
 
-                    # Bind this variable
-                    class_t.set_prop(n.name, func_t)
+                    ## Bind this variable
+                    #class_t.set_prop(n.name, func_t)
 
                     funcdecls[n.name] = n.as_func_decl()
                     funcdefs[n.name] = n
@@ -1011,14 +1087,12 @@ class Inferer:
         assert set(funcdecls.keys()) == set(funcdefs.keys())
 
         # Create the expacted lang code
-        body = []
 
         # Create the class struct
-        struct_decl = StructDecl(Struct(
+        struct_decl = self.check(StructDecl(Struct(
             func_typename,
             list(vardecls.values()) + [fd.as_var_decl() for fd in funcdecls.values()]
-        ))
-        body.append(struct_decl)
+        )))
 
         # Create the constructor function
         if "__init__" in funcdecls:
@@ -1040,16 +1114,18 @@ class Inferer:
         ))]
         constr_func_body.append(Return(Name("obj")))
 
-        constr_func = FuncDef(
-            node.name,
+        constr_func = self.check(FuncDef(
+            "new_" + node.name,
             init_params,
             constr_func_body,
             cls_ptr_type
-        )
-        body.append(constr_func)
+        ))
 
         # Finalize the group
-        group = StmtGroup([self.check(n) for n in body])
+        group = StmtGroup([
+            struct_decl,
+            constr_func,
+        ])
 
         # If the source file for this inferer was provided, dump the C code of
         # this class in a header and source file. Otherwise, return the node
@@ -1093,6 +1169,8 @@ class Inferer:
         self.__classes = saved_classes
 
         # Merge new variables from global into local
+        # TODO: This only accounts for 1 layer down. Need to update for more
+        # nested functions.
         self.__variables.update(self.__global_variables)
         self.__types.update(self.__global_types)
         self.__classes.update(self.__global_classes)
