@@ -19,6 +19,8 @@ class Inferer:
         self.__variables = init_variables or {}
         self.__global_variables = self.__variables
         self.__types = init_types or dict.fromkeys(BUILTIN_TYPES)
+        self.__classes = {}
+        self.__global_classes = self.__classes
         self.__global_types = self.__types
         self.__call_stack = call_stack or []
         self.__found_included_files = included_files or {}
@@ -46,10 +48,12 @@ class Inferer:
         self.__frames.append((
             self.__variables,
             self.__types,
+            self.__classes,
         ))
 
         self.__variables = dict(self.__variables)
         self.__types = dict(self.__types)
+        self.__classes = dict(self.__classes)
 
     def exit_scope(self):
         """
@@ -59,6 +63,7 @@ class Inferer:
         frame_attrs = self.__frames.pop()
         self.__variables = frame_attrs[0]
         self.__types = frame_attrs[1]
+        self.__classes = frame_attrs[2]
 
     def includes(self):
         """Returns a dict mapping all includes found to their type infered asts."""
@@ -105,7 +110,7 @@ class Inferer:
         assert isinstance(t, LangType)
         if isinstance(t, (ArrayType, PointerType)):
             return self.type_exists(t.contents)
-        return t in declared_types
+        return t in declared_types or t.name in self.__classes
 
     def type_exists(self, t):
         """Check if a type exists in this scope."""
@@ -244,13 +249,15 @@ class Inferer:
     def langtype_from_NameType(self, node):
         # Account for typedefs
         t = LangType(node.id)
-        if t in self.__types:
+        if self.type_exists(t):
             # Exhaust any typedef chains
             return t
         elif node.id in C_TYPES:
             result = self.__builtin_type_check(t)
+        elif node.id in self.__classes:
+            return self.__classes[node.id]
         else:
-            raise RuntimeError("type for name '{}' not previously declared".format(node))
+            raise RuntimeError("type for name '{}' not previously declared".format(node.id))
         return result
 
     def langtype_from_Pointer(self, node):
@@ -930,9 +937,12 @@ class Inferer:
 
     def check_ClassDef(self, node):
         name = node.name
-        func_typename = node.name + "_t"
+        #func_typename = node.name + "_t"
+        func_typename = node.name
         class_t = ClassType(func_typename)
-        self.assert_type_not_exists(class_t)
+        self.add_type(class_t)
+        self.__classes[name] = class_t
+        #self.bind_typedef(LangType(name), class_t)
 
         generics = node.generics
         if generics:
@@ -975,13 +985,16 @@ class Inferer:
                     # Assert all params are VarDecls, return type is specified,
                     # and add the func to the class
                     self._assert_args_as_vardecls(n.params)
-                    assert isinstance(returns, TypeMixin)
+                    assert isinstance(n.returns, TypeMixin)
 
                     # Create this type
                     func_t = self.langtype_from(FuncType(
-                        [p if isinstance(p, Ellipsis) else p.type for p in node.params],
-                        returns
+                        [p if isinstance(p, Ellipsis) else p.type for p in n.params],
+                        n.returns
                     ))
+
+                    if not self.type_exists(func_t):
+                        self.add_type(func_t)
 
                     # Bind this variable
                     class_t.set_prop(n.name, func_t)
@@ -1003,7 +1016,7 @@ class Inferer:
         # Create the class struct
         struct_decl = StructDecl(Struct(
             func_typename,
-            list(vardecls.values()) + list(funcdecls.values())
+            list(vardecls.values()) + [fd.as_var_decl() for fd in funcdecls.values()]
         ))
         body.append(struct_decl)
 
@@ -1066,8 +1079,10 @@ class Inferer:
         # Make the global scope the current one
         saved_vars = self.__variables
         saved_types = self.__types
+        saved_classes = self.__classes
         self.__variables = self.__global_variables
         self.__types = self.__global_types
+        self.__classes = self.__global_classes
 
         # Check normally
         self.__check_module(node)
@@ -1075,10 +1090,12 @@ class Inferer:
         # Switch back to the local one
         self.__variables = saved_vars
         self.__types = saved_types
+        self.__classes = saved_classes
 
         # Merge new variables from global into local
         self.__variables.update(self.__global_variables)
         self.__types.update(self.__global_types)
+        self.__classes.update(self.__global_classes)
 
     def check_Module(self, node):
         return self.__check_module(node, is_base_module=True)
