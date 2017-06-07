@@ -1021,18 +1021,22 @@ class Inferer:
 
         # Initialize the properties of the class type
         body = node.body
-        vardecls = {}
+        attrs = {}
         funcdecls = {}
         funcdefs = {}
         for n in body:
             if isinstance(n, VarDeclStmt):
-                vardecls[n.name] = n.init
+                attrs[n.name] = n
             elif isinstance(n, Assign):
                 if not isinstance(n.left, Name):
                     raise RuntimeError("Expected a name for assigning to class attribute at {}".format(
                         n.left.loc(),
                     ))
-                vardecls[n.left.id] = n.right
+                attrs[n.left.id] = VarDecl(
+                    n.left.id,
+                    self.langtype_to_typemixin(self.infer(n.right)),
+                    n.right
+                )
             elif isinstance(n, FuncDecl):
                 funcdecls[n.name] = t
             elif isinstance(n, FuncDef):
@@ -1056,23 +1060,30 @@ class Inferer:
 
         assert set(funcdecls.keys()) == set(funcdefs.keys())
 
-        # Create the expacted lang code
-
         # Create the class struct
         struct_decl = self.check(StructDecl(Struct(
             func_typename,
-            #list(vardecls.values()) + [fd.as_var_decl() for fd in funcdecls.values()]
-            list(vardecls.values())
+
+            # Remove any inits
+            [VarDecl(p.name, p.type) for p in attrs.values()]
         )))
+
+        # Create the methods
+        methods = []
+        for name, funcdef in funcdefs.items():
+            funcdef.name = node.name + "_" + name
+            methods.append(self.check(funcdef))
 
         # Create the constructor function
         if "__init__" in funcdecls:
-            init_params = funcdecls["__init__"].params
+            init_params = funcdecls["__init__"].params[1:]
         else:
             init_params = []
+        init_args = [Name(p.name) for p in init_params]
 
         cls_ptr_type = Pointer(NameType(func_typename))
         constr_func_body = [
+            # Create the object
             VarDeclStmt(VarDecl(
                 "obj",
                 cls_ptr_type,
@@ -1083,7 +1094,24 @@ class Inferer:
                         [Call(Name("sizeof"), [Name(func_typename)])]
                     )
                 )
-            )),
+            ))
+        ]
+
+        # Set any default values
+        for name, vardecl in attrs.items():
+            init = vardecl.init
+            if init:
+                constr_func_body.append(Assign(
+                    StructPointerDeref(Name("obj"), name),
+                    init
+                ))
+
+        constr_func_body += [
+            # Initialize
+            ExprStmt(Call(Name(node.name + "___init__"),
+                          [Name("obj")] + init_args)),
+
+            # Return it
             Return(Name("obj")),
         ]
 
@@ -1106,14 +1134,8 @@ class Inferer:
             NameType("void"),
         ))
 
-        # Create the methods
-        methods = []
-        for name, funcdef in funcdefs.items():
-            funcdef.name = node.name + "_" + name
-            methods.append(funcdef)
-
         # Finalize the group
-        body = [struct_decl, constr_func, dtor_func] + list(map(self.check, methods))
+        body = [struct_decl] + methods + [constr_func, dtor_func]
         group = StmtGroup(body)
 
         # If the source file for this inferer was provided, dump the C code of

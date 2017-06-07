@@ -26,8 +26,8 @@ class TestExamples(unittest.TestCase):
     def test_fib(self):
         run_files(["examples/fib.cu"], stdout=subprocess.PIPE)
 
-    #def test_class(self):
-    #    run_files(["examples/class.cu"])
+    def test_class(self):
+        run_files(["examples/class.cu"])
 
 
 if __name__ == "__main__":
