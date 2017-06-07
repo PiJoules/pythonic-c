@@ -448,7 +448,7 @@ class Pointer(Node, TypeMixin):
         return hash(self.contents)
 
 
-class Deref(Node, ValueMixin):
+class Deref(Node, AssignableMixin):
     __attrs__ = ("value", )
     __types__ = {"value": ValueMixin}
 
