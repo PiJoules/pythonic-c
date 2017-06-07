@@ -124,7 +124,7 @@ def main(argc: int, argv: char**):
     # These are variable-lenght arrays.
     printf("Enter the array size: ")
     array_size: int 
-    fscanf(stdin, "%d", &array_size)
+    assert(fscanf(stdin, "%d", &array_size))
     var_length_array: int[array_size]
     printf("sizeof(var_length_array) in bytes: %zu\n", sizeof(var_length_array))
 

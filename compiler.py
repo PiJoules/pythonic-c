@@ -17,7 +17,8 @@ def create_c_file(source, ast):
     return c_fname
 
 
-def compile_c_sources(sources, asts, *, compiler="gcc", std="c11", output=None):
+def compile_c_sources(sources, asts, *, compiler="gcc", std="c11", output=None,
+                      optomize=2):
     # Keep only lang files
     c_sources = (s for s in sources if is_c_source(s))
     c_source_str = " ".join(c_sources)
@@ -28,8 +29,14 @@ def compile_c_sources(sources, asts, *, compiler="gcc", std="c11", output=None):
     if not output:
         output = "a.out"
 
+    if optomize:
+        optomize = "-O2"
+    else:
+        optomize = ""
+
     subprocess.run(
-        "{compiler} -std={std} -o {output} {c_source_str}".format(**locals()).split(),
+        "{compiler} -std={std} -o {output} {c_source_str} {optomize}"
+        .format(**locals()).split(),
         check=True,
     )
 
