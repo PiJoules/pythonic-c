@@ -1104,7 +1104,7 @@ class Inferer:
                     n.right
                 )
             elif isinstance(n, FuncDecl):
-                funcdecls[n.name] = t
+                funcdecls[n.name] = n
             elif isinstance(n, FuncDef):
                 if n.name in funcdecls:
                     # Check that the signatures are equal
@@ -1134,7 +1134,8 @@ class Inferer:
             func_typename,
 
             # Remove any inits
-            [VarDecl(p.name, p.type) for p in attrs.values()]
+            [VarDecl(p.name, p.type) for p in attrs.values()] +
+            [VarDecl(f.name, f.as_func_type()) for f in funcdecls.values()]
         )))
 
         # Create the methods
@@ -1174,6 +1175,12 @@ class Inferer:
                     StructPointerDeref(Name("obj"), name),
                     init
                 ))
+
+        for name, funcdecl in funcdecls.items():
+            constr_func_body.append(Assign(
+                StructPointerDeref(Name("obj"), name),
+                Name(node.name + "_" + name)
+            ))
 
         if "__init__" in funcdecls:
             constr_func_body += [

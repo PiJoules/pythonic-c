@@ -1,0 +1,15 @@
+#ifndef _OBJECT_H
+#define _OBJECT_H
+
+typedef struct Object Object;
+struct Object {
+    int x;
+    int (*func)();
+};
+
+int Object_func(Object* self);
+
+Object* new_Object();
+void del_Object(Object* self);
+
+#endif

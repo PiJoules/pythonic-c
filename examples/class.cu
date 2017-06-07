@@ -50,7 +50,9 @@ def main():
     p = new_Person("Jon")
     Person_print(p)
     p->print()
-    x = Person_print()
+    x = Person_print
+    x(p)
+    x = p->print 
     x(p)
     del_Person(p)
 
