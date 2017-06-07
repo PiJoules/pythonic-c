@@ -24,7 +24,8 @@ class Object:
         printf("<Object at %p>\n", self)
 
 
-class Person(Object):
+#class Person(Object):
+class Person:
     name: char* 
 
     def __init__(self: Person*, name: char*):
@@ -48,6 +49,9 @@ def main():
 
     p = new_Person("Jon")
     Person_print(p)
+    p->print()
+    x = Person_print()
+    x(p)
     del_Person(p)
 
     return 0

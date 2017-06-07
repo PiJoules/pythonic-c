@@ -901,9 +901,57 @@ class Inferer:
         self.bind_typedef(LangType(node.name), base_t)
         return node
 
+    def checkcall_Name(self, node):
+        return node
+
+    def checkcall_StructPointerDeref(self, node):
+        """Perform an intermediate check to see if calling a class method."""
+        args = node.args
+        func = node.func
+
+        value = func.value
+        member = func.member
+        value_t = self.infer(value)
+        final_value_t = self.exhaust_typedef_chain(value_t)
+
+        if not isinstance(final_value_t, PointerType):
+            # Not a pointer
+            return node
+
+        contents_t = final_value_t.contents
+        final_contents_t = self.exhaust_typedef_chain(contents_t)
+        cls_name = final_contents_t.name
+
+        if cls_name in self.__classes:
+            # Class calliing a method
+            return Call(
+                Name(cls_name + "_" + member),
+                [value] + args
+            )
+
+        return node
+
+    def check_Call(self, node):
+        func_node_name = type(node.func).__name__
+        return getattr(self, "checkcall_" + func_node_name)(node)
+
+    # TODO: Check for class types in these later
+    def check_Index(self, node):
+        return node
+
+    def check_PostInc(self, node):
+        return node
+
+    def check_PostDec(self, node):
+        return node
+
+    def check_LogicalOp(self, node):
+        return node
+
     def check_ExprStmt(self, node):
         if isinstance(node.value, Str):
             return Pass()
+        node.value = self.check(node.value)
         self.infer(node.value)
         return node
 
