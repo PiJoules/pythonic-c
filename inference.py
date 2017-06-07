@@ -734,7 +734,7 @@ class Inferer:
             expected_returns = expected_func_t.returns
             if node.returns:
                 returns_t = self.langtype_from(node.returns)
-                assert returns_t == expected_returns, "Expected {}. Found {}.".format(expected_returns, returns_t)
+                assert returns_t == expected_returns, "Expected {}. Found {}. ({})".format(expected_returns, returns_t, node.loc())
             returns = self.langtype_to_typemixin(expected_returns)
         else:
             # First instance of function
@@ -742,6 +742,9 @@ class Inferer:
             # For now, just make sure the function has variable declarations
             # as its arguments and a return type.
             self._assert_args_as_vardecls(node.params)
+
+            if not returns:
+                returns = NameType("int")
             assert isinstance(returns, TypeMixin)
 
             # Create this type
@@ -780,7 +783,7 @@ class Inferer:
         if self.var_exists(name):
             expected_t = self.lookup(name)
             if not self.types_eq(expected_t, right_t):
-                raise TypeError("Expected type {} for {}. Found {}.".format(expected_t, name, right_t))
+                raise TypeError("Expected type {} for {}. Found {} at {}.".format(expected_t, name, right_t, right.loc()))
             return node
         else:
             # First instance of this variable. Change to a VarDecl.
@@ -800,6 +803,21 @@ class Inferer:
                 self.langtype_to_typemixin(assign_t),
                 right
             )))
+
+    def checkassign_Deref(self, node):
+        left = node.left
+        right = node.right
+        right_t = self.infer(right)
+
+        # Get the pointer value
+        left_t = self.infer(left)
+        expected_t = self.exhaust_typedef_chain(left_t)
+        self.__check_assignable(
+            expected_t, right_t, right,
+            "Contents of {}".format(left_t)
+        )
+
+        return node
 
     def checkassign_StructPointerDeref(self, node):
         left = node.left
@@ -1026,7 +1044,7 @@ class Inferer:
         funcdefs = {}
         for n in body:
             if isinstance(n, VarDeclStmt):
-                attrs[n.name] = n
+                attrs[n.decl.name] = n.decl
             elif isinstance(n, Assign):
                 if not isinstance(n.left, Name):
                     raise RuntimeError("Expected a name for assigning to class attribute at {}".format(
@@ -1047,6 +1065,9 @@ class Inferer:
                     # Assert all params are VarDecls, return type is specified,
                     # and add the func to the class
                     self._assert_args_as_vardecls(n.params)
+
+                    if not n.returns:
+                        n.returns = NameType("int")
                     assert isinstance(n.returns, TypeMixin)
 
                     funcdecls[n.name] = n.as_func_decl()
@@ -1106,11 +1127,14 @@ class Inferer:
                     init
                 ))
 
-        constr_func_body += [
-            # Initialize
-            ExprStmt(Call(Name(node.name + "___init__"),
-                          [Name("obj")] + init_args)),
+        if "__init__" in funcdecls:
+            constr_func_body += [
+                # Initialize
+                ExprStmt(Call(Name(node.name + "___init__"),
+                              [Name("obj")] + init_args)),
+                ]
 
+        constr_func_body += [
             # Return it
             Return(Name("obj")),
         ]
@@ -1123,7 +1147,16 @@ class Inferer:
         ))
 
         # Create destructor function
-        dtor_func_body = [
+        if "__del__" in funcdecls:
+            # Call __del__
+            del_func = funcdecls["__del__"]
+            dtor_func_body = [ExprStmt(Call(
+                Name(node.name + "___del__"),
+                [Name("self")]
+            ))]
+        else:
+            dtor_func_body = []
+        dtor_func_body += [
             ExprStmt(Call(Name("free"), [Name("self")]))
         ]
 

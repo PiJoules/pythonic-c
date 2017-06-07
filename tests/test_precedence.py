@@ -186,6 +186,19 @@ x = [
             )
         )
 
+    def test_deref_and_index(self):
+        code = "(*x)[1]"
+        ast = code_to_ast(code)
+        self.assertEqual(
+            ast.body[0].value,
+            Index(
+                Deref(
+                    Name("x")
+                ),
+                Int(1)
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
