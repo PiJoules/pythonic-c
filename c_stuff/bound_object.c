@@ -18,9 +18,6 @@ int bound_func(Functor* functor){
 typedef int (*prep_func)(Object*);  // The prepared function that accepts the instance as the first arg 
 typedef int (*called_func)();  // The called function that is bound to the func member in the struct 
 
-called_func compose(prep_func func, Object* self){
-}
-
 void bind_func(Object* obj, int (*func)(Object* self)){
     obj->func = func;
 }
