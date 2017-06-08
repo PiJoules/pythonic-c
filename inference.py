@@ -94,6 +94,7 @@ class Inferer:
         self.__call_stack = call_stack or []
         self.__found_included_files = included_files or {}
         self.__extra_includes = extra_includes or set()
+        self.__bounded_methods = set()
 
         # The frame will change each time a new scope is entered
         self.__frames = []
@@ -418,7 +419,18 @@ class Inferer:
     def infer_StructPointerDeref(self, node):
         struct_t = self.exhaust_typedef_chain(self.infer(node.value).contents)
         assert isinstance(struct_t, StructType)
-        return struct_t.members[node.member]
+        member_t = struct_t.members[node.member]
+
+        if struct_t.name in self.__classes:
+            if isinstance(member_t, CallableType):
+                return CallableType(
+                    member_t.args,
+                    member_t.returns,
+                    is_bound=True,
+                    inst=node.value,
+                )
+
+        return member_t
 
     def infer_StructMemberAccess(self, node):
         struct_t = self.exhaust_typedef_chain(self.infer(node.value))
@@ -901,39 +913,62 @@ class Inferer:
         self.bind_typedef(LangType(node.name), base_t)
         return node
 
+    def check_Name(self, node):
+        if node.id in C_VARS:
+            c_header, module = C_VARS[node.id]
+            if c_header not in self.__extra_includes:
+                self.add_extra_c_header(c_header)
+                self.__check_builtin_module(module)
+            assert node.id in self.__variables
+            assert node.id in self.__global_variables
+        return node
+
     def checkcall_Name(self, node):
+        return node
+
+    def check_StructPointerDeref(self, node):
         return node
 
     def checkcall_StructPointerDeref(self, node):
         """Perform an intermediate check to see if calling a class method."""
-        args = node.args
-        func = node.func
+        #args = node.args
+        #func = node.func
 
-        value = func.value
-        member = func.member
-        value_t = self.infer(value)
-        final_value_t = self.exhaust_typedef_chain(value_t)
+        #value = func.value
+        #member = func.member
+        #value_t = self.infer(value)
+        #final_value_t = self.exhaust_typedef_chain(value_t)
 
-        if not isinstance(final_value_t, PointerType):
-            # Not a pointer
-            return node
+        #if not isinstance(final_value_t, PointerType):
+        #    # Not a pointer
+        #    return node
 
-        contents_t = final_value_t.contents
-        final_contents_t = self.exhaust_typedef_chain(contents_t)
-        cls_name = final_contents_t.name
+        #contents_t = final_value_t.contents
+        #final_contents_t = self.exhaust_typedef_chain(contents_t)
+        #cls_name = final_contents_t.name
 
-        if cls_name in self.__classes:
-            # Class calliing a method
-            return Call(
-                Name(cls_name + "_" + member),
-                [value] + args
-            )
+        #if cls_name in self.__classes:
+        #    # Class calliing a method
+        #    return Call(
+        #        Name(cls_name + "_" + member),
+        #        [value] + args
+        #    )
 
         return node
 
     def check_Call(self, node):
-        func_node_name = type(node.func).__name__
-        return getattr(self, "checkcall_" + func_node_name)(node)
+        #func_node_name = type(node.func).__name__
+        #return getattr(self, "checkcall_" + func_node_name)(node)
+        func = node.func
+        args = node.args
+
+        self.check(func)
+        func_t = self.infer(func)
+        if func_t.is_bound:
+            args.insert(0, func_t.inst)
+            #node.args.insert(0, func_t.inst)
+
+        return node
 
     # TODO: Check for class types in these later
     def check_Index(self, node):
@@ -1143,6 +1178,18 @@ class Inferer:
         for name, funcdef in funcdefs.items():
             funcdef.name = node.name + "_" + name
             methods.append(self.check(funcdef))
+
+        ## Change the type of all methods to BoundMethods
+        #for method in methods:
+        #    method_t = self.lookup(method.name)
+        #    method_t.is_bound = True
+        #    #bound_t = BoundMethod(
+        #    #    method_t.args,
+        #    #    method_t.returns,
+        #    #)
+        #    #self.__variables[method.name] = bound_t
+        #    #if not self.type_exists(bound_t):
+        #    #    self.add_type(bound_t)
 
         # Create the constructor function
         if "__init__" in funcdecls:

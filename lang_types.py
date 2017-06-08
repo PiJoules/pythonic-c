@@ -92,31 +92,42 @@ class ClassType(LangType):
         else:
             self.properties[prop] = t
 
-    #def __hash__(self):
-    #    return hash((
-    #        self.name, tuple(self.properties), tuple(self.type_params),
-    #        tuple(self.parents)
-    #    ))
-
 
 class CallableType(LangType):
     __attrs__ = ("args", "returns")
+    __extra_attrs__ = {"is_bound", "inst"}
     __types__ = {
         "args": [LangType],
-        "returns": LangType
+        "returns": LangType,
+        "is_bound": bool,
+        "inst": optional(ValueMixin)
+    }
+    __defaults__ = {
+        "is_bound": False,
+        "inst": None
     }
 
     def __init__(self, *args, **kwargs):
         super().__init__("callable", *args, **kwargs)
-
-    #def __hash__(self):
-    #    return hash((self.name, tuple(self.args), self.returns))
 
     def __str__(self):
         return "callable({}) -> {}".format(
             ", ".join(map(str, self.args)),
             self.returns
         )
+
+
+#class BoundMethod(CallableType):
+#    __extra_attrs__ = {"inst"}
+#    __types__ = {"inst": optional(ValueMixin)}
+#    __defaults__ = {"inst": None}
+#
+#    def __str__(self):
+#        return "callable({}) -> {} bound to {}".format(
+#            ", ".join(map(str, self.args)),
+#            self.returns,
+#            self.inst
+#        )
 
 
 # Initialize some base types since these will pretty much not change at all

@@ -59,19 +59,17 @@ def main():
     # also. When you check a Call whose func is of this callable type. Immediately prepend the node 
     # as the first argument.
     p->print()
-    x = Person_print
-    x(p)
 
     # x is now of the new callable type holding a reference to node Name("p").
     x = p->print  
 
     # Check the func and see it's just a name, but when the type is inferred, it is seen as the 
     # callable holding Name("p"). Prependt this node to the arg list.
-    x(p)
-
-    # Infer the RHS type as the altered callable which stores Name("p")
-    x = (*p).print 
-    x(p)
+    x()
+#
+#    # Infer the RHS type as the altered callable which stores Name("p")
+#    x = (*p).print 
+#    x(p)
 
     del_Person(p)
 
