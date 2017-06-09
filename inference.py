@@ -1165,18 +1165,6 @@ class Inferer:
             funcdef.name = node.name + "_" + name
             methods.append(self.check(funcdef))
 
-        ## Change the type of all methods to BoundMethods
-        #for method in methods:
-        #    method_t = self.lookup(method.name)
-        #    method_t.is_bound = True
-        #    #bound_t = BoundMethod(
-        #    #    method_t.args,
-        #    #    method_t.returns,
-        #    #)
-        #    #self.__variables[method.name] = bound_t
-        #    #if not self.type_exists(bound_t):
-        #    #    self.add_type(bound_t)
-
         # Create the constructor function
         if "__init__" in funcdecls:
             init_params = funcdecls["__init__"].params[1:]
