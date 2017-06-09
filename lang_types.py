@@ -111,10 +111,17 @@ class CallableType(LangType):
         super().__init__("callable", *args, **kwargs)
 
     def __str__(self):
-        return "callable({}) -> {}".format(
-            ", ".join(map(str, self.args)),
-            self.returns
-        )
+        if self.is_bound:
+            return "callable({}) -> {} bound to {}".format(
+                ", ".join(map(str, self.args)),
+                self.returns,
+                self.inst
+            )
+        else:
+            return "callable({}) -> {}".format(
+                ", ".join(map(str, self.args)),
+                self.returns
+            )
 
 
 #class BoundMethod(CallableType):

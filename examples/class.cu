@@ -66,10 +66,13 @@ def main():
     # Check the func and see it's just a name, but when the type is inferred, it is seen as the 
     # callable holding Name("p"). Prependt this node to the arg list.
     x()
-#
-#    # Infer the RHS type as the altered callable which stores Name("p")
-#    x = (*p).print 
-#    x(p)
+
+    # Infer the RHS type as the altered callable which stores Name("p")
+    x = (*p).print 
+    x()
+
+    y = (*p).print 
+    y()
 
     del_Person(p)
 

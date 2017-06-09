@@ -313,7 +313,9 @@ class Inferer:
         return_node = node.returns
         return CallableType(
             [self.langtype_from(p) for p in param_nodes],
-            self.langtype_from(return_node)
+            self.langtype_from(return_node),
+            is_bound=node.is_bound,
+            inst=node.inst,
         )
 
     def langtype_from_NameType(self, node):
@@ -323,12 +325,11 @@ class Inferer:
             # Exhaust any typedef chains
             return t
         elif node.id in C_TYPES:
-            result = self.__builtin_type_check(t)
+            return self.__builtin_type_check(t)
         elif node.id in self.__classes:
             return self.__classes[node.id]
         else:
             raise RuntimeError("type for name '{}' not previously declared".format(node.id))
-        return result
 
     def langtype_from_Pointer(self, node):
         return PointerType(self.langtype_from(node.contents))
@@ -357,7 +358,9 @@ class Inferer:
         elif isinstance(t, CallableType):
             return FuncType(
                 [self.langtype_to_typemixin(a) for a in t.args],
-                self.langtype_to_typemixin(t.returns)
+                self.langtype_to_typemixin(t.returns),
+                is_bound=t.is_bound,
+                inst=t.inst,
             )
         elif t == VARARG_TYPE:
             return Ellipsis()
@@ -417,7 +420,8 @@ class Inferer:
         return NULL_TYPE
 
     def infer_StructPointerDeref(self, node):
-        struct_t = self.exhaust_typedef_chain(self.infer(node.value).contents)
+        struct_t = self.exhaust_typedef_chain(
+            self.exhaust_typedef_chain(self.infer(node.value)).contents)
         assert isinstance(struct_t, StructType)
         member_t = struct_t.members[node.member]
 
@@ -435,7 +439,20 @@ class Inferer:
     def infer_StructMemberAccess(self, node):
         struct_t = self.exhaust_typedef_chain(self.infer(node.value))
         assert isinstance(struct_t, StructType)
-        return struct_t.members[node.member]
+        member_t = struct_t.members[node.member]
+
+        if struct_t.name in self.__classes:
+            if isinstance(member_t, CallableType):
+                # Value is the struct and not a pointer, so will need to
+                # adderess-of it.
+                return CallableType(
+                    member_t.args,
+                    member_t.returns,
+                    is_bound=True,
+                    inst=AddressOf(node.value),
+                )
+
+        return member_t
 
     def dominant_base_type(self, t1, t2):
         """
@@ -810,9 +827,11 @@ class Inferer:
                 # pointer
                 assign_t = PointerType(right_t.contents)
 
+            assign_node_t = self.langtype_to_typemixin(assign_t)
+
             return self.check(VarDeclStmt(VarDecl(
                 name,
-                self.langtype_to_typemixin(assign_t),
+                assign_node_t,
                 right
             )))
 

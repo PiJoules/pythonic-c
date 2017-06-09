@@ -329,9 +329,16 @@ class FuncDecl(Node, StmtMixin):
 
 class FuncType(Node, TypeMixin):
     __attrs__ = ("params", "returns")
+    __extra_attrs__ = {"is_bound", "inst"}
     __types__ = {
         "params": [(TypeMixin, Ellipsis)],
-        "returns": TypeMixin
+        "returns": TypeMixin,
+        "is_bound": bool,
+        "inst": optional(ValueMixin),
+    }
+    __defaults__ = {
+        "is_bound": False,
+        "inst": None
     }
 
     def lines(self):
