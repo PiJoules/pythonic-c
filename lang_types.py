@@ -124,19 +124,6 @@ class CallableType(LangType):
             )
 
 
-#class BoundMethod(CallableType):
-#    __extra_attrs__ = {"inst"}
-#    __types__ = {"inst": optional(ValueMixin)}
-#    __defaults__ = {"inst": None}
-#
-#    def __str__(self):
-#        return "callable({}) -> {} bound to {}".format(
-#            ", ".join(map(str, self.args)),
-#            self.returns,
-#            self.inst
-#        )
-
-
 # Initialize some base types since these will pretty much not change at all
 CHAR_TYPE = LangType("char")
 SHORT_TYPE = LangType("short")

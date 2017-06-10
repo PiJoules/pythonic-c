@@ -24,14 +24,13 @@ class Frame:
         self.__types = types
         self.__classes = classes
 
-    def variables(self):
-        return self.__variables
-
-    def types(self):
-        return self.__types
-
     def classes(self):
         return self.__classes
+
+    # Variables interface
+
+    def variables(self):
+        return self.__variables
 
     def lookup(self, varname):
         """Lookup in parent frames."""
@@ -42,6 +41,31 @@ class Frame:
             return self.__parent.lookup(varname)
 
         raise KeyError("Unknown variable '{}'".format(varname))
+
+    def var_exists(self, varname):
+        try:
+            self.lookup(varname)
+        except KeyError:
+            return False
+        else:
+            return True
+
+    # Types interface
+
+    def types(self):
+        return self.__types
+
+    def exhaust_typedef(self, t):
+        if isinstance(typedef_t, (PointerType, ArrayType)):
+            return typedef_t
+
+        types = self.__types
+        actual_t = types[typedef_t]
+        while actual_t is not None:
+            # Actual is another typedef
+            typedef_t = actual_t
+            actual_t = types[typedef_t]
+        return typedef_t
 
     def parent(self):
         return self.__parent
@@ -256,7 +280,7 @@ class Inferer:
 
     def types_eq(self, t1, t2):
         """Check if two types are equal."""
-        return self.exhaust_typedef_chain(t1) == self.exhaust_typedef_chain(t2)
+        return self.exhaust_typedef(t1) == self.exhaust_typedef(t2)
 
     def add_type(self, new_type):
         """
@@ -273,7 +297,7 @@ class Inferer:
         self.assert_type_not_exists(typename)
         self.__types[typename] = base_t
 
-    def exhaust_typedef_chain(self, typedef_t):
+    def exhaust_typedef(self, typedef_t):
         """
         Given a LangType, traverse the known types until we hit a value of None,
         indicating the type used as a key is a base type.
@@ -309,11 +333,9 @@ class Inferer:
         return self.__call_node_method(node, "langtype_from", expected=LangType)
 
     def langtype_from_FuncType(self, node):
-        param_nodes = node.params
-        return_node = node.returns
         return CallableType(
-            [self.langtype_from(p) for p in param_nodes],
-            self.langtype_from(return_node),
+            [self.langtype_from(p) for p in node.params],
+            self.langtype_from(node.returns),
             is_bound=node.is_bound,
             inst=node.inst,
         )
@@ -375,10 +397,7 @@ class Inferer:
         return self.__call_node_method(node, "infer", expected=LangType)
 
     def infer_Cast(self, node):
-        self.infer(node.expr)
-        t = self.langtype_from(node.target_type)
-        self.assert_type_exists(t)
-        return t
+        return self.langtype_from(node.target_type)
 
     def infer_Call(self, node):
         func = node.func
@@ -389,22 +408,8 @@ class Inferer:
             # The arguments of sizeof are not evaluated
             return self.__builtin_type_check(SIZE_TYPE)
 
-        # Evaluate the args
-        for arg in node.args:
-            self.infer(arg)
-
-        # Check builtin functions
-        # Perform if the function is a builtin one and not previously declared
-        if isinstance(func, Name) and func.id in C_VARS:
-            c_header, module = C_VARS[func.id]
-            if c_header not in self.__extra_includes:
-                self.add_extra_c_header(c_header)
-                self.__check_builtin_module(module)
-            assert func.id in self.__variables
-            assert func.id in self.__global_variables
-
         func_t = self.infer(func)
-        expanded_t = self.exhaust_typedef_chain(func_t)
+        expanded_t = self.exhaust_typedef(func_t)
         return expanded_t.returns
 
     def infer_Int(self, node):
@@ -420,8 +425,8 @@ class Inferer:
         return NULL_TYPE
 
     def infer_StructPointerDeref(self, node):
-        struct_t = self.exhaust_typedef_chain(
-            self.exhaust_typedef_chain(self.infer(node.value)).contents)
+        struct_t = self.exhaust_typedef(
+            self.exhaust_typedef(self.infer(node.value)).contents)
         assert isinstance(struct_t, StructType)
         member_t = struct_t.members[node.member]
 
@@ -437,7 +442,7 @@ class Inferer:
         return member_t
 
     def infer_StructMemberAccess(self, node):
-        struct_t = self.exhaust_typedef_chain(self.infer(node.value))
+        struct_t = self.exhaust_typedef(self.infer(node.value))
         assert isinstance(struct_t, StructType)
         member_t = struct_t.members[node.member]
 
@@ -472,7 +477,7 @@ class Inferer:
             return INT_TYPE
 
     def type_is_pointer(self, t):
-        return isinstance(self.exhaust_typedef_chain(t), PointerType)
+        return isinstance(self.exhaust_typedef(t), PointerType)
 
     # TODO: Clean this up and also take into account typedef chains
     def infer_BinOp(self, node):
@@ -515,10 +520,10 @@ class Inferer:
         return self.infer_IntegralOp(node)
 
     def type_is_integeral(self, t):
-        return is_integral_type(self.exhaust_typedef_chain(t))
+        return is_integral_type(self.exhaust_typedef(t))
 
     def type_is_numeric(self, t):
-        return is_numeric_type(self.exhaust_typedef_chain(t))
+        return is_numeric_type(self.exhaust_typedef(t))
 
     def infer_IntegralOp(self, node):
         left_t = self.infer(node.left)
@@ -561,7 +566,7 @@ class Inferer:
         return ArrayType(base_t, Int(len(content_ts)))
 
     def type_is_container(self, t):
-        return is_container_type(self.exhaust_typedef_chain(t))
+        return is_container_type(self.exhaust_typedef(t))
 
     def infer_Index(self, node):
         value = node.value
@@ -574,7 +579,7 @@ class Inferer:
         if not self.__can_implicit_cast(SIZE_TYPE, index_t):
             raise TypeError("Cannot index with type '{}'".format(index_t))
 
-        return self.exhaust_typedef_chain(value_t).contents
+        return self.exhaust_typedef(value_t).contents
 
     def infer_Str(self, node):
         if isinstance(node, Str):
@@ -586,8 +591,6 @@ class Inferer:
         return PointerType(self.infer(node.value))
 
     def infer_LogicalOp(self, node):
-        self.infer(node.left)
-        self.infer(node.right)
         return INT_TYPE
 
     def infer_UnaryOp(self, node):
@@ -608,9 +611,8 @@ class Inferer:
         if not self.type_is_pointer(value_t):
             raise TypeError("Attempting to dereference {} which is of type {} and not a pointer.".format(value, value_t))
 
-        contents_t = self.exhaust_typedef_chain(value_t).contents
-        final_contents_t = self.exhaust_typedef_chain(contents_t)
-        if final_contents_t == VOID_TYPE:
+        contents_t = self.exhaust_typedef(value_t).contents
+        if self.types_eq(contents_t, VOID_TYPE):
             raise TypeError("Cannot derefernce a void pointer ({})".format(value))
 
         return contents_t
@@ -644,7 +646,16 @@ class Inferer:
             self.assert_type_exists(t)
         return node
 
+    def check_Ellipsis(self, node):
+        return node
+
     def check_FuncDecl(self, node):
+        node = FuncDecl(
+            node.name,
+            node.params,  # DO NOT NEED TO CHECK THE FUNCTION ARGUMENTS
+            self.check(node.returns),
+        )
+
         func_t = self.langtype_from(node.as_func_type())
         self.assert_type_exists(func_t.returns)
         for param in func_t.args:
@@ -813,6 +824,14 @@ class Inferer:
             expected_t = self.lookup(name)
             if not self.types_eq(expected_t, right_t):
                 raise TypeError("Expected type {} for {}. Found {} at {}.".format(expected_t, name, right_t, right.loc()))
+
+            expected_t = self.exhaust_typedef(expected_t)
+            right_t = self.exhaust_typedef(right_t)
+
+            if isinstance(expected_t, CallableType):
+                expected_t.is_bound = right_t.is_bound
+                expected_t.inst = right_t.inst
+
             return node
         else:
             # First instance of this variable. Change to a VarDecl.
@@ -842,11 +861,16 @@ class Inferer:
 
         # Get the pointer value
         left_t = self.infer(left)
-        expected_t = self.exhaust_typedef_chain(left_t)
+        expected_t = self.exhaust_typedef(left_t)
         self.__check_assignable(
             expected_t, right_t, right,
             "Contents of {}".format(left_t)
         )
+
+        # Pass callable inst
+        right_t = self.exhaust_typedef(right_t)
+        if isinstance(expected_t, CallableType):
+            self.copy_inst(expected_t, right_t)
 
         return node
 
@@ -860,15 +884,22 @@ class Inferer:
         member = left.member
 
         value_t = self.infer(value)
-        final_value_t = self.exhaust_typedef_chain(value_t)  # Struct pointer
+        final_value_t = self.exhaust_typedef(value_t)  # Struct pointer
         contents_t = final_value_t.contents
-        struct_t = self.exhaust_typedef_chain(contents_t)  # Struct
+        struct_t = self.exhaust_typedef(contents_t)  # Struct
         expected_t = struct_t.members[member]
 
         # See if can assign
         self.__check_assignable(
             expected_t, right_t, right,
-            "member {} of struct {}".format(member, struct_t.name))
+            "member {} of struct {}".format(member, struct_t.name)
+        )
+
+        # Pass callable inst
+        right_t = self.exhaust_typedef(right_t)
+        expected_t = self.exhaust_typedef(expected_t)
+        if isinstance(expected_t, CallableType):
+            self.copy_inst(expected_t, right_t)
 
         return node
 
@@ -882,15 +913,26 @@ class Inferer:
         member = left.member
 
         value_t = self.infer(value)
-        struct_t = self.exhaust_typedef_chain(value_t)  # Struct
+        struct_t = self.exhaust_typedef(value_t)  # Struct
         expected_t = struct_t.members[member]
 
         # See if can assign
         self.__check_assignable(
             expected_t, right_t, right,
-            "member {} of struct {}".format(member, struct_t.name))
+            "member {} of struct {}".format(member, struct_t.name)
+        )
+
+        # Pass callable inst
+        right_t = self.exhaust_typedef(right_t)
+        expected_t = self.exhaust_typedef(expected_t)
+        if isinstance(expected_t, CallableType):
+            self.copy_inst(expected_t, right_t)
 
         return node
+
+    def copy_inst(self, c1, c2):
+        c1.is_bound = c2.is_bound
+        c1.inst = c2.inst
 
     def checkassign_Index(self, node):
         left = node.left
@@ -899,26 +941,35 @@ class Inferer:
 
         # Get the array and check the contents
         value = left.value
-        self.infer(left.index)
 
         value_t = self.infer(value)
-        container_t = self.exhaust_typedef_chain(value_t)  # Pointer/Array
-        expected_t = self.exhaust_typedef_chain(container_t.contents)
+        container_t = self.exhaust_typedef(value_t)  # Pointer/Array
+        expected_t = self.exhaust_typedef(container_t.contents)
 
         # See if can assign
         self.__check_assignable(
             expected_t, right_t, right,
             "contents of pointer/array {}".format(value)
         )
+
+        # Pass callable inst
+        right_t = self.exhaust_typedef(right_t)
+        if isinstance(expected_t, CallableType):
+            self.copy_inst(expected_t, right_t)
+
         return node
 
     def check_Assign(self, node):
+        node = Assign(
+            self.check(node.left),
+            self.check(node.right)
+        )
+
         left_node_name = type(node.left).__name__
         return getattr(self, "checkassign_" + left_node_name)(node)
 
     def check_Return(self, node):
-        self.infer(node.value)
-        return node
+        return Return(self.check(node.value))
 
     def check_Ifndef(self, node):
         return node
@@ -927,10 +978,31 @@ class Inferer:
         return node
 
     def check_TypeDefStmt(self, node):
+        node = TypeDefStmt(
+            self.check(node.type),
+            node.name
+        )
+
         base_t = self.langtype_from(node.type)
         self.assert_type_exists(base_t)
         self.bind_typedef(LangType(node.name), base_t)
         return node
+
+    def check_BinOp(self, node):
+        return BinOp(
+            self.check(node.left),
+            node.op,
+            self.check(node.right),
+        )
+
+    def check_UnaryOp(self, node):
+        return UnaryOp(
+            node.op,
+            self.check(node.value)
+        )
+
+    def check_ArrayLiteral(self, node):
+        return ArrayLiteral([self.check(n) for n in node.contents])
 
     def check_Name(self, node):
         if node.id in C_VARS:
@@ -946,11 +1018,19 @@ class Inferer:
         return node
 
     def check_Call(self, node):
+        node = Call(
+            self.check(node.func),
+            [self.check(a) for a in node.args]
+        )
+
         func = node.func
         args = node.args
 
-        self.check(func)
-        func_t = self.infer(func)
+        if isinstance(func, Name) and func.id == "sizeof":
+            # The contents of sizeof do not get evaluated
+            return node
+
+        func_t = self.exhaust_typedef(self.infer(func))
         if func_t.is_bound:
             args.insert(0, func_t.inst)
 
@@ -958,42 +1038,71 @@ class Inferer:
 
     # TODO: Check for class types in these later
     def check_Index(self, node):
-        return node
+        return Index(
+            self.check(node.value),
+            self.check(node.index)
+        )
 
     def check_PostInc(self, node):
-        return node
+        return PostInc(self.check(node.value))
 
     def check_PostDec(self, node):
-        return node
+        return PostDec(self.check(node.value))
+
+    def check_PreInc(self, node):
+        return PreInc(self.check(node.value))
+
+    def check_PreDec(self, node):
+        return PreDec(self.check(node.value))
 
     def check_LogicalOp(self, node):
+        return LogicalOp(
+            self.check(node.left),
+            node.op,
+            self.check(node.right),
+        )
+
+    def check_IntegralOp(self, node):
+        return IntegralOp(
+            self.check(node.left),
+            node.op,
+            self.check(node.right),
+        )
+
+    def check_BitwiseOp(self, node):
+        return BitwiseOp(
+            self.check(node.left),
+            node.op,
+            self.check(node.right),
+        )
+
+    def check_Null(self, node):
         return node
 
     def check_ExprStmt(self, node):
         if isinstance(node.value, Str):
+            # String comment
             return Pass()
-        node.value = self.check(node.value)
-        self.infer(node.value)
-        return node
+        return ExprStmt(self.check(node.value))
 
     def __check_assignable(self, expected_t, value_t, value_node, varname):
-        expected_t = self.exhaust_typedef_chain(expected_t)
-        value_t = self.exhaust_typedef_chain(value_t)
+        expected_t = self.exhaust_typedef(expected_t)
+        value_t = self.exhaust_typedef(value_t)
 
         # Array literals to arrays of anything
-        if isinstance(value_node, ArrayLiteral):
-            return isinstance(expected_t, ArrayType)
+        if isinstance(value_node, ArrayLiteral) and isinstance(expected_t, ArrayType):
+            return
 
-        if isinstance(value_t, ArrayType):
-            return isinstance(expected_t, PointerType)
+        if isinstance(value_t, ArrayType) and isinstance(expected_t, PointerType):
+            return
 
         # Null to pointer
         if isinstance(expected_t, PointerType) and value_t == NULL_TYPE:
-            return True
+            return
 
         # Void pointer to any pointer
         if isinstance(expected_t, PointerType) and value_t == PointerType(VOID_TYPE):
-            return True
+            return
 
         if expected_t != value_t and not self.__can_implicit_cast(expected_t, value_t):
             raise TypeError("Expected type {} for {}. Could not implicitely assign {} to {}.".format(expected_t, varname, value_t, expected_t))
@@ -1007,11 +1116,64 @@ class Inferer:
         if target_t == SIZE_TYPE or value_t == SIZE_TYPE:
             self.__builtin_type_check(SIZE_TYPE)
         return can_implicit_assign(
-            self.exhaust_typedef_chain(target_t),
-            self.exhaust_typedef_chain(value_t),
+            self.exhaust_typedef(target_t),
+            self.exhaust_typedef(value_t),
         )
 
+    def check_NameType(self, node):
+        return node
+
+    def check_Array(self, node):
+        return Array(
+            self.check(node.contents),
+            self.check(node.size)
+        )
+
+    def check_Str(self, node):
+        return node
+
+    def check_Pointer(self, node):
+        return Pointer(self.check(node.contents))
+
+    def check_Cast(self, node):
+        return Cast(
+            self.check(node.target_type),
+            self.check(node.expr)
+        )
+
+    def check_FuncType(self, node):
+        return FuncType(
+            [self.check(p) for p in node.params],
+            self.check(node.returns),
+            is_bound=node.is_bound,
+            inst=self.check(node.inst) if node.inst else node.inst
+        )
+
+    def check_AddressOf(self, node):
+        return AddressOf(self.check(node.value))
+
+    def check_Deref(self, node):
+        return Deref(self.check(node.value))
+
+    def check_StructMemberAccess(self, node):
+        return StructMemberAccess(
+            self.check(node.value),
+            node.member
+        )
+
+    def check_Char(self, node):
+        return node
+
+    def check_Float(self, node):
+        return node
+
     def check_VarDecl(self, node):
+        node = VarDecl(
+            node.name,
+            self.check(node.type),
+            self.check(node.init) if node.init else node.init
+        )
+
         node_t = self.langtype_from(node.type)
 
         self.assert_type_exists(node_t)
@@ -1027,6 +1189,14 @@ class Inferer:
             init_t = self.infer(init)
             self.__check_assignable(node_t, init_t, init, name)
 
+            node_t = self.exhaust_typedef(node_t)
+            init_t = self.exhaust_typedef(init_t)
+
+            # Pass any bounded instances
+            if isinstance(node_t, CallableType):
+                node_t.is_bound = init_t.is_bound
+                node_t.inst = init_t.inst
+
         # Add variable
         self.bind(name, node_t)
         return node
@@ -1035,24 +1205,21 @@ class Inferer:
         return VarDeclStmt(self.check(node.decl))
 
     def check_While(self, node):
-        self.infer(node.test)
         return While(
-            node.test,
+            self.check(node.test),
             [self.check(n) for n in node.body],
             [self.check(n) for n in node.orelse],
         )
 
     def check_DoWhile(self, node):
-        self.infer(node.test)
         return DoWhile(
-            node.test,
+            self.check(node.test),
             [self.check(n) for n in node.body]
         )
 
     def check_If(self, node):
-        self.infer(node.test)
         return If(
-            node.test,
+            self.check(node.test),
             [self.check(n) for n in node.body],
             [self.check(n) for n in node.orelse]
         )
@@ -1068,19 +1235,19 @@ class Inferer:
         return node
 
     def check_Switch(self, node):
-        self.infer(node.test)
         return Switch(
-            node.test,
+            self.check(node.test),
             [self.check(n) for n in node.cases]
         )
 
     def check_Case(self, node):
-        for test in node.tests:
-            self.infer(test)
         return Case(
-            node.tests,
+            [self.check(t) for t in node.tests],
             [self.check(n) for n in node.body]
         )
+
+    def check_Int(self, node):
+        return node
 
     def check_Break(self, node):
         return node

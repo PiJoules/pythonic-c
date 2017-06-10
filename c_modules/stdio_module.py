@@ -26,7 +26,7 @@ STDIO_MODULE = Module([
     FuncDecl(
         "fscanf",
         [
-            VarDecl("fscanf", Pointer(NameType("FILE"))),
+            VarDecl("stream", Pointer(NameType("FILE"))),
             VarDecl("format", Pointer(NameType("char"))),
         ],
         NameType("void")

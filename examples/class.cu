@@ -24,8 +24,8 @@ class Object:
         printf("<Object at %p>\n", self)
 
 
-class Person(Object):
-#class Person:
+#class Person(Object):
+class Person:
     name: char* 
 
     def __init__(self: Person*, name: char*):
@@ -71,8 +71,13 @@ def main():
     x = (*p).print 
     x()
 
+    # Assign with deref
     y = (*p).print 
     y()
+
+    # Assign with declaration
+    x2: (Person*) -> int = p->print 
+    x2()
 
     del_Person(p)
 

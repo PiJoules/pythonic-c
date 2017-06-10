@@ -4,7 +4,7 @@
 int main(){
     Object* obj = new_Object();
     obj->x = 100;
-    printf("%d\n", obj->func());
+    printf("%d\n", obj->func(obj));
     del_Object(obj);
     return 0;
 }
